@@ -19,7 +19,7 @@ import jakarta.ws.rs.core.MediaType;
 public class MeController {
 
     @Inject
-    CurrentUser currentUser;
+    CurrentUser currentUserResolver;
 
     @Inject
     UserMapper userMapper;
@@ -28,7 +28,7 @@ public class MeController {
     @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     public MeResponse me() {
-        AppUser user = currentUser.require();
-        return userMapper.toMeResponse(user);
+        AppUser currentUser = currentUserResolver.require();
+        return userMapper.toMeResponse(currentUser);
     }
 }

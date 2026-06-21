@@ -1,7 +1,10 @@
 package com.suivibaby.entity;
 
+import com.suivibaby.model.Sex;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -26,7 +29,9 @@ public class Baby {
     @Column(name = "birth_date")
     public LocalDate birthDate;
 
-    public String sex;
+    /** Optional. Stored as TEXT ("male"/"female"); validated by the enum, not by a DB CHECK (D2-F). */
+    @Enumerated(EnumType.STRING)
+    public Sex sex;
 
     @Column(name = "created_at", nullable = false)
     public Instant createdAt;

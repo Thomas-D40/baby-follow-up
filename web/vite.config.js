@@ -11,4 +11,11 @@ export default defineConfig({
       '/q': 'http://localhost:8080',
     },
   },
+  // Vitest (Épic 2, D2-A): jsdom + Testing-Library. e2e is Playwright, excluded here.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+    exclude: ['node_modules', 'e2e', 'dist'],
+  },
 })

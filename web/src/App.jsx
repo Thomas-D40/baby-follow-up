@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchMe, logout } from './api'
 import LoginScreen from './screens/LoginScreen'
 import ActivationScreen from './screens/ActivationScreen'
+import BabiesScreen from './screens/BabiesScreen'
 
 export default function App() {
   const queryClient = useQueryClient()
@@ -29,15 +30,7 @@ export default function App() {
     queryClient.invalidateQueries({ queryKey: ['me'] })
   }
 
-  return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}>
-      <h1>Suivi Baby</h1>
-      <p>Connecté en tant que <strong>{me.firstName || me.email}</strong> ({me.role}).</p>
-      <p style={{ color: '#888' }}>Les écrans de suivi (bébé, biberon, sieste…) arrivent aux épics suivants.</p>
-      <button onClick={handleLogout} style={logoutBtn}>Se déconnecter</button>
-    </main>
-  )
+  return <BabiesScreen me={me} onLogout={handleLogout} />
 }
 
 const center = { textAlign: 'center', marginTop: '4rem', fontFamily: 'system-ui, sans-serif' }
-const logoutBtn = { padding: '.5rem 1rem', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }
