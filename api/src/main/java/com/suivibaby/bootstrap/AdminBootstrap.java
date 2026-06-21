@@ -40,7 +40,7 @@ public class AdminBootstrap {
     Optional<String> plainPassword;
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     void onStart(@Observes StartupEvent event) {
         ensureAdmin();
@@ -57,7 +57,7 @@ public class AdminBootstrap {
             Log.info("Admin bootstrap: no app.bootstrap.admin-email configured, skipped.");
             return false;
         }
-        if (users.findByEmail(adminEmail) != null) {
+        if (appUserRepository.findByEmail(adminEmail) != null) {
             return false; // idempotent: admin already present
         }
 
@@ -74,7 +74,7 @@ public class AdminBootstrap {
         admin.role = "admin";
         admin.passwordHash = hash;
         admin.createdAt = Instant.now();
-        users.persist(admin);
+        appUserRepository.persist(admin);
         Log.infof("Admin bootstrap '%s' created.", adminEmail);
         return true;
     }

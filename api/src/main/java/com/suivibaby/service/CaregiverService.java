@@ -18,29 +18,29 @@ import java.util.UUID;
 public class CaregiverService {
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     @Inject
-    BabyRepository babies;
+    BabyRepository babyRepository;
 
     @Inject
-    BabyCaregiverRepository caregivers;
+    BabyCaregiverRepository babyCaregiverRepository;
 
     /**
      * Links a parent to a baby. Idempotent. 404 if the parent or the baby does not exist.
      */
     @Transactional
     public void link(UUID userId, UUID babyId) {
-        if (users.findById(userId) == null) {
+        if (appUserRepository.findById(userId) == null) {
             throw new NotFoundException("Utilisateur introuvable.");
         }
-        if (babies.findById(babyId) == null) {
+        if (babyRepository.findById(babyId) == null) {
             throw new NotFoundException("Bébé introuvable.");
         }
-        caregivers.linkIdempotent(userId, babyId);
+        babyCaregiverRepository.linkIdempotent(userId, babyId);
     }
 
     public boolean isLinked(UUID userId, UUID babyId) {
-        return caregivers.isLinked(userId, babyId);
+        return babyCaregiverRepository.isLinked(userId, babyId);
     }
 }

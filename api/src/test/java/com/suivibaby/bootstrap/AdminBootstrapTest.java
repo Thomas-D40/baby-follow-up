@@ -18,15 +18,15 @@ class AdminBootstrapTest {
     static final String ADMIN_EMAIL = "admin@suivibaby.local";
 
     @Inject
-    AdminBootstrap bootstrap;
+    AdminBootstrap adminBootstrap;
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     @Test
     @Transactional
     void admin_existe_apres_demarrage() {
-        AppUser admin = users.findByEmail(ADMIN_EMAIL);
+        AppUser admin = appUserRepository.findByEmail(ADMIN_EMAIL);
         assertNotNull(admin, "le hook de démarrage doit avoir créé l'admin");
         assertEquals("admin", admin.role);
         assertNotNull(admin.passwordHash, "l'admin amorcé a un mot de passe (court-circuite l'activation)");
@@ -35,11 +35,11 @@ class AdminBootstrapTest {
     @Test
     @Transactional
     void ensureAdmin_est_idempotent() {
-        long before = users.countByEmail(ADMIN_EMAIL);
+        long before = appUserRepository.countByEmail(ADMIN_EMAIL);
         assertEquals(1, before);
 
-        boolean created = bootstrap.ensureAdmin();
+        boolean created = adminBootstrap.ensureAdmin();
         assertFalse(created, "no-op si l'admin est déjà présent");
-        assertEquals(1, users.countByEmail(ADMIN_EMAIL), "pas de doublon");
+        assertEquals(1, appUserRepository.countByEmail(ADMIN_EMAIL), "pas de doublon");
     }
 }

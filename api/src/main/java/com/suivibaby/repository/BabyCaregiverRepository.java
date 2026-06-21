@@ -16,7 +16,7 @@ public class BabyCaregiverRepository implements PanacheRepositoryBase<BabyCaregi
         return count("appUserId = ?1 and babyId = ?2", appUserId, babyId) > 0;
     }
 
-    public List<UUID> babyIdsOf(UUID appUserId) {
+    public List<UUID> findBabyIdsByUserId(UUID appUserId) {
         return find("appUserId", appUserId).stream().map(bc -> bc.babyId).toList();
     }
 

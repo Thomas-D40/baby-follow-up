@@ -22,12 +22,12 @@ import jakarta.ws.rs.core.Response;
 public class ActivationController {
 
     @Inject
-    ActivationService activation;
+    ActivationService activationService;
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     public Response activate(@Valid ActivationRequest request) {
-        activation.activate(request.token(), request.password());
+        activationService.activate(request.token(), request.password());
         return Response.noContent().build(); // 204
     }
 
@@ -35,7 +35,7 @@ public class ActivationController {
     @GET
     @Path("/{token}")
     public Response check(@PathParam("token") String token) {
-        activation.checkUsable(token);
+        activationService.checkUsable(token);
         return Response.noContent().build();
     }
 }

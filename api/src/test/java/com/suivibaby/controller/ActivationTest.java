@@ -29,7 +29,7 @@ class ActivationTest {
     TestDataFactory data;
 
     @Inject
-    ActivationService activation;
+    ActivationService activationService;
 
     private UUID activeToken(UUID userId) {
         return data.createToken(userId, Instant.now().plus(7, ChronoUnit.DAYS), null);
@@ -86,7 +86,7 @@ class ActivationTest {
             UUID oldToken = activeToken(userId);
 
             // Regeneration: invalidates the previous one and issues a new token.
-            UUID newToken = activation.issueToken(userId);
+            UUID newToken = activationService.issueToken(userId);
 
             assertTrue(data.tokenConsumed(oldToken), "l'ancien jeton doit être invalidé");
             postActivation(oldToken, VALID_PASSWORD).then().statusCode(410);
