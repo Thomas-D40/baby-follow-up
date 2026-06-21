@@ -42,4 +42,37 @@ public class NapRepository implements PanacheRepositoryBase<Nap, UUID> {
                 + "order by startAt desc, id desc", babyId, beforeTime, beforeId)
                 .page(0, limit).list();
     }
+
+    /**
+     * Siestes chevauchant un jour (Épic 6, US6.1) : <strong>overlap</strong>
+     * {@code start_at < to AND (end_at > from OR end_at IS NULL)} (D6-C) — une sieste de nuit apparaît
+     * sur <em>tous</em> les jours qu'elle chevauche, pas seulement son jour de début. Triées
+     * {@code start_at ASC, id ASC}. Borne basse ouverte sur {@code start_at} (range scan moins serré, R1) :
+     * acceptable (table {@code nap} modeste), et on ne plancher pas {@code start_at} (exclurait une sieste
+     * ouverte oubliée qu'on veut compter — D6-G).
+     */
+    public List<Nap> listForDay(UUID babyId, Instant from, Instant to) {
+        return find("babyId = ?1 and startAt < ?3 and (endAt is null or endAt > ?2) "
+                + "order by startAt asc, id asc", babyId, from, to).list();
+    }
+
+    /**
+     * Minutes de sommeil du jour {@code [from, to)} (US6.3), <strong>clippées</strong> à la fenêtre du
+     * jour (D6-F) : {@code LEAST(COALESCE(end_at, now()), to) − GREATEST(start_at, from)} sur les siestes
+     * en overlap. Sieste en cours comptée jusqu'à {@code now()} (D6-G). {@code 0} si aucune sieste.
+     * SQL pur (TIMESTAMPTZ + {@code now()} homogènes).
+     */
+    public long sleepMinutesForDay(UUID babyId, Instant from, Instant to) {
+        Number minutes = (Number) getEntityManager()
+                .createNativeQuery("SELECT COALESCE(SUM(EXTRACT(EPOCH FROM ("
+                        + "LEAST(COALESCE(end_at, now()), ?3) - GREATEST(start_at, ?2)"
+                        + ")) / 60), 0) "
+                        + "FROM nap WHERE baby_id = ?1 "
+                        + "AND start_at < ?3 AND (end_at IS NULL OR end_at > ?2)")
+                .setParameter(1, babyId)
+                .setParameter(2, from)
+                .setParameter(3, to)
+                .getSingleResult();
+        return Math.round(minutes.doubleValue());
+    }
 }

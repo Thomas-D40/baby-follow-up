@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/suivi-baby-api
-
 jobs:
   build-api:
     runs-on: ubuntu-latest
@@ -16,6 +13,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Calculer le nom d'image en minuscules
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/suivi-baby-api" >> "$GITHUB_OUTPUT"
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
@@ -27,7 +27,7 @@ jobs:
         with:
           context: ./api
           push: true
-          tags: ${{ env.IMAGE }}:latest
+          tags: ${{ steps.image.outputs.name }}:latest
 
   build-web:
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci

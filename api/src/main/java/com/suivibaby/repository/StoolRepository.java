@@ -27,4 +27,18 @@ public class StoolRepository implements PanacheRepositoryBase<Stool, UUID> {
                 + "order by occurredAt desc, id desc", babyId, beforeTime, beforeId)
                 .page(0, limit).list();
     }
+
+    /**
+     * Selles d'un jour (Épic 6, US6.1), point semi-ouvert {@code occurred_at ∈ [from, to)} (D6-C),
+     * triées {@code occurred_at ASC, id ASC}. Range scan propre sur {@code idx_stool_baby_time}.
+     */
+    public List<Stool> listForDay(UUID babyId, Instant from, Instant to) {
+        return find("babyId = ?1 and occurredAt >= ?2 and occurredAt < ?3 order by occurredAt asc, id asc",
+                babyId, from, to).list();
+    }
+
+    /** Nombre de selles du jour {@code [from, to)} (US6.3). */
+    public long countForDay(UUID babyId, Instant from, Instant to) {
+        return count("babyId = ?1 and occurredAt >= ?2 and occurredAt < ?3", babyId, from, to);
+    }
 }

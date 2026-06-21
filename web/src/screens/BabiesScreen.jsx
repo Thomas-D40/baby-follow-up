@@ -6,6 +6,7 @@ import BabyForm from './BabyForm'
 import BottleFeedingPanel from './BottleFeedingPanel'
 import NapPanel from './NapPanel'
 import StoolPanel from './StoolPanel'
+import CalendarPanel from './CalendarPanel'
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 
@@ -124,11 +125,10 @@ export default function BabiesScreen({ me, onLogout }) {
         <p><button onClick={() => { setNotice(null); setView('add') }} style={styles.link}>+ Ajouter un autre bébé</button></p>
       )}
 
+      {currentBaby && <CalendarPanel babyId={currentBaby.id} />}
       {currentBaby && <BottleFeedingPanel babyId={currentBaby.id} />}
       {currentBaby && <NapPanel babyId={currentBaby.id} />}
       {currentBaby && <StoolPanel babyId={currentBaby.id} />}
-
-      <p style={styles.todo}>La vue calendrier unifiée arrive à l'épic suivant.</p>
     </main>
   )
 }
@@ -149,5 +149,4 @@ const styles = {
   cancel: { padding: '.5rem 1rem', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' },
   link: { background: 'none', border: 0, color: '#3b82f6', cursor: 'pointer', padding: 0, font: 'inherit' },
   center: { textAlign: 'center', marginTop: '4rem', fontFamily: 'system-ui, sans-serif' },
-  todo: { color: '#aaa', fontSize: '.85rem', marginTop: '2rem' },
 }

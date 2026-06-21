@@ -2,9 +2,6 @@
 
 Suivi quotidien d'un bébé (biberons, siestes, selles) avec vue calendrier, pour 2 parents.
 
-> Spécifications détaillées : vault Obsidian `Développement/Obsidian/Suivi Baby`
-> (Besoin, Conception, Archi, Stack, Schema, US, Preparation plan).
-
 ## Stack
 
 - **Front** : React (Vite) + TanStack Query — PWA installable, statique servi par Caddy.
@@ -37,5 +34,6 @@ cd web && npm install && npm run dev
 ## Déploiement
 
 Sur push `main` : GitHub Actions build l'image API (→ GHCR) + le bundle front,
-puis déploie sur le VPS. Voir `Preparation plan/Initialisation-VPS.md` pour le bootstrap
-manuel du VPS (à faire une fois) et la liste des secrets GitHub.
+puis déploie sur le VPS. La composition de déploiement vit dans `infra/`
+(`docker-compose.yml`, `Caddyfile`) ; les secrets (BDD, clé de session, admin
+bootstrap…) sont injectés via les **GitHub Actions Secrets**, jamais committés.

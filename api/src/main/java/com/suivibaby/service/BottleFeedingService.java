@@ -78,6 +78,21 @@ public class BottleFeedingService {
         return new BottleFeedingPage(bottleFeedingMapper.toResponses(rows), nextCursor);
     }
 
+    /**
+     * Biberons d'un jour pour le calendrier (Épic 6, US6.1) : point {@code occurred_at ∈ [from, to)}
+     * (D6-C), tri {@code occurred_at ASC}. {@code assertLinked} → 404 si non lié (D6-E).
+     */
+    public List<BottleFeedingResponse> listForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return bottleFeedingMapper.toResponses(bottleFeedingRepository.listForDay(babyId, from, to));
+    }
+
+    /** Total lait du jour {@code [from, to)} (US6.3), {@code 0} si aucun. {@code assertLinked} → 404 (D6-E). */
+    public int totalMilkForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return bottleFeedingRepository.sumQuantityForDay(babyId, from, to);
+    }
+
     /** Édition partielle (D3-B), ouverte à tout caregiver lié (D3-I). Champs non-null seulement. */
     @Transactional
     public BottleFeedingResponse update(UUID userId, UUID babyId, UUID id, UpdateBottleFeedingRequest request) {

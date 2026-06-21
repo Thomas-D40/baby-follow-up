@@ -135,6 +135,25 @@ public class NapService {
     }
 
     /**
+     * Siestes chevauchant un jour pour le calendrier (Épic 6, US6.1) : overlap
+     * {@code start_at < to AND (end_at > from OR end_at IS NULL)} (D6-C) — apparaît sur tous les jours
+     * chevauchés (sieste de nuit, D6-F). {@code endAt = null} = en cours. {@code assertLinked} → 404 (D6-E).
+     */
+    public List<NapResponse> listForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return napMapper.toResponses(napRepository.listForDay(babyId, from, to));
+    }
+
+    /**
+     * Minutes de sommeil du jour {@code [from, to)} (US6.3), clippées à la fenêtre (D6-F) ; sieste en
+     * cours comptée jusqu'à {@code now()} (D6-G). {@code 0} si aucune sieste. {@code assertLinked} → 404 (D6-E).
+     */
+    public long sleepMinutesForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return napRepository.sleepMinutesForDay(babyId, from, to);
+    }
+
+    /**
      * Correction de valeurs (US4.3, D4-F) : {@code startAt}/{@code endAt} non-null seulement ; jamais de
      * transition d'état. Poser une fin sur une sieste <em>ouverte</em> → 409 (fermeture = use-case). Bornes
      * {@code start_at ≤ end_at ≤ now + 5 min}. Ouvert à tout caregiver lié (D3-I) ; deux checks IDOR (D4-G).
