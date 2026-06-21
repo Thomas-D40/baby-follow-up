@@ -4,10 +4,13 @@ import com.suivibaby.entity.ActivationToken;
 import com.suivibaby.entity.AppUser;
 import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
+import com.suivibaby.entity.BottleFeeding;
+import com.suivibaby.model.MilkType;
 import com.suivibaby.repository.ActivationTokenRepository;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyRepository;
+import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,6 +37,9 @@ public class TestDataFactory {
 
     @Inject
     ActivationTokenRepository activationTokenRepository;
+
+    @Inject
+    BottleFeedingRepository bottleFeedingRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -89,6 +95,27 @@ public class TestDataFactory {
     @Transactional
     public void deleteUser(UUID userId) {
         appUserRepository.deleteById(userId);
+    }
+
+    /** Seed direct d'un biberon (Épic 3) — sert notamment au jalon IDOR (événement d'un autre bébé). */
+    @Transactional
+    public UUID createBottleFeeding(UUID babyId, UUID authorId, Instant occurredAt, int quantityMl,
+                                    MilkType milkType) {
+        BottleFeeding event = new BottleFeeding();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.quantityMl = quantityMl;
+        event.milkType = milkType;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        bottleFeedingRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countBottleFeeding(UUID babyId) {
+        return bottleFeedingRepository.count("babyId", babyId);
     }
 
     @Transactional

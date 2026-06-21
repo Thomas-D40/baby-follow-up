@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useBabies, useCurrentBaby } from '../useBabies'
 import { createBaby, updateBaby, deleteBaby } from '../api'
 import BabyForm from './BabyForm'
+import BottleFeedingPanel from './BottleFeedingPanel'
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 
@@ -121,7 +122,9 @@ export default function BabiesScreen({ me, onLogout }) {
         <p><button onClick={() => { setNotice(null); setView('add') }} style={styles.link}>+ Ajouter un autre bébé</button></p>
       )}
 
-      <p style={styles.todo}>Les écrans de suivi (biberon, sieste…) arrivent aux épics suivants.</p>
+      {currentBaby && <BottleFeedingPanel babyId={currentBaby.id} />}
+
+      <p style={styles.todo}>Les autres écrans de suivi (sieste, selle…) arrivent aux épics suivants.</p>
     </main>
   )
 }
