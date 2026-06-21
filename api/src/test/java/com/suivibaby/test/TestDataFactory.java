@@ -6,13 +6,16 @@ import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
 import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
+import com.suivibaby.entity.Stool;
 import com.suivibaby.model.MilkType;
+import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.repository.ActivationTokenRepository;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
+import com.suivibaby.repository.StoolRepository;
 import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -45,6 +48,9 @@ public class TestDataFactory {
 
     @Inject
     NapRepository napRepository;
+
+    @Inject
+    StoolRepository stoolRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -140,6 +146,25 @@ public class TestDataFactory {
     @Transactional
     public long countNap(UUID babyId) {
         return napRepository.count("babyId", babyId);
+    }
+
+    /** Seed direct d'une selle (Épic 5) — sert notamment au jalon IDOR (événement d'un autre bébé). */
+    @Transactional
+    public UUID createStool(UUID babyId, UUID authorId, Instant occurredAt, StoolConsistency consistency) {
+        Stool event = new Stool();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.consistency = consistency;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        stoolRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countStool(UUID babyId) {
+        return stoolRepository.count("babyId", babyId);
     }
 
     @Transactional

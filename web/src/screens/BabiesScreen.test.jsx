@@ -21,10 +21,11 @@ function renderScreen() {
 beforeEach(() => {
   vi.resetAllMocks()
   localStorage.clear()
-  // La fiche bébé monte les panneaux biberon (Épic 3) et sieste (Épic 4) : états vides par défaut.
+  // La fiche bébé monte les panneaux biberon (Épic 3), sieste (Épic 4) et selle (Épic 5) : vides par défaut.
   api.listBottleFeedings.mockResolvedValue({ items: [], nextCursor: null })
   api.getCurrentNap.mockResolvedValue(null)
   api.listNaps.mockResolvedValue({ items: [], nextCursor: null })
+  api.listStools.mockResolvedValue({ items: [], nextCursor: null })
 })
 
 describe('BabiesScreen — sélection (US2.2)', () => {

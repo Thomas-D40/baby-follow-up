@@ -5,6 +5,7 @@ import { createBaby, updateBaby, deleteBaby } from '../api'
 import BabyForm from './BabyForm'
 import BottleFeedingPanel from './BottleFeedingPanel'
 import NapPanel from './NapPanel'
+import StoolPanel from './StoolPanel'
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 
@@ -125,8 +126,9 @@ export default function BabiesScreen({ me, onLogout }) {
 
       {currentBaby && <BottleFeedingPanel babyId={currentBaby.id} />}
       {currentBaby && <NapPanel babyId={currentBaby.id} />}
+      {currentBaby && <StoolPanel babyId={currentBaby.id} />}
 
-      <p style={styles.todo}>Les autres écrans de suivi (selle…) arrivent aux épics suivants.</p>
+      <p style={styles.todo}>La vue calendrier unifiée arrive à l'épic suivant.</p>
     </main>
   )
 }
