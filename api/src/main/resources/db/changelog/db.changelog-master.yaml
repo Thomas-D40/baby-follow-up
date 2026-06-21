@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/001-init.sql
   - include:
       file: db/changelog/002-auth.sql
+  - include:
+      file: db/changelog/003-bottle-feeding.sql

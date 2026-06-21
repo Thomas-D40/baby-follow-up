@@ -21,6 +21,8 @@ function renderScreen() {
 beforeEach(() => {
   vi.resetAllMocks()
   localStorage.clear()
+  // La fiche bébé monte désormais le panneau biberon (Épic 3) : liste vide par défaut.
+  api.listBottleFeedings.mockResolvedValue({ items: [], nextCursor: null })
 })
 
 describe('BabiesScreen — sélection (US2.2)', () => {
