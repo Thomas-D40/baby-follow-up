@@ -5,12 +5,14 @@ import com.suivibaby.entity.AppUser;
 import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
 import com.suivibaby.entity.BottleFeeding;
+import com.suivibaby.entity.Nap;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.repository.ActivationTokenRepository;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
+import com.suivibaby.repository.NapRepository;
 import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -40,6 +42,9 @@ public class TestDataFactory {
 
     @Inject
     BottleFeedingRepository bottleFeedingRepository;
+
+    @Inject
+    NapRepository napRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -116,6 +121,25 @@ public class TestDataFactory {
     @Transactional
     public long countBottleFeeding(UUID babyId) {
         return bottleFeedingRepository.count("babyId", babyId);
+    }
+
+    /** Seed direct d'une sieste (Épic 4) — {@code endAt} null = ouverte ; sert au jalon IDOR et aux états. */
+    @Transactional
+    public UUID createNap(UUID babyId, UUID authorId, Instant startAt, Instant endAt) {
+        Nap nap = new Nap();
+        nap.id = UUID.randomUUID();
+        nap.babyId = babyId;
+        nap.startAt = startAt;
+        nap.endAt = endAt;
+        nap.authorId = authorId;
+        nap.createdAt = Instant.now();
+        napRepository.persist(nap);
+        return nap.id;
+    }
+
+    @Transactional
+    public long countNap(UUID babyId) {
+        return napRepository.count("babyId", babyId);
     }
 
     @Transactional
