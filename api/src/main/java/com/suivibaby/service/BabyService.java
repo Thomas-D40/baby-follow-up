@@ -3,17 +3,23 @@ package com.suivibaby.service;
 import com.suivibaby.entity.Baby;
 import com.suivibaby.mapper.BabyMapper;
 import com.suivibaby.model.BabyResponse;
+import com.suivibaby.model.CreateBabyRequest;
+import com.suivibaby.model.CreateBabyResponse;
+import com.suivibaby.model.UpdateBabyRequest;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Reads babies under the membership filter (US1.5 — isolation). Every query is bounded to the
+ * Baby CRUD under the membership filter (US2.1, US2.2, D2-E). Every read/write is bounded to the
  * babies linked to the current user via {@code baby_caregiver}. Unlinked resource → 404
  * (anti-enumeration: we do not reveal its existence). Entities never leave this layer: callers
  * receive {@link BabyResponse} DTOs produced by {@link BabyMapper}.
@@ -30,7 +36,7 @@ public class BabyService {
     @Inject
     BabyMapper babyMapper;
 
-    public List<BabyResponse> babiesOf(UUID userId) {
+    public List<BabyResponse> getBabiesByUserId(UUID userId) {
         return babyMapper.toResponses(babies.listByIds(caregivers.babyIdsOf(userId)));
     }
 
@@ -43,5 +49,65 @@ public class BabyService {
             throw new NotFoundException();
         }
         return babyMapper.toResponse(baby);
+    }
+
+    /**
+     * Creates a baby and links its creator (US2.1) in the <em>same</em> transaction, so the parent
+     * sees it immediately. Not the admin link path — the creator links themselves.
+     */
+    @Transactional
+    public CreateBabyResponse create(UUID userId, CreateBabyRequest request) {
+        Baby baby = new Baby();
+        baby.id = UUID.randomUUID();
+        baby.firstName = request.firstName().trim();
+        baby.birthDate = request.birthDate();
+        baby.sex = request.sex();
+        baby.createdAt = Instant.now();
+        babies.persist(baby);
+        caregivers.linkIdempotent(userId, baby.id);
+        return new CreateBabyResponse(baby.id);
+    }
+
+    /**
+     * Partial edit (D2-E), reserved to a linked caregiver (404 otherwise). Only non-null fields are
+     * applied; a present but blank first name is rejected (400).
+     */
+    @Transactional
+    public BabyResponse update(UUID userId, UUID babyId, UpdateBabyRequest request) {
+        Baby baby = requireLinked(userId, babyId);
+        if (request.firstName() != null) {
+            if (request.firstName().isBlank()) {
+                throw new BadRequestException("Prénom requis.");
+            }
+            baby.firstName = request.firstName().trim();
+        }
+        if (request.birthDate() != null) {
+            baby.birthDate = request.birthDate();
+        }
+        if (request.sex() != null) {
+            baby.sex = request.sex();
+        }
+        return babyMapper.toResponse(baby); // managed entity flushed on commit
+    }
+
+    /**
+     * Deletes a baby (D2-E/D2-H), reserved to a linked caregiver (404 otherwise). Cascades to
+     * {@code baby_caregiver} (FK ON DELETE CASCADE) and, from epic 3, to its events.
+     */
+    @Transactional
+    public void delete(UUID userId, UUID babyId) {
+        requireLinked(userId, babyId);
+        babies.deleteById(babyId);
+    }
+
+    private Baby requireLinked(UUID userId, UUID babyId) {
+        if (!caregivers.isLinked(userId, babyId)) {
+            throw new NotFoundException(); // 404 even if the baby exists
+        }
+        Baby baby = babies.findById(babyId);
+        if (baby == null) {
+            throw new NotFoundException();
+        }
+        return baby;
     }
 }
