@@ -1,0 +1,20 @@
+{$DOMAIN} {
+	encode gzip
+
+	# API → Quarkus container
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	# Health check (exposed for external monitoring)
+	handle /q/* {
+		reverse_proxy api:8080
+	}
+
+	# Static front (SPA: fallback to index.html for client-side routing)
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

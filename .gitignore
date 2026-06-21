@@ -1,0 +1,18 @@
+# Java / Quarkus
+api/target/
+*.class
+
+# Node / Vite
+web/node_modules/
+web/dist/
+
+# Secrets / env
+.env
+*.env
+!infra/.env.example
+
+# OS / IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store

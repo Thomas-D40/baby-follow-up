@@ -1,0 +1,49 @@
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web-dist:/srv:ro          # static front bundle (dropped by the CI)
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  api:
+    image: ghcr.io/${GITHUB_OWNER}/suivi-baby-api:latest
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/suivibaby
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUARKUS_PROFILE: prod
+      # Auth (Epic 1): session cookie encryption key + activation-link base URL
+      SESSION_ENC_KEY: ${SESSION_ENC_KEY}
+      APP_BASE_URL: https://${DOMAIN}
+      # Bootstrap du premier admin (hash BCrypt — jamais le mot de passe en clair)
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: suivibaby
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:

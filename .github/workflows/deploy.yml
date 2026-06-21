@@ -1,0 +1,75 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/suivi-baby-api
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push image API
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: true
+          tags: ${{ env.IMAGE }}:latest
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+  deploy:
+    needs: [build-api, build-web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web-dist
+      - name: Configurer la clé SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+      - name: Envoyer compose, Caddyfile et le bundle front
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/id_ed25519" \
+            infra/docker-compose.yml infra/Caddyfile \
+            deploy@${{ secrets.VPS_HOST }}:/opt/suivi-baby/
+          rsync -az --delete -e "ssh -i ~/.ssh/id_ed25519" \
+            web-dist/ deploy@${{ secrets.VPS_HOST }}:/opt/suivi-baby/web-dist/
+      - name: Déployer
+        run: |
+          ssh -i ~/.ssh/id_ed25519 deploy@${{ secrets.VPS_HOST }} \
+            "cd /opt/suivi-baby && docker compose pull && docker compose up -d"

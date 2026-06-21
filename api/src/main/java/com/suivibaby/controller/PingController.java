@@ -1,0 +1,21 @@
+package com.suivibaby.controller;
+
+import jakarta.annotation.security.PermitAll;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+import java.util.Map;
+
+/** Public liveness endpoint to check that the API responds. */
+@Path("/api/ping")
+@PermitAll
+public class PingController {
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, String> ping() {
+        return Map.of("status", "ok");
+    }
+}
