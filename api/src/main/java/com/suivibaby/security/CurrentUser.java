@@ -21,13 +21,13 @@ public class CurrentUser {
     SecurityIdentity identity;
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     public AppUser require() {
         if (identity == null || identity.isAnonymous()) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
-        AppUser user = users.findByEmail(identity.getPrincipal().getName());
+        AppUser user = appUserRepository.findByEmail(identity.getPrincipal().getName());
         if (user == null) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }

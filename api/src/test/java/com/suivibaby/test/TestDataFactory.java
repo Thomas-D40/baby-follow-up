@@ -24,16 +24,16 @@ import java.util.UUID;
 public class TestDataFactory {
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     @Inject
-    BabyRepository babies;
+    BabyRepository babyRepository;
 
     @Inject
-    BabyCaregiverRepository caregivers;
+    BabyCaregiverRepository babyCaregiverRepository;
 
     @Inject
-    ActivationTokenRepository tokens;
+    ActivationTokenRepository activationTokenRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -51,7 +51,7 @@ public class TestDataFactory {
                 ? PasswordUtil.unusablePlaceholder() // pending activation: not loginnable (as in prod)
                 : PasswordUtil.hash(plainPassword);
         user.createdAt = Instant.now();
-        users.persist(user);
+        appUserRepository.persist(user);
         return user.id;
     }
 
@@ -74,7 +74,7 @@ public class TestDataFactory {
         baby.id = UUID.randomUUID();
         baby.firstName = firstName;
         baby.createdAt = Instant.now();
-        babies.persist(baby);
+        babyRepository.persist(baby);
         return baby.id;
     }
 
@@ -83,12 +83,12 @@ public class TestDataFactory {
         BabyCaregiver link = new BabyCaregiver();
         link.appUserId = userId;
         link.babyId = babyId;
-        caregivers.persist(link);
+        babyCaregiverRepository.persist(link);
     }
 
     @Transactional
     public void deleteUser(UUID userId) {
-        users.deleteById(userId);
+        appUserRepository.deleteById(userId);
     }
 
     @Transactional
@@ -98,18 +98,18 @@ public class TestDataFactory {
         token.appUserId = userId;
         token.expiresAt = expiresAt;
         token.usedAt = usedAt;
-        tokens.persist(token);
+        activationTokenRepository.persist(token);
         return token.token;
     }
 
     @Transactional
     public long countLink(UUID userId, UUID babyId) {
-        return caregivers.count("appUserId = ?1 and babyId = ?2", userId, babyId);
+        return babyCaregiverRepository.count("appUserId = ?1 and babyId = ?2", userId, babyId);
     }
 
     @Transactional
     public boolean tokenConsumed(UUID token) {
-        ActivationToken t = tokens.findById(token);
+        ActivationToken t = activationTokenRepository.findById(token);
         return t != null && t.usedAt != null;
     }
 }

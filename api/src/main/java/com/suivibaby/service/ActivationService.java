@@ -25,10 +25,10 @@ public class ActivationService {
     long ttlDays;
 
     @Inject
-    ActivationTokenRepository tokens;
+    ActivationTokenRepository activationTokenRepository;
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     /**
      * Issues a new token for the user and <strong>invalidates any previous active token</strong>
@@ -36,14 +36,14 @@ public class ActivationService {
      */
     @Transactional
     public UUID issueToken(UUID appUserId) {
-        tokens.invalidateActiveTokens(appUserId, Instant.now());
+        activationTokenRepository.invalidateActiveTokens(appUserId, Instant.now());
 
         ActivationToken token = new ActivationToken();
         token.token = UUID.randomUUID();
         token.appUserId = appUserId;
         token.expiresAt = Instant.now().plus(ttlDays, ChronoUnit.DAYS);
         token.usedAt = null;
-        tokens.persist(token);
+        activationTokenRepository.persist(token);
         return token.token;
     }
 
@@ -65,7 +65,7 @@ public class ActivationService {
                     + PasswordUtil.MIN_LENGTH + " caractères.");
         }
 
-        AppUser user = users.findById(token.appUserId);
+        AppUser user = appUserRepository.findById(token.appUserId);
         if (user == null) {
             throw new ClientErrorException("Compte introuvable.", Response.Status.GONE);
         }
@@ -87,7 +87,7 @@ public class ActivationService {
         } catch (IllegalArgumentException | NullPointerException e) {
             throw gone();
         }
-        ActivationToken token = tokens.findById(id);
+        ActivationToken token = activationTokenRepository.findById(id);
         if (token == null || token.isConsumed() || token.isExpired(Instant.now())) {
             throw gone();
         }

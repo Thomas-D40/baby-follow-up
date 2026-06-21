@@ -28,23 +28,23 @@ import java.util.UUID;
 public class BabyService {
 
     @Inject
-    BabyRepository babies;
+    BabyRepository babyRepository;
 
     @Inject
-    BabyCaregiverRepository caregivers;
+    BabyCaregiverRepository babyCaregiverRepository;
 
     @Inject
     BabyMapper babyMapper;
 
     public List<BabyResponse> getBabiesByUserId(UUID userId) {
-        return babyMapper.toResponses(babies.listByIds(caregivers.babyIdsOf(userId)));
+        return babyMapper.toResponses(babyRepository.listByIds(babyCaregiverRepository.findBabyIdsByUserId(userId)));
     }
 
     public BabyResponse getForUser(UUID userId, UUID babyId) {
-        if (!caregivers.isLinked(userId, babyId)) {
+        if (!babyCaregiverRepository.isLinked(userId, babyId)) {
             throw new NotFoundException(); // 404 even if the baby exists
         }
-        Baby baby = babies.findById(babyId);
+        Baby baby = babyRepository.findById(babyId);
         if (baby == null) {
             throw new NotFoundException();
         }
@@ -63,8 +63,8 @@ public class BabyService {
         baby.birthDate = request.birthDate();
         baby.sex = request.sex();
         baby.createdAt = Instant.now();
-        babies.persist(baby);
-        caregivers.linkIdempotent(userId, baby.id);
+        babyRepository.persist(baby);
+        babyCaregiverRepository.linkIdempotent(userId, baby.id);
         return new CreateBabyResponse(baby.id);
     }
 
@@ -97,14 +97,14 @@ public class BabyService {
     @Transactional
     public void delete(UUID userId, UUID babyId) {
         requireLinked(userId, babyId);
-        babies.deleteById(babyId);
+        babyRepository.deleteById(babyId);
     }
 
     private Baby requireLinked(UUID userId, UUID babyId) {
-        if (!caregivers.isLinked(userId, babyId)) {
+        if (!babyCaregiverRepository.isLinked(userId, babyId)) {
             throw new NotFoundException(); // 404 even if the baby exists
         }
-        Baby baby = babies.findById(babyId);
+        Baby baby = babyRepository.findById(babyId);
         if (baby == null) {
             throw new NotFoundException();
         }

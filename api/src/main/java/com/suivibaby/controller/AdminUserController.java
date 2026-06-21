@@ -25,13 +25,13 @@ import java.util.UUID;
 public class AdminUserController {
 
     @Inject
-    AccountService accounts;
+    AccountService accountService;
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response create(@Valid CreateUserRequest request) {
-        CreateUserResponse created = accounts.createParent(request.email(), request.firstName());
+        CreateUserResponse created = accountService.createParent(request.email(), request.firstName());
         return Response.status(Response.Status.CREATED).entity(created).build();
     }
 
@@ -40,6 +40,6 @@ public class AdminUserController {
     @Path("/{id}/activation-link")
     @Produces(MediaType.APPLICATION_JSON)
     public CreateUserResponse regenerateLink(@PathParam("id") UUID id) {
-        return accounts.regenerateActivationLink(id);
+        return accountService.regenerateActivationLink(id);
     }
 }

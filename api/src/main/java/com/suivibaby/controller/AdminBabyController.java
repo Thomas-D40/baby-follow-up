@@ -19,13 +19,13 @@ import java.util.UUID;
 public class AdminBabyController {
 
     @Inject
-    CaregiverService caregivers;
+    CaregiverService caregiverService;
 
     @POST
     @Path("/{babyId}/caregivers")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response link(@PathParam("babyId") UUID babyId, LinkCaregiverRequest request) {
-        caregivers.link(request.userId(), babyId);
+        caregiverService.link(request.userId(), babyId);
         return Response.noContent().build(); // 204, idempotent
     }
 }

@@ -23,10 +23,10 @@ public class AccountService {
     String activationBaseUrl;
 
     @Inject
-    AppUserRepository users;
+    AppUserRepository appUserRepository;
 
     @Inject
-    ActivationService activation;
+    ActivationService activationService;
 
     /**
      * Creates a parent account in "pending activation" state (no usable password) and issues its
@@ -34,7 +34,7 @@ public class AccountService {
      */
     @Transactional
     public CreateUserResponse createParent(String email, String firstName) {
-        if (users.findByEmail(email) != null) {
+        if (appUserRepository.findByEmail(email) != null) {
             throw new ClientErrorException("Email déjà utilisé.", Response.Status.CONFLICT);
         }
         AppUser user = new AppUser();
@@ -44,19 +44,19 @@ public class AccountService {
         user.role = "parent";
         user.passwordHash = PasswordUtil.unusablePlaceholder(); // pending activation: not loginnable
         user.createdAt = Instant.now();
-        users.persist(user);
+        appUserRepository.persist(user);
 
-        UUID token = activation.issueToken(user.id);
+        UUID token = activationService.issueToken(user.id);
         return new CreateUserResponse(user.id, buildLink(token));
     }
 
     /** Regenerates the activation link (invalidates the previous one). 404 if the user does not exist. */
     @Transactional
     public CreateUserResponse regenerateActivationLink(UUID userId) {
-        if (users.findById(userId) == null) {
+        if (appUserRepository.findById(userId) == null) {
             throw new NotFoundException("Utilisateur introuvable.");
         }
-        UUID token = activation.issueToken(userId);
+        UUID token = activationService.issueToken(userId);
         return new CreateUserResponse(userId, buildLink(token));
     }
 
