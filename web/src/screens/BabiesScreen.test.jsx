@@ -21,7 +21,10 @@ function renderScreen() {
 beforeEach(() => {
   vi.resetAllMocks()
   localStorage.clear()
-  // La fiche bébé monte les panneaux biberon (Épic 3), sieste (Épic 4) et selle (Épic 5) : vides par défaut.
+  // La fiche bébé monte les panneaux calendrier (Épic 6), biberon (Épic 3), sieste (Épic 4) et selle
+  // (Épic 5) : vides par défaut.
+  api.getDayEvents.mockResolvedValue([])
+  api.getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0 })
   api.listBottleFeedings.mockResolvedValue({ items: [], nextCursor: null })
   api.getCurrentNap.mockResolvedValue(null)
   api.listNaps.mockResolvedValue({ items: [], nextCursor: null })

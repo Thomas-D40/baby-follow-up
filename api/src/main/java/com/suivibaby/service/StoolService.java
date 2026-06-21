@@ -76,6 +76,21 @@ public class StoolService {
         return new StoolPage(stoolMapper.toResponses(rows), nextCursor);
     }
 
+    /**
+     * Selles d'un jour pour le calendrier (Épic 6, US6.1) : point {@code occurred_at ∈ [from, to)}
+     * (D6-C), tri {@code occurred_at ASC}. {@code assertLinked} → 404 si non lié (D6-E).
+     */
+    public List<StoolResponse> listForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return stoolMapper.toResponses(stoolRepository.listForDay(babyId, from, to));
+    }
+
+    /** Nombre de selles du jour {@code [from, to)} (US6.3). {@code assertLinked} → 404 (D6-E). */
+    public long countForDay(UUID userId, UUID babyId, Instant from, Instant to) {
+        requireLinked(userId, babyId);
+        return stoolRepository.countForDay(babyId, from, to);
+    }
+
     /** Édition partielle (D5-B, API only D5-J), ouverte à tout caregiver lié (D5-H). Champs non-null seulement. */
     @Transactional
     public StoolResponse update(UUID userId, UUID babyId, UUID id, UpdateStoolRequest request) {

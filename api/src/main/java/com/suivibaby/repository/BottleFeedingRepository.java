@@ -27,4 +27,27 @@ public class BottleFeedingRepository implements PanacheRepositoryBase<BottleFeed
                 + "order by occurredAt desc, id desc", babyId, beforeTime, beforeId)
                 .page(0, limit).list();
     }
+
+    /**
+     * Biberons d'un jour (Épic 6, US6.1), point semi-ouvert {@code occurred_at ∈ [from, to)} (D6-C),
+     * triés {@code occurred_at ASC, id ASC} (axe « par jour », pas keyset — §1 du plan). Range scan
+     * propre sur {@code idx_bottle_feeding_baby_time}.
+     */
+    public List<BottleFeeding> listForDay(UUID babyId, Instant from, Instant to) {
+        return find("babyId = ?1 and occurredAt >= ?2 and occurredAt < ?3 order by occurredAt asc, id asc",
+                babyId, from, to).list();
+    }
+
+    /** Somme des ml du jour {@code [from, to)} (US6.3), {@code 0} si aucun biberon. */
+    public int sumQuantityForDay(UUID babyId, Instant from, Instant to) {
+        Long sum = getEntityManager().createQuery(
+                        "select coalesce(sum(b.quantityMl), 0) from BottleFeeding b "
+                                + "where b.babyId = :baby and b.occurredAt >= :from and b.occurredAt < :to",
+                        Long.class)
+                .setParameter("baby", babyId)
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .getSingleResult();
+        return sum.intValue();
+    }
 }
