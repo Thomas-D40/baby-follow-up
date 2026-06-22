@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { startNap, endNap, reopenNap, getCurrentNap, listNaps, deleteNap } from '../api'
+import { startNap, endNap, reopenNap, getCurrentNap, listNaps } from '../api'
 import { formatDuration } from '../nap'
+import { useDeleteEvent } from '../useDeleteEvent'
+import { InlineDeleteConfirm } from './DeleteConfirm'
 
 /**
  * Suivi de sieste sur la fiche bébé (US4.1/4.2/4.3). Bouton **contextuel** piloté par
  * `GET /naps/current` : « Début de sieste » si aucune ouverte, « Fin de sieste » sinon (D4-L).
  * Toutes les mutations d'écriture sont en `retry: 0` (D4-K, pas de rejeu auto) et désactivées au submit.
- * Un **409** use-case (déjà / aucune en cours) est affiché en **info neutre**, pas en erreur (D4-K).
- * `reopen` annule une fin erronée (D4-E) ; la liste alimente l'historique d'où l'on supprime.
+ * Un **409** use-case (déjà / aucune en cours) est affiché en **info neutre**, pas en erreur (D4-K) :
+ * `neutralOr` est réservé à `start`/`end`/`reopen`. `reopen` annule une fin erronée (D4-E).
+ * La **suppression** (depuis l'historique) passe par le hook mutualisé `useDeleteEvent` (Épic 7) :
+ * un `DELETE` ne renvoie **jamais** 409 et un 404 est un **succès idempotent** (D7-C/D7-D) — il ne
+ * doit donc **pas** réutiliser `neutralOr` (« Action impossible. » était doublement faux).
  */
 export default function NapPanel({ babyId }) {
   const qc = useQueryClient()
@@ -39,78 +44,62 @@ export default function NapPanel({ babyId }) {
     mutationFn: () => reopenNap(babyId), retry: 0, onSuccess: onDone,
     onError: neutralOr('Aucune sieste récente à reprendre.'),
   })
-  const deleteMut = useMutation({
-    mutationFn: (id) => deleteNap(babyId, id), retry: 0, onSuccess: onDone,
-    onError: neutralOr('Action impossible.'),
-  })
+  // Suppression : mapping `delete` distinct du mapping use-case (D7-D). Pas de `neutralOr` ici.
+  const deleteMut = useDeleteEvent(babyId)
 
   const isNapping = !!current
   const items = history?.items ?? []
 
   return (
-    <section style={styles.card}>
-      <h3 style={{ margin: 0 }}>Sieste</h3>
-
+    <>
       {isLoading ? (
-        <p style={styles.muted}>…</p>
+        <p className="empty">…</p>
       ) : isNapping ? (
-        <div style={styles.state}>
-          <p style={{ margin: 0 }}>Sieste en cours · <strong>{formatDuration(current.startAt, null)}</strong></p>
-          <button onClick={() => endMut.mutate()} disabled={endMut.isPending} style={styles.primary}>
+        <div className="nap-state">
+          <p className="nap-live"><span className="dot" aria-hidden="true" />Sieste en cours · <strong>{formatDuration(current.startAt, null)}</strong></p>
+          <button onClick={() => endMut.mutate()} disabled={endMut.isPending} className="btn btn--sleep btn--block btn--lg">
             {endMut.isPending ? '…' : 'Fin de sieste'}
           </button>
         </div>
       ) : (
-        <div style={styles.state}>
-          <button onClick={() => startMut.mutate()} disabled={startMut.isPending} style={styles.primary}>
+        <div className="nap-state">
+          <button onClick={() => startMut.mutate()} disabled={startMut.isPending} className="btn btn--sleep btn--block btn--lg">
             {startMut.isPending ? '…' : 'Début de sieste'}
           </button>
-          <button onClick={() => reopenMut.mutate()} disabled={reopenMut.isPending} style={styles.link}>
+          <button onClick={() => reopenMut.mutate()} disabled={reopenMut.isPending} className="linkbtn" style={{ alignSelf: 'center' }}>
             Reprendre la dernière sieste
           </button>
         </div>
       )}
 
-      {info && <p role="status" style={styles.info}>{info}</p>}
+      {info && <p role="status" className="notice notice--info">{info}</p>}
 
-      <h4 style={styles.subtitle}>Dernières siestes</h4>
+      <h4 className="subtitle">Dernières siestes</h4>
       {items.length === 0 ? (
-        <p style={styles.muted}>Aucune sieste enregistrée.</p>
+        <p className="empty">Aucune sieste enregistrée.</p>
       ) : (
-        <ul style={styles.list}>
+        <ul className="event-list">
           {items.map((n) => (
-            <li key={n.id} style={styles.item}>
-              <span>{formatWhen(n.startAt)} · <strong>{formatDuration(n.startAt, n.endAt)}</strong></span>
-              <button
-                onClick={() => deleteMut.mutate(n.id)}
-                disabled={deleteMut.isPending}
-                style={styles.delete}
-                aria-label={`Supprimer la sieste du ${formatWhen(n.startAt)}`}
-              >
-                Supprimer
-              </button>
+            <li key={n.id} className="event-row">
+              <span className="grow">
+                <span className="event-time">{formatWhen(n.startAt)}</span>{' · '}
+                <strong>{formatDuration(n.startAt, n.endAt)}</strong>
+              </span>
+              <InlineDeleteConfirm
+                prompt="Supprimer cette sieste ?"
+                triggerAriaLabel={`Supprimer la sieste du ${formatWhen(n.startAt)}`}
+                onDelete={() => deleteMut.mutateAsync({ type: 'nap', id: n.id })}
+                onDeleted={() => setInfo('Sieste supprimée.')}
+              />
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </>
   )
 }
 
 // Affichage local simple ; le formatage Europe/Paris dédié arrive à l'Épic 6.
 function formatWhen(iso) {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-const styles = {
-  card: { border: '1px solid #eee', borderRadius: 10, padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '.8rem', marginTop: '1rem' },
-  state: { display: 'flex', flexDirection: 'column', gap: '.5rem', alignItems: 'flex-start' },
-  primary: { padding: '.7rem 1.2rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  subtitle: { margin: '.4rem 0 0', fontSize: '.95rem' },
-  muted: { color: '#888', margin: 0 },
-  info: { background: '#eff6ff', color: '#1e40af', padding: '.5rem .7rem', borderRadius: 6, margin: 0, fontSize: '.9rem' },
-  list: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '.4rem' },
-  item: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.75rem', fontSize: '.9rem' },
-  delete: { background: 'none', border: 0, color: '#dc2626', cursor: 'pointer', padding: 0, font: 'inherit' },
-  link: { background: 'none', border: 0, color: '#3b82f6', cursor: 'pointer', padding: 0, font: 'inherit' },
 }

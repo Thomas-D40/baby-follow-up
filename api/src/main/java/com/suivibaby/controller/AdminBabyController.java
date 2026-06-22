@@ -13,7 +13,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/** Parent↔baby linking by the admin (US1.4). Restricted to {@code role=admin} (403 otherwise). */
 @Path("/api/admin/babies")
 @RolesAllowed("admin")
 public class AdminBabyController {

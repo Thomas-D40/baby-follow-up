@@ -15,14 +15,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * First-admin bootstrap (D-F). On startup, creates the admin account if absent, from config/env.
- * Idempotent; no endpoint exposed; writes the hash directly (short-circuits the activation flow
- * → solves the initial-admin chicken-and-egg problem).
- *
- * <p>Prod: {@code app.bootstrap.admin-password-hash} (BCrypt) injected via GitHub Secrets.
- * Dev/test: fallback {@code app.bootstrap.admin-password} (plaintext, hashed on startup).
- */
 @ApplicationScoped
 public class AdminBootstrap {
 
@@ -46,10 +38,6 @@ public class AdminBootstrap {
         ensureAdmin();
     }
 
-    /**
-     * Creates the admin if absent. Returns {@code true} if an account was created, {@code false}
-     * if there was nothing to do (admin already present, or configuration absent). Idempotent.
-     */
     @Transactional
     public boolean ensureAdmin() {
         String adminEmail = email.filter(s -> !s.isBlank()).orElse(null);

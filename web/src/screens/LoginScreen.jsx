@@ -24,30 +24,24 @@ export default function LoginScreen({ onLoggedIn }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.card}>
-      <h1>Suivi Baby</h1>
-      <label style={styles.label}>
-        Email
-        <input type="email" value={email} required autoComplete="username"
-               onChange={(e) => setEmail(e.target.value)} style={styles.input} />
-      </label>
-      <label style={styles.label}>
-        Mot de passe
-        <input type="password" value={password} required autoComplete="current-password"
-               onChange={(e) => setPassword(e.target.value)} style={styles.input} />
-      </label>
-      {error && <p style={styles.error}>{error}</p>}
-      <button type="submit" disabled={busy} style={styles.button}>
-        {busy ? '…' : 'Se connecter'}
-      </button>
-    </form>
+    <main className="auth-shell">
+      <form onSubmit={handleSubmit} className="card form" style={{ width: '100%', maxWidth: 340 }}>
+        <h1 className="app-title" style={{ textAlign: 'center' }}><span className="logo">🍼</span>Suivi Baby</h1>
+        <label className="field">
+          <span className="field-label">Email</span>
+          <input type="email" value={email} required autoComplete="username"
+                 onChange={(e) => setEmail(e.target.value)} className="input" />
+        </label>
+        <label className="field">
+          <span className="field-label">Mot de passe</span>
+          <input type="password" value={password} required autoComplete="current-password"
+                 onChange={(e) => setPassword(e.target.value)} className="input" />
+        </label>
+        {error && <p className="error-text">{error}</p>}
+        <button type="submit" disabled={busy} className="btn btn--primary btn--block btn--lg">
+          {busy ? '…' : 'Se connecter'}
+        </button>
+      </form>
+    </main>
   )
-}
-
-const styles = {
-  card: { display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 320, margin: '4rem auto', fontFamily: 'system-ui, sans-serif' },
-  label: { display: 'flex', flexDirection: 'column', gap: '.3rem', fontSize: '.9rem' },
-  input: { padding: '.6rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc' },
-  button: { padding: '.7rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  error: { color: '#dc2626', fontSize: '.9rem', margin: 0 },
 }

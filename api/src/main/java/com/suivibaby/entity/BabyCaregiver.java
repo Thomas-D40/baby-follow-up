@@ -8,11 +8,6 @@ import jakarta.persistence.Table;
 
 import java.util.UUID;
 
-/**
- * N-N parent↔baby link. Binary (no caregiver role, D-E). The composite primary key guarantees
- * idempotent linking (US1.4); the membership filter (US1.5) relies on it. Data access goes
- * through {@code BabyCaregiverRepository}.
- */
 @Entity
 @Table(name = "baby_caregiver")
 @IdClass(BabyCaregiverId.class)

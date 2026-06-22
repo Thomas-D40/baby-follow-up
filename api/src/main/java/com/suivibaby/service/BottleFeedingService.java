@@ -19,12 +19,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * CRUD des biberons sous le filtre d'appartenance au bébé (US3.1, D3-B/D3-C/D3-I). Pas de clé
- * d'idempotence (D3-A) : {@code INSERT} simple. L'isolation/IDOR (D3-C) repose sur deux checks → 404
- * chacun : (1) {@code isLinked(currentUser, babyId-path)} ; (2) {@code event.baby_id == babyId-path}.
- * Les entités ne quittent jamais cette couche : les appelants reçoivent des {@link BottleFeedingResponse}.
- */
 @ApplicationScoped
 public class BottleFeedingService {
 
@@ -43,7 +37,6 @@ public class BottleFeedingService {
     @Inject
     BottleFeedingMapper bottleFeedingMapper;
 
-    /** Création (US3.1) : {@code author_id} = utilisateur courant, {@code occurredAt} défaut = now. */
     @Transactional
     public BottleFeedingResponse create(UUID userId, UUID babyId, CreateBottleFeedingRequest request) {
         requireLinked(userId, babyId);
@@ -59,7 +52,6 @@ public class BottleFeedingService {
         return bottleFeedingMapper.toResponse(event);
     }
 
-    /** Liste paginée keyset (D3-J), récent→ancien. {@code before == null} = 1ʳᵉ page. */
     public BottleFeedingPage list(UUID userId, UUID babyId, int limit, String before) {
         requireLinked(userId, babyId);
         int pageSize = resolveLimit(limit);
@@ -78,22 +70,16 @@ public class BottleFeedingService {
         return new BottleFeedingPage(bottleFeedingMapper.toResponses(rows), nextCursor);
     }
 
-    /**
-     * Biberons d'un jour pour le calendrier (Épic 6, US6.1) : point {@code occurred_at ∈ [from, to)}
-     * (D6-C), tri {@code occurred_at ASC}. {@code assertLinked} → 404 si non lié (D6-E).
-     */
     public List<BottleFeedingResponse> listForDay(UUID userId, UUID babyId, Instant from, Instant to) {
         requireLinked(userId, babyId);
         return bottleFeedingMapper.toResponses(bottleFeedingRepository.listForDay(babyId, from, to));
     }
 
-    /** Total lait du jour {@code [from, to)} (US6.3), {@code 0} si aucun. {@code assertLinked} → 404 (D6-E). */
     public int totalMilkForDay(UUID userId, UUID babyId, Instant from, Instant to) {
         requireLinked(userId, babyId);
         return bottleFeedingRepository.sumQuantityForDay(babyId, from, to);
     }
 
-    /** Édition partielle (D3-B), ouverte à tout caregiver lié (D3-I). Champs non-null seulement. */
     @Transactional
     public BottleFeedingResponse update(UUID userId, UUID babyId, UUID id, UpdateBottleFeedingRequest request) {
         BottleFeeding event = requireEvent(userId, babyId, id);
@@ -109,7 +95,6 @@ public class BottleFeedingService {
         return bottleFeedingMapper.toResponse(event); // entité managée flushée au commit
     }
 
-    /** Suppression (D3-B), ouverte à tout caregiver lié (D3-I). */
     @Transactional
     public void delete(UUID userId, UUID babyId, UUID id) {
         requireEvent(userId, babyId, id);
@@ -118,18 +103,12 @@ public class BottleFeedingService {
 
     // --- Helpers transverses (D3-H) ---
 
-    /** Check IDOR n°1 (D3-C) : appartenance au bébé du path. Non lié → 404 (anti-énumération). */
     private void requireLinked(UUID userId, UUID babyId) {
         if (!babyCaregiverRepository.isLinked(userId, babyId)) {
             throw new NotFoundException();
         }
     }
 
-    /**
-     * Checks IDOR n°1 + n°2 (D3-C) : (1) bébé lié à l'utilisateur ; (2) l'événement appartient bien à
-     * ce bébé. Chaque échec → 404 strict (jamais 400/403), y compris pour un id d'événement forgé
-     * pointant un bébé d'autrui (jalon US1.5).
-     */
     private BottleFeeding requireEvent(UUID userId, UUID babyId, UUID id) {
         requireLinked(userId, babyId);
         BottleFeeding event = bottleFeedingRepository.findById(id);
@@ -146,7 +125,6 @@ public class BottleFeedingService {
         return Math.min(limit, MAX_LIMIT);
     }
 
-    /** Borne {@code 0 < quantityMl ≤ 2000} (D3-E). Null/hors-bornes → 400. */
     private int validateQuantity(Integer quantityMl) {
         if (quantityMl == null || quantityMl <= 0 || quantityMl > MAX_QUANTITY_ML) {
             throw new BadRequestException("Quantité invalide (0 < quantityMl ≤ 2000).");
@@ -154,7 +132,6 @@ public class BottleFeedingService {
         return quantityMl;
     }
 
-    /** Bornes {@code now − 2 ans ≤ occurredAt ≤ now + 5 min} (D3-D). Défaut = now si absent. */
     private Instant validateOccurredAt(Instant occurredAt) {
         Instant now = Instant.now();
         Instant value = occurredAt == null ? now : occurredAt;

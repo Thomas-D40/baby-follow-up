@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-/** Activation-token lifecycle and password definition (US1.2). */
 @ApplicationScoped
 public class ActivationService {
 
@@ -30,10 +29,6 @@ public class ActivationService {
     @Inject
     AppUserRepository appUserRepository;
 
-    /**
-     * Issues a new token for the user and <strong>invalidates any previous active token</strong>
-     * (at most one active per user). Returns the token value (UUID).
-     */
     @Transactional
     public UUID issueToken(UUID appUserId) {
         activationTokenRepository.invalidateActiveTokens(appUserId, Instant.now());
@@ -47,14 +42,6 @@ public class ActivationService {
         return token.token;
     }
 
-    /**
-     * Activates the account: stores the password (BCrypt) and consumes the token.
-     *
-     * <ul>
-     *   <li>Unknown / consumed / expired token → 410 (Gone).</li>
-     *   <li>Password &lt; 12 → 400, <strong>without consuming the token</strong>.</li>
-     * </ul>
-     */
     @Transactional
     public void activate(String rawToken, String password) {
         ActivationToken token = loadValidToken(rawToken);
@@ -75,7 +62,6 @@ public class ActivationService {
         // persisted via dirty checking (entities managed within the transaction)
     }
 
-    /** Token pre-validation (GET): throws 410 if invalid, no-op otherwise. */
     public void checkUsable(String rawToken) {
         loadValidToken(rawToken);
     }

@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.UUID;
 
-/** Account access. {@code findById}, {@code persist}, {@code deleteById}… inherited from Panache. */
 @ApplicationScoped
 public class AppUserRepository implements PanacheRepositoryBase<AppUser, UUID> {
 

@@ -28,38 +28,28 @@ export default function BabyForm({ initial, submitLabel, onSubmit, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.card}>
-      <label style={styles.label}>
-        Prénom
-        <input value={firstName} required onChange={(e) => setFirstName(e.target.value)} style={styles.input} />
+    <form onSubmit={handleSubmit} className="card form">
+      <label className="field">
+        <span className="field-label">Prénom</span>
+        <input value={firstName} required onChange={(e) => setFirstName(e.target.value)} className="input" />
       </label>
-      <label style={styles.label}>
-        Date de naissance (optionnelle)
-        <input type="date" value={birthDate ?? ''} onChange={(e) => setBirthDate(e.target.value)} style={styles.input} />
+      <label className="field">
+        <span className="field-label">Date de naissance (optionnelle)</span>
+        <input type="date" value={birthDate ?? ''} onChange={(e) => setBirthDate(e.target.value)} className="input" />
       </label>
-      <label style={styles.label}>
-        Sexe (optionnel)
-        <select value={sex ?? ''} onChange={(e) => setSex(e.target.value)} style={styles.input}>
+      <label className="field">
+        <span className="field-label">Sexe (optionnel)</span>
+        <select value={sex ?? ''} onChange={(e) => setSex(e.target.value)} className="select">
           <option value="">Non renseigné</option>
           <option value="female">Fille</option>
           <option value="male">Garçon</option>
         </select>
       </label>
-      {error && <p style={styles.error}>{error}</p>}
-      <div style={styles.row}>
-        <button type="submit" disabled={busy} style={styles.button}>{busy ? '…' : submitLabel}</button>
-        <button type="button" onClick={onCancel} style={styles.cancel}>Annuler</button>
+      {error && <p className="error-text">{error}</p>}
+      <div className="modal-row" style={{ justifyContent: 'stretch' }}>
+        <button type="submit" disabled={busy} className="btn btn--primary btn--lg" style={{ flex: 1 }}>{busy ? '…' : submitLabel}</button>
+        <button type="button" onClick={onCancel} className="btn btn--ghost btn--lg">Annuler</button>
       </div>
     </form>
   )
-}
-
-const styles = {
-  card: { display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 360, margin: '2rem auto', fontFamily: 'system-ui, sans-serif' },
-  label: { display: 'flex', flexDirection: 'column', gap: '.3rem', fontSize: '.9rem' },
-  input: { padding: '.6rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc' },
-  row: { display: 'flex', gap: '.75rem' },
-  button: { flex: 1, padding: '.7rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  cancel: { padding: '.7rem 1rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' },
-  error: { color: '#dc2626', fontSize: '.9rem', margin: 0 },
 }

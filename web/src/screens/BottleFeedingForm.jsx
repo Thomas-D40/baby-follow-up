@@ -40,9 +40,9 @@ export default function BottleFeedingForm({ onSubmit }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <label style={styles.label}>
-        Quantité (ml)
+    <form onSubmit={handleSubmit} className="form">
+      <label className="field">
+        <span className="field-label">Quantité (ml)</span>
         {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         {/* Bornes gouvernées par parseQuantity + le serveur (D3-E), pas par la validation native
             (un rangeOverflow bloquerait le submit avant le message JS). */}
@@ -52,36 +52,28 @@ export default function BottleFeedingForm({ onSubmit }) {
           autoFocus
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
-          style={styles.input}
+          className="input"
         />
       </label>
-      <label style={styles.label}>
-        Type de lait
-        <select value={milkType} onChange={(e) => setMilkType(e.target.value)} style={styles.input}>
+      <label className="field">
+        <span className="field-label">Type de lait</span>
+        <select value={milkType} onChange={(e) => setMilkType(e.target.value)} className="select">
           <option value="">—</option>
           <option value="breast">Maternel</option>
           <option value="formula">Artificiel</option>
         </select>
       </label>
-      <label style={styles.label}>
-        Quand
+      <label className="field">
+        <span className="field-label">Quand</span>
         <input
           type="datetime-local"
           value={occurredAt}
           onChange={(e) => setOccurredAt(e.target.value)}
-          style={styles.input}
+          className="input"
         />
       </label>
-      {error && <p style={styles.error}>{error}</p>}
-      <button type="submit" disabled={busy} style={styles.button}>{busy ? '…' : 'Enregistrer'}</button>
+      {error && <p className="error-text">{error}</p>}
+      <button type="submit" disabled={busy} className="btn btn--milk btn--block btn--lg">{busy ? '…' : 'Enregistrer'}</button>
     </form>
   )
-}
-
-const styles = {
-  form: { display: 'flex', flexDirection: 'column', gap: '.8rem' },
-  label: { display: 'flex', flexDirection: 'column', gap: '.3rem', fontSize: '.9rem' },
-  input: { padding: '.6rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc' },
-  button: { padding: '.7rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  error: { color: '#dc2626', fontSize: '.9rem', margin: 0 },
 }

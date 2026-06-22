@@ -11,10 +11,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-/**
- * Current identity (US1.3). The front derives the "logged in" state from it: 200 + user, or 401
- * (no cookie, expired/forged cookie, or deleted user).
- */
 @Path("/api/me")
 public class MeController {
 

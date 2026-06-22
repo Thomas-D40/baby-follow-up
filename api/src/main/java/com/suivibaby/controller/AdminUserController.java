@@ -16,10 +16,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/**
- * Account administration (US1.1). Restricted to {@code role=admin} (403 otherwise); unauthenticated
- * → 401 (native security mechanism).
- */
 @Path("/api/admin/users")
 @RolesAllowed("admin")
 public class AdminUserController {
@@ -35,7 +31,6 @@ public class AdminUserController {
         return Response.status(Response.Status.CREATED).entity(created).build();
     }
 
-    /** Regenerates the activation link: invalidates the previous one (US1.2). */
     @POST
     @Path("/{id}/activation-link")
     @Produces(MediaType.APPLICATION_JSON)

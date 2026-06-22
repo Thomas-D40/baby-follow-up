@@ -15,12 +15,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/**
- * CRUD des biberons d'un bébé (US3.1, D3-B). Routes imbriquées sous {@code babyId} — jamais d'id
- * d'événement nu (D3-B). Toute opération est bornée par l'appartenance au bébé via le service :
- * ressource non liée / événement d'un autre bébé → <strong>404</strong> (D3-C) ; pas de session → 401.
- * Pas de clé d'idempotence (D3-A) : la création renvoie toujours 201.
- */
 @Path("/api/babies/{babyId}/bottle-feedings")
 @Authenticated
 public class BottleFeedingController {

@@ -17,7 +17,7 @@ export default function App() {
   const { data: me, isLoading } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
   if (isLoading) {
-    return <p style={center}>…</p>
+    return <p className="center">…</p>
   }
 
   // "On 401" redirect: no user → login screen.
@@ -32,5 +32,3 @@ export default function App() {
 
   return <BabiesScreen me={me} onLogout={handleLogout} />
 }
-
-const center = { textAlign: 'center', marginTop: '4rem', fontFamily: 'system-ui, sans-serif' }

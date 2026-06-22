@@ -15,7 +15,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Parent account creation and activation-link generation (US1.1). */
 @ApplicationScoped
 public class AccountService {
 
@@ -28,10 +27,6 @@ public class AccountService {
     @Inject
     ActivationService activationService;
 
-    /**
-     * Creates a parent account in "pending activation" state (no usable password) and issues its
-     * activation link. Email already used → 409.
-     */
     @Transactional
     public CreateUserResponse createParent(String email, String firstName) {
         if (appUserRepository.findByEmail(email) != null) {
@@ -50,7 +45,6 @@ public class AccountService {
         return new CreateUserResponse(user.id, buildLink(token));
     }
 
-    /** Regenerates the activation link (invalidates the previous one). 404 if the user does not exist. */
     @Transactional
     public CreateUserResponse regenerateActivationLink(UUID userId) {
         if (appUserRepository.findById(userId) == null) {

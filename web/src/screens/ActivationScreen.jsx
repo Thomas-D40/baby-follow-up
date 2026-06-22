@@ -9,7 +9,7 @@ export default function ActivationScreen({ token }) {
   const [message, setMessage] = useState(null)
 
   if (!token) {
-    return <p style={styles.center}>Lien d'activation invalide (jeton manquant).</p>
+    return <p className="center">Lien d'activation invalide (jeton manquant).</p>
   }
 
   async function handleSubmit(e) {
@@ -40,37 +40,32 @@ export default function ActivationScreen({ token }) {
 
   if (state === 'done') {
     return (
-      <div style={styles.card}>
-        <h1>Compte activé ✅</h1>
-        <p>Vous pouvez maintenant <a href="/">vous connecter</a>.</p>
-      </div>
+      <main className="auth-shell">
+        <div className="card" style={{ width: '100%', maxWidth: 340, textAlign: 'center' }}>
+          <h1 className="app-title">Compte activé ✅</h1>
+          <p>Vous pouvez maintenant <a href="/">vous connecter</a>.</p>
+        </div>
+      </main>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.card}>
-      <h1>Définir mon mot de passe</h1>
-      <label style={styles.label}>
-        Mot de passe (12 caractères min.)
-        <input type="password" value={password} required autoComplete="new-password"
-               onChange={(e) => setPassword(e.target.value)} style={styles.input} />
-      </label>
-      <label style={styles.label}>
-        Confirmer
-        <input type="password" value={confirm} required autoComplete="new-password"
-               onChange={(e) => setConfirm(e.target.value)} style={styles.input} />
-      </label>
-      {message && <p style={styles.error}>{message}</p>}
-      <button type="submit" style={styles.button}>Activer mon compte</button>
-    </form>
+    <main className="auth-shell">
+      <form onSubmit={handleSubmit} className="card form" style={{ width: '100%', maxWidth: 340 }}>
+        <h1 className="app-title" style={{ textAlign: 'center' }}>Définir mon mot de passe</h1>
+        <label className="field">
+          <span className="field-label">Mot de passe (12 caractères min.)</span>
+          <input type="password" value={password} required autoComplete="new-password"
+                 onChange={(e) => setPassword(e.target.value)} className="input" />
+        </label>
+        <label className="field">
+          <span className="field-label">Confirmer</span>
+          <input type="password" value={confirm} required autoComplete="new-password"
+                 onChange={(e) => setConfirm(e.target.value)} className="input" />
+        </label>
+        {message && <p className="error-text">{message}</p>}
+        <button type="submit" className="btn btn--primary btn--block btn--lg">Activer mon compte</button>
+      </form>
+    </main>
   )
-}
-
-const styles = {
-  card: { display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 360, margin: '4rem auto', fontFamily: 'system-ui, sans-serif' },
-  center: { textAlign: 'center', marginTop: '4rem', fontFamily: 'system-ui, sans-serif' },
-  label: { display: 'flex', flexDirection: 'column', gap: '.3rem', fontSize: '.9rem' },
-  input: { padding: '.6rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc' },
-  button: { padding: '.7rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  error: { color: '#dc2626', fontSize: '.9rem', margin: 0 },
 }

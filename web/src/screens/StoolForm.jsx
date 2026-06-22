@@ -37,11 +37,12 @@ export default function StoolForm({ onSubmit }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
+    <form onSubmit={handleSubmit} className="form">
       <button
         type="button"
         onClick={() => setShowDetails((v) => !v)}
-        style={styles.toggle}
+        className="linkbtn"
+        style={{ alignSelf: 'flex-start' }}
         aria-expanded={showDetails}
       >
         {showDetails ? '− Masquer les détails' : '+ Préciser (consistance, heure)'}
@@ -49,38 +50,29 @@ export default function StoolForm({ onSubmit }) {
 
       {showDetails && (
         <>
-          <label style={styles.label}>
-            Consistance
-            <select value={consistency} onChange={(e) => setConsistency(e.target.value)} style={styles.input}>
+          <label className="field">
+            <span className="field-label">Consistance</span>
+            <select value={consistency} onChange={(e) => setConsistency(e.target.value)} className="select">
               <option value="">—</option>
               <option value="hard">Dure</option>
               <option value="soft">Molle</option>
               <option value="liquid">Liquide</option>
             </select>
           </label>
-          <label style={styles.label}>
-            Quand
+          <label className="field">
+            <span className="field-label">Quand</span>
             <input
               type="datetime-local"
               value={occurredAt}
               onChange={(e) => setOccurredAt(e.target.value)}
-              style={styles.input}
+              className="input"
             />
           </label>
         </>
       )}
 
-      {error && <p style={styles.error}>{error}</p>}
-      <button type="submit" disabled={busy} style={styles.button}>{busy ? '…' : 'Enregistrer'}</button>
+      {error && <p className="error-text">{error}</p>}
+      <button type="submit" disabled={busy} className="btn btn--stool btn--block btn--lg">{busy ? '…' : 'Enregistrer'}</button>
     </form>
   )
-}
-
-const styles = {
-  form: { display: 'flex', flexDirection: 'column', gap: '.8rem' },
-  toggle: { alignSelf: 'flex-start', background: 'none', border: 0, color: '#3b82f6', cursor: 'pointer', padding: 0, font: 'inherit' },
-  label: { display: 'flex', flexDirection: 'column', gap: '.3rem', fontSize: '.9rem' },
-  input: { padding: '.6rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc' },
-  button: { padding: '.7rem', fontSize: '1rem', borderRadius: 6, border: 0, background: '#3b82f6', color: '#fff', cursor: 'pointer' },
-  error: { color: '#dc2626', fontSize: '.9rem', margin: 0 },
 }
