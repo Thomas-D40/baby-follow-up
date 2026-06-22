@@ -8,7 +8,6 @@ import jakarta.ws.rs.core.MediaType;
 
 import java.util.Map;
 
-/** Public liveness endpoint to check that the API responds. */
 @Path("/api/ping")
 @PermitAll
 public class PingController {

@@ -13,10 +13,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-/**
- * Account activation via single-use link (US1.2). Public ({@code PermitAll}): the parent is not
- * authenticated yet.
- */
 @Path("/api/activation")
 @PermitAll
 public class ActivationController {
@@ -31,7 +27,6 @@ public class ActivationController {
         return Response.noContent().build(); // 204
     }
 
-    /** Pre-validates the token before showing the form. 204 if usable, 410 otherwise. */
     @GET
     @Path("/{token}")
     public Response check(@PathParam("token") String token) {

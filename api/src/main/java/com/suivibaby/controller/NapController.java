@@ -16,17 +16,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/**
- * Siestes d'un bébé (US4.1/4.2/4.3), routes imbriquées sous {@code babyId}. Deux familles (D4-B) :
- * <ul>
- *   <li><strong>use-case</strong> (sieste courante, sans id) : {@code POST /start} (201),
- *       {@code POST /end} (200), {@code POST /reopen} (200) — transitions atomiques côté serveur ;</li>
- *   <li><strong>REST</strong> (donnée brute par id) : {@code GET} (liste keyset), {@code GET /current}
- *       (200/204), {@code PATCH /{id}} (200, valeurs only), {@code DELETE /{id}} (204).</li>
- * </ul>
- * Toute opération bornée par l'appartenance via le service : non liée / sieste d'un autre bébé → 404
- * (D4-G) ; pas de session → 401. Le {@code 409} (use-case) est affiché en info neutre côté front (D4-K).
- */
 @Path("/api/babies/{babyId}/naps")
 @Authenticated
 public class NapController {
@@ -37,7 +26,7 @@ public class NapController {
     @Inject
     NapService napService;
 
-    // --- use-case : sieste courante ---
+    // --- use-case: current nap (no id) ---
 
     @POST
     @Path("/start")
@@ -66,7 +55,7 @@ public class NapController {
         return napService.reopen(currentUser.id, babyId);
     }
 
-    // --- REST : donnée brute par id ---
+    // --- REST: raw data by id ---
 
     @GET
     @Path("/current")

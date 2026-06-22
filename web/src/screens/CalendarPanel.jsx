@@ -11,15 +11,25 @@ import {
   parisToday,
   shiftDate,
 } from '../calendar'
+import { useDeleteEvent } from '../useDeleteEvent'
+import { ConfirmDeleteModal } from './DeleteConfirm'
 
 /**
- * Vue calendrier d'un jour (US6.1 liste + US6.3 totaux). Lecture seule : réutilise les endpoints
- * `GET /events` et `GET /daily-totals`. Tout l'affichage est pinné Europe/Paris (D6-D) — le rendu
- * front et le bucketing serveur coïncident. Navigation jour −/+ et bouton « aujourd'hui ». La sieste
- * en cours s'affiche « en cours » (D6-G), une sieste > 10 h est signalée (flag, non bloquant).
+ * Vue calendrier d'un jour (US6.1 liste + US6.3 totaux). Réutilise les endpoints `GET /events` et
+ * `GET /daily-totals`. Tout l'affichage est pinné Europe/Paris (D6-D) — le rendu front et le bucketing
+ * serveur coïncident. Navigation jour −/+ et bouton « aujourd'hui ». La sieste en cours s'affiche
+ * « en cours » (D6-G), une sieste > 10 h est signalée (flag, non bloquant).
+ *
+ * Épic 7 (D7-E) : possède l'intégration de la **suppression depuis le calendrier**. Chaque ligne porte
+ * déjà `{ type, id }` (D6-H) → action « Supprimer » par ligne, **confirmée par modale** (forme adaptée
+ * à la liste dense, D7-B), branchée sur le hook mutualisé `useDeleteEvent`. L'invalidation **préfixe**
+ * `['babies', babyId]` (D7-C) rafraîchit en un appel la liste **et** les totaux du jour (R1).
  */
 export default function CalendarPanel({ babyId }) {
   const [date, setDate] = useState(() => parisToday())
+  const [toDelete, setToDelete] = useState(null) // { type, id } en attente de confirmation
+  const [deleteError, setDeleteError] = useState(false)
+  const deleteMut = useDeleteEvent(babyId)
 
   const eventsQuery = useQuery({
     queryKey: ['babies', babyId, 'events', date],
@@ -34,61 +44,78 @@ export default function CalendarPanel({ babyId }) {
   const totals = totalsQuery.data
   const isToday = date === parisToday()
 
-  return (
-    <section style={styles.card}>
-      <h3 style={{ margin: 0 }}>Journée</h3>
+  const askDelete = (e) => { setDeleteError(false); setToDelete({ type: e.type, id: e.id }) }
+  const cancelDelete = () => { setDeleteError(false); setToDelete(null) }
+  const confirmDelete = async () => {
+    setDeleteError(false)
+    try {
+      await deleteMut.mutateAsync(toDelete) // 404 = succès idempotent (D7-C)
+      setToDelete(null)
+    } catch {
+      setDeleteError(true) // 401/403/500 (R3)
+    }
+  }
 
-      <nav style={styles.nav}>
-        <button onClick={() => setDate(shiftDate(date, -1))} style={styles.navBtn} aria-label="Jour précédent">‹</button>
-        <span style={styles.day}>{formatDayLabel(date)}</span>
-        <button onClick={() => setDate(shiftDate(date, 1))} style={styles.navBtn} aria-label="Jour suivant">›</button>
-        {!isToday && (
-          <button onClick={() => setDate(parisToday())} style={styles.today}>Aujourd'hui</button>
-        )}
+  return (
+    <section className="card">
+      <nav className="daynav">
+        <button onClick={() => setDate(shiftDate(date, -1))} className="daynav-btn" aria-label="Jour précédent">‹</button>
+        <span className="daynav-label">{isToday ? "Aujourd'hui" : formatDayLabel(date)}</span>
+        <button onClick={() => setDate(shiftDate(date, 1))} className="daynav-btn" aria-label="Jour suivant">›</button>
       </nav>
+      {!isToday && (
+        <button onClick={() => setDate(parisToday())} className="linkbtn" style={{ alignSelf: 'center' }}>
+          Revenir à aujourd'hui
+        </button>
+      )}
 
       {totals && (
-        <ul style={styles.totals}>
-          <li><strong>{totals.totalMilkMl}</strong> ml de lait</li>
-          <li><strong>{formatSleepTotal(totals.totalSleepMinutes)}</strong> de sommeil</li>
-          <li><strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
+        <ul className="chips">
+          <li className="chip chip--milk">🍼 <strong>{totals.totalMilkMl}</strong> ml</li>
+          <li className="chip chip--sleep">😴 <strong>{formatSleepTotal(totals.totalSleepMinutes)}</strong></li>
+          <li className="chip chip--stool">💩 <strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
         </ul>
       )}
 
       {eventsQuery.isLoading ? (
-        <p style={styles.muted}>…</p>
+        <p className="empty">…</p>
       ) : events.length === 0 ? (
-        <p style={styles.muted}>Aucun événement ce jour-là.</p>
+        <p className="empty">Aucun événement ce jour-là.</p>
       ) : (
-        <ul style={styles.list}>
+        <ul className="event-list">
           {events.map((e) => (
-            <li key={`${e.type}-${e.id}`} style={styles.item}>
-              <span style={styles.time}>{formatParisTime(e.startAt)}</span>
-              <span style={styles.type}>{EVENT_TYPE_LABEL[e.type]}</span>
-              <span style={styles.detail}>
+            <li key={`${e.type}-${e.id}`} className="event-row">
+              <span className="event-time">{formatParisTime(e.startAt)}</span>
+              <span className={`event-tag event-tag--${TAG_CLASS[e.type]}`}>{EVENT_EMOJI[e.type]} {EVENT_TYPE_LABEL[e.type]}</span>
+              <span className="event-detail grow">
                 {describeEvent(e)}
-                {isLongNap(e) && <span style={styles.flag} title="Sieste de plus de 10 h"> ⚠ longue</span>}
+                {isLongNap(e) && <span className="flag" title="Sieste de plus de 10 h"> ⚠ longue</span>}
               </span>
+              <button
+                onClick={() => askDelete(e)}
+                className="icon-btn"
+                title="Supprimer"
+                aria-label={`Supprimer ${EVENT_TYPE_LABEL[e.type].toLowerCase()} de ${formatParisTime(e.startAt)}`}
+              >
+                🗑
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {toDelete && (
+        <ConfirmDeleteModal
+          prompt="Supprimer cet événement ?"
+          pending={deleteMut.isPending}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
       )}
     </section>
   )
 }
 
-const styles = {
-  card: { border: '1px solid #eee', borderRadius: 10, padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '.8rem', marginTop: '1rem' },
-  nav: { display: 'flex', alignItems: 'center', gap: '.6rem', flexWrap: 'wrap' },
-  navBtn: { padding: '.2rem .6rem', fontSize: '1.1rem', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer', lineHeight: 1 },
-  day: { fontSize: '.95rem', textTransform: 'capitalize' },
-  today: { background: 'none', border: 0, color: '#3b82f6', cursor: 'pointer', padding: 0, font: 'inherit' },
-  totals: { listStyle: 'none', padding: '.6rem .8rem', margin: 0, display: 'flex', flexWrap: 'wrap', gap: '1rem', background: '#f8fafc', borderRadius: 8, fontSize: '.9rem' },
-  muted: { color: '#888', margin: 0 },
-  list: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '.4rem' },
-  item: { display: 'flex', alignItems: 'baseline', gap: '.6rem', fontSize: '.9rem' },
-  time: { fontVariantNumeric: 'tabular-nums', color: '#444', minWidth: '3rem' },
-  type: { fontWeight: 600, minWidth: '4.5rem' },
-  detail: { color: '#555' },
-  flag: { color: '#b45309' },
-}
+const TAG_CLASS = { bottle_feeding: 'milk', nap: 'sleep', stool: 'stool' }
+const EVENT_EMOJI = { bottle_feeding: '🍼', nap: '😴', stool: '💩' }

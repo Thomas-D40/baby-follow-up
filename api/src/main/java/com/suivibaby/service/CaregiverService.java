@@ -10,10 +10,6 @@ import jakarta.ws.rs.NotFoundException;
 
 import java.util.UUID;
 
-/**
- * Parent↔baby linking (US1.4) and membership test (US1.5). Single "baby" authorization point
- * reused by all endpoints of the following epics.
- */
 @ApplicationScoped
 public class CaregiverService {
 
@@ -26,9 +22,6 @@ public class CaregiverService {
     @Inject
     BabyCaregiverRepository babyCaregiverRepository;
 
-    /**
-     * Links a parent to a baby. Idempotent. 404 if the parent or the baby does not exist.
-     */
     @Transactional
     public void link(UUID userId, UUID babyId) {
         if (appUserRepository.findById(userId) == null) {

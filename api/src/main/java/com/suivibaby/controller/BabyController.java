@@ -24,11 +24,6 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * CRUD of the current user's babies (US2.1, US2.2, D2-E). Every operation is bounded by membership
- * through the service layer: unlinked resource → <strong>404</strong>; no session → 401. Creation
- * auto-links the creator (US2.1). The full event-write IDOR contract (D2-D) is enforced from epic 3.
- */
 @Path("/api/babies")
 @Authenticated
 public class BabyController {

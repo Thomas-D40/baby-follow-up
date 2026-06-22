@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.List;
 
-/** Mappe les entités {@link BottleFeeding} vers leur projection web. Invoqué depuis le service. */
 @ApplicationScoped
 public class BottleFeedingMapper {
 

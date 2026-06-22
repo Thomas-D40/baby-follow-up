@@ -17,13 +17,6 @@ import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Calendrier d'un bébé (Épic 6) — <strong>lecture seule</strong>, routes imbriquées sous {@code babyId}.
- * {@code GET /events} (US6.1) : liste chrono du jour, triée par heure. {@code GET /daily-totals} (US6.3) :
- * agrégats du jour. {@code date} (YYYY-MM-DD, Paris) optionnel → défaut aujourd'hui ; malformée → 400.
- * Appartenance bornée via le service : bébé non lié → <strong>404</strong> (D6-E) ; pas de session → 401 ;
- * journée vide (lié) → 200 (liste vide / totaux à 0).
- */
 @Path("/api/babies/{babyId}")
 @Authenticated
 public class CalendarController {

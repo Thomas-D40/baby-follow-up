@@ -7,11 +7,6 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
-/**
- * Curseur opaque de pagination keyset (D3-J) : encapsule la paire {@code (occurredAt, id)} du dernier
- * élément reçu. Encodé en Base64-url ({@code <occurredAt>|<id>}) pour rester opaque côté client ;
- * tout curseur malformé → {@link BadRequestException} (400).
- */
 public record Cursor(Instant occurredAt, UUID id) {
 
     private static final String SEP = "|";

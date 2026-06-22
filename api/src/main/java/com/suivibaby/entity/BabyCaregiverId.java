@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Composite key of {@link BabyCaregiver}: binary link (app_user_id, baby_id). */
 public class BabyCaregiverId implements Serializable {
 
     public UUID appUserId;

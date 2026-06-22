@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-/** Baby access. */
 @ApplicationScoped
 public class BabyRepository implements PanacheRepositoryBase<Baby, UUID> {
 

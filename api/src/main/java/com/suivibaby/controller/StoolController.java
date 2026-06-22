@@ -15,13 +15,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/**
- * CRUD des selles d'un bébé (US5.1, D5-B). Routes imbriquées sous {@code babyId} — jamais d'id
- * d'événement nu. Toute opération est bornée par l'appartenance au bébé via le service : ressource
- * non liée / événement d'un autre bébé → <strong>404</strong> (D5-C) ; pas de session → 401. Pas de
- * clé d'idempotence (D5-G) : la création renvoie toujours 201. {@code PATCH} livré côté API mais non
- * câblé en UI v1 (D5-J).
- */
 @Path("/api/babies/{babyId}/stools")
 @Authenticated
 public class StoolController {

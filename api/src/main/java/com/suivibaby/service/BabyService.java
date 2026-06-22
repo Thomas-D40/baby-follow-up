@@ -18,12 +18,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Baby CRUD under the membership filter (US2.1, US2.2, D2-E). Every read/write is bounded to the
- * babies linked to the current user via {@code baby_caregiver}. Unlinked resource → 404
- * (anti-enumeration: we do not reveal its existence). Entities never leave this layer: callers
- * receive {@link BabyResponse} DTOs produced by {@link BabyMapper}.
- */
 @ApplicationScoped
 public class BabyService {
 
@@ -51,10 +45,6 @@ public class BabyService {
         return babyMapper.toResponse(baby);
     }
 
-    /**
-     * Creates a baby and links its creator (US2.1) in the <em>same</em> transaction, so the parent
-     * sees it immediately. Not the admin link path — the creator links themselves.
-     */
     @Transactional
     public CreateBabyResponse create(UUID userId, CreateBabyRequest request) {
         Baby baby = new Baby();
@@ -68,10 +58,6 @@ public class BabyService {
         return new CreateBabyResponse(baby.id);
     }
 
-    /**
-     * Partial edit (D2-E), reserved to a linked caregiver (404 otherwise). Only non-null fields are
-     * applied; a present but blank first name is rejected (400).
-     */
     @Transactional
     public BabyResponse update(UUID userId, UUID babyId, UpdateBabyRequest request) {
         Baby baby = requireLinked(userId, babyId);
@@ -90,10 +76,6 @@ public class BabyService {
         return babyMapper.toResponse(baby); // managed entity flushed on commit
     }
 
-    /**
-     * Deletes a baby (D2-E/D2-H), reserved to a linked caregiver (404 otherwise). Cascades to
-     * {@code baby_caregiver} (FK ON DELETE CASCADE) and, from epic 3, to its events.
-     */
     @Transactional
     public void delete(UUID userId, UUID babyId) {
         requireLinked(userId, babyId);

@@ -8,12 +8,6 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 
-/**
- * Resolves the current authenticated user from the session cookie identity.
- *
- * <p>"Deleted-user cookie" case: the identity is carried by the stateless cookie, but the
- * {@code app_user} row no longer exists → return 401 (re-login required).
- */
 @RequestScoped
 public class CurrentUser {
 

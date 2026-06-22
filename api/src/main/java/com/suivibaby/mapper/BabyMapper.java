@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.List;
 
-/** Maps {@link Baby} entities to their web projection. Invoked from the service layer. */
 @ApplicationScoped
 public class BabyMapper {
 

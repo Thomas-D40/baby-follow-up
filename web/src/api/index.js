@@ -1,0 +1,8 @@
+// Barrel: keeps `import { … } from './api'` working after the split into per-domain modules.
+export * from './client'
+export * from './auth'
+export * from './babies'
+export * from './bottleFeedings'
+export * from './naps'
+export * from './stools'
+export * from './calendar'
