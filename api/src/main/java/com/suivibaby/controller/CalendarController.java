@@ -3,6 +3,7 @@ package com.suivibaby.controller;
 import com.suivibaby.entity.AppUser;
 import com.suivibaby.model.CalendarEventResponse;
 import com.suivibaby.model.DailyTotalsResponse;
+import com.suivibaby.model.TotalsSeriesResponse;
 import com.suivibaby.security.CurrentUser;
 import com.suivibaby.service.CalendarService;
 import io.quarkus.security.Authenticated;
@@ -43,5 +44,16 @@ public class CalendarController {
                                            @QueryParam("date") String date) {
         AppUser currentUser = currentUserResolver.require();
         return calendarService.dailyTotals(currentUser.id, babyId, date);
+    }
+
+    @GET
+    @Path("/totals-series")
+    @Produces(MediaType.APPLICATION_JSON)
+    public TotalsSeriesResponse totalsSeries(@PathParam("babyId") UUID babyId,
+                                             @QueryParam("from") String from,
+                                             @QueryParam("to") String to,
+                                             @QueryParam("bucket") String bucket) {
+        AppUser currentUser = currentUserResolver.require();
+        return calendarService.totalsSeries(currentUser.id, babyId, from, to, bucket);
     }
 }

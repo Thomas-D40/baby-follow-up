@@ -310,6 +310,41 @@ button { font-family: inherit; }
 .daynav-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .daynav-label { flex: 1; text-align: center; font-weight: 800; text-transform: capitalize; font-size: 0.95rem; color: var(--text-strong); }
 
+/* ── Sélecteur de vue (jour / semaine / mois / année) ───────────────────── */
+.seg {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1.5px var(--border);
+}
+.seg-btn {
+  flex: 1;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.seg-btn:hover { color: var(--text); }
+.seg-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.seg-btn--active { background: var(--surface); color: var(--text-strong); box-shadow: var(--shadow); }
+
+/* ── Tendances : grille de courbes ──────────────────────────────────────── */
+.trend-grid { display: flex; flex-direction: column; gap: 0.9rem; }
+.trend-chart {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.6rem 0.5rem;
+}
+.trend-title { margin: 0 0 0.35rem 0.3rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; }
+
 /* ── Sieste : état en cours ─────────────────────────────────────────────── */
 .nap-state {
   display: flex; flex-direction: column; gap: 0.7rem;

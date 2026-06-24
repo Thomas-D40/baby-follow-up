@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useBabies, useCurrentBaby } from '../useBabies'
 import { createBaby, updateBaby, deleteBaby, getCurrentNap } from '../api'
@@ -9,8 +9,13 @@ import NapPanel from './NapPanel'
 import StoolPanel from './StoolPanel'
 import CalendarPanel from './CalendarPanel'
 
+// Recharts est lourd (~430 kB) : on ne le charge qu'à l'ouverture d'une vue graphique (PWA mobile).
+const TrendsPanel = lazy(() => import('./TrendsPanel'))
+
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 const SEX_EMOJI = { female: '👧', male: '👦' }
+const CAL_VIEWS = ['day', 'week', 'month', 'year']
+const CAL_VIEW_LABEL = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année' }
 
 /**
  * Fiche bébé (US2.1 create, US2.2 select, D2-E edit/delete). Design « pastel doux & rond » : une
@@ -26,6 +31,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'stool'
+  const [calView, setCalView] = useState('day') // day = liste du jour ; week|month|year = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
 
@@ -165,7 +171,29 @@ export default function BabiesScreen({ me, onLogout }) {
         </div>
       )}
 
-      {currentBaby && <CalendarPanel babyId={currentBaby.id} />}
+      {currentBaby && (
+        <div className="seg" role="tablist" aria-label="Vue calendrier">
+          {CAL_VIEWS.map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={calView === v}
+              className={`seg-btn ${calView === v ? 'seg-btn--active' : ''}`}
+              onClick={() => setCalView(v)}
+            >
+              {CAL_VIEW_LABEL[v]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {currentBaby && (calView === 'day'
+        ? <CalendarPanel babyId={currentBaby.id} />
+        : (
+          <Suspense fallback={<section className="card"><p className="empty">…</p></section>}>
+            <TrendsPanel babyId={currentBaby.id} view={calView} />
+          </Suspense>
+        ))}
 
       {babies.length >= 1 && (
         <button onClick={() => { setNotice(null); setView('add') }} className="linkbtn" style={{ alignSelf: 'center' }}>
