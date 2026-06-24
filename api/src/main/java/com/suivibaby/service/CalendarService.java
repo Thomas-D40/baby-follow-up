@@ -1,8 +1,14 @@
 package com.suivibaby.service;
 
 import com.suivibaby.mapper.CalendarMapper;
+import com.suivibaby.model.BottleFeedingResponse;
 import com.suivibaby.model.CalendarEventResponse;
 import com.suivibaby.model.DailyTotalsResponse;
+import com.suivibaby.model.NapResponse;
+import com.suivibaby.model.SeriesBucket;
+import com.suivibaby.model.SeriesPoint;
+import com.suivibaby.model.StoolResponse;
+import com.suivibaby.model.TotalsSeriesResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -56,6 +62,46 @@ public class CalendarService {
         long totalSleepMinutes = napService.sleepMinutesForDay(userId, babyId, from, to);
         long stoolCount = stoolService.countForDay(userId, babyId, from, to);
         return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount);
+    }
+
+    /** Plafond de buckets retournés : garde-fou contre une plage abusive (ex. année en jours). */
+    static final int MAX_BUCKETS = 366;
+
+    public TotalsSeriesResponse totalsSeries(UUID userId, UUID babyId, String fromParam,
+                                             String toParam, String bucketParam) {
+        SeriesBucket bucket = SeriesBucket.fromParam(bucketParam);
+        LocalDate from = requireDate(fromParam, "from");
+        LocalDate to = requireDate(toParam, "to");
+        if (to.isBefore(from)) {
+            throw new BadRequestException("Plage invalide : to antérieur à from.");
+        }
+
+        List<SeriesAggregator.Bucket> buckets = SeriesAggregator.buckets(from, to, bucket, PARIS);
+        if (buckets.size() > MAX_BUCKETS) {
+            throw new BadRequestException("Plage trop large (max " + MAX_BUCKETS + " buckets).");
+        }
+
+        // Bornes [from, to) couvrant toute la plage : une requête par type (isolation 404 héritée),
+        // puis bucketisation + clipping en mémoire (cf. SeriesAggregator).
+        Instant rangeFrom = buckets.get(0).start();
+        Instant rangeTo = buckets.get(buckets.size() - 1).end();
+        List<BottleFeedingResponse> bottles = bottleFeedingService.listForDay(userId, babyId, rangeFrom, rangeTo);
+        List<NapResponse> naps = napService.listForDay(userId, babyId, rangeFrom, rangeTo);
+        List<StoolResponse> stools = stoolService.listForDay(userId, babyId, rangeFrom, rangeTo);
+
+        List<SeriesPoint> points = SeriesAggregator.aggregate(buckets, bottles, naps, stools, Instant.now());
+        return new TotalsSeriesResponse(bucket, from, to, points);
+    }
+
+    private LocalDate requireDate(String date, String field) {
+        if (date == null || date.isBlank()) {
+            throw new BadRequestException("Paramètre " + field + " requis (format YYYY-MM-DD).");
+        }
+        try {
+            return LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Paramètre " + field + " invalide (format attendu YYYY-MM-DD).");
+        }
     }
 
     private LocalDate resolveDate(String date) {
