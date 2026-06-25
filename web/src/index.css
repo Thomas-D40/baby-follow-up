@@ -292,6 +292,8 @@ button { font-family: inherit; }
 }
 .icon-btn:hover { background: var(--danger-bg); color: var(--danger-deep); }
 .icon-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+/* Bouton « modifier » : action neutre (≠ suppression), donc pas de hover rouge (Épic 8). */
+.icon-btn--edit:hover { background: var(--surface-2); color: var(--text-strong); }
 
 .muted { color: var(--muted); margin: 0; }
 .empty { color: var(--muted); margin: 0; text-align: center; padding: 0.6rem 0; font-size: 0.9rem; }

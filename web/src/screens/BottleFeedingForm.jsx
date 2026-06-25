@@ -2,15 +2,25 @@ import { useState } from 'react'
 import { parseQuantity, toLocalInputValue, toOccurredAtIso } from '../bottleFeeding'
 
 /**
- * Formulaire rapide de saisie d'un biberon (US3.1). `occurredAt` prérempli sur « maintenant »,
- * focus d'emblée sur la quantité (saisie en un geste). `onSubmit` renvoie une promesse ; le bouton
- * est désactivé jusqu'au *settled* de la mutation → anti double-saisie (D3-G). Sur succès, on vide
- * la quantité pour enchaîner ; échec apparent → message clair + resoumission manuelle.
+ * Formulaire de saisie/édition d'un biberon (US3.1 création, Épic 8 édition).
+ *
+ * Mode **création** (par défaut) : `occurredAt` prérempli sur « maintenant », focus d'emblée sur la
+ * quantité (saisie en un geste). Sur succès, on vide la quantité pour enchaîner.
+ *
+ * Mode **édition** (DA-1) : passe `initial` (valeurs pré-remplies, depuis l'event existant). Le bouton
+ * affiche « Enregistrer », le formulaire reste tel quel après succès (le sheet appelant se ferme). On
+ * réutilise le MÊME formulaire (pas de `*FormEdit` dupliqué).
+ *
+ * `onSubmit` renvoie une promesse ; le bouton est désactivé jusqu'au *settled* de la mutation → anti
+ * double-saisie (D3-G/DA-4). Échec apparent → message clair + resoumission manuelle.
  */
-export default function BottleFeedingForm({ onSubmit }) {
-  const [occurredAt, setOccurredAt] = useState(() => toLocalInputValue(new Date()))
-  const [quantity, setQuantity] = useState('')
-  const [milkType, setMilkType] = useState('')
+export default function BottleFeedingForm({ onSubmit, initial = null }) {
+  const isEdit = initial != null
+  const [occurredAt, setOccurredAt] = useState(() =>
+    toLocalInputValue(initial?.occurredAt ? new Date(initial.occurredAt) : new Date()),
+  )
+  const [quantity, setQuantity] = useState(() => (initial?.quantityMl != null ? String(initial.quantityMl) : ''))
+  const [milkType, setMilkType] = useState(() => initial?.milkType ?? '')
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -30,8 +40,10 @@ export default function BottleFeedingForm({ onSubmit }) {
     setBusy(true)
     try {
       await onSubmit({ occurredAt: iso, quantityMl: q.value, milkType: milkType || null })
-      setQuantity('') // prêt pour une saisie suivante (le formulaire reste monté)
-      setMilkType('')
+      if (!isEdit) {
+        setQuantity('') // prêt pour une saisie suivante (le formulaire reste monté)
+        setMilkType('')
+      }
       setBusy(false)
     } catch (err) {
       setError(err?.status === 400 ? 'Données invalides.' : "Échec de l'enregistrement.")

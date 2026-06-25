@@ -1,17 +1,22 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createBottleFeeding, listBottleFeedings } from '../api'
+import { createBottleFeeding, listBottleFeedings, updateBottleFeeding } from '../api'
 import { MILK_TYPE_LABEL } from '../bottleFeeding'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { InlineDeleteConfirm } from './DeleteConfirm'
 import BottleFeedingForm from './BottleFeedingForm'
+import BottomSheet from './BottomSheet'
 
 /**
- * Saisie + liste des derniers biberons sur la fiche bébé (US3.1, D3-B). La liste (keyset, D3-J)
- * alimente la fiche (anti create-aveugle) et est invalidée après chaque mutation. Mutations
- * d'écriture en `retry: 0` (D3-G : pas de rejeu auto qui dupliquerait en réponse-perdue) ; la lecture
- * garde le retry par défaut. La suppression passe par une **confirmation inline** (Épic 7, D7-B) sur
- * le hook mutualisé `useDeleteEvent` (404 idempotent + invalidation préfixe, D7-C).
+ * Saisie + liste + édition des derniers biberons sur la fiche bébé (US3.1, D3-B, Épic 8). La liste
+ * (keyset, D3-J) alimente la fiche (anti create-aveugle) et est invalidée après chaque mutation.
+ * Mutations d'écriture en `retry: 0` (D3-G/DA-4 : pas de rejeu auto qui dupliquerait en réponse-perdue) ;
+ * la lecture garde le retry par défaut. La suppression passe par une **confirmation inline** (Épic 7,
+ * D7-B) sur le hook mutualisé `useDeleteEvent` (404 idempotent + invalidation préfixe, D7-C).
+ *
+ * L'**édition** (Épic 8, DA-1/DA-2) ouvre le MÊME `BottleFeedingForm` (prop `initial`) dans un
+ * `BottomSheet` depuis un bouton ✏️ sur chaque ligne. Au succès : invalidation par **préfixe**
+ * `['babies', babyId]` (DA-4) pour rafraîchir aussi le calendrier/tendances qui dérivent du même event.
  */
 export default function BottleFeedingPanel({ babyId }) {
   const qc = useQueryClient()
@@ -19,11 +24,21 @@ export default function BottleFeedingPanel({ babyId }) {
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => listBottleFeedings(babyId) })
   const refresh = () => qc.invalidateQueries({ queryKey: key })
   const [notice, setNotice] = useState(null)
+  const [editing, setEditing] = useState(null) // l'event en cours d'édition, ou null
 
   const createMut = useMutation({
     mutationFn: (body) => createBottleFeeding(babyId, body),
     retry: 0,
     onSuccess: refresh,
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, patch }) => updateBottleFeeding(babyId, id, patch),
+    retry: 0,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['babies', babyId] }) // invalidation préfixe (DA-4)
+      setEditing(null)
+      setNotice('Biberon mis à jour.')
+    },
   })
   const deleteMut = useDeleteEvent(babyId)
 
@@ -49,6 +64,15 @@ export default function BottleFeedingPanel({ babyId }) {
                 <strong>{b.quantityMl} ml</strong>
                 {b.milkType ? ` · ${MILK_TYPE_LABEL[b.milkType]}` : ''}
               </span>
+              <button
+                type="button"
+                className="icon-btn icon-btn--edit"
+                aria-label={`Modifier le biberon de ${b.quantityMl} ml`}
+                title="Modifier"
+                onClick={() => setEditing(b)}
+              >
+                ✏️
+              </button>
               <InlineDeleteConfirm
                 prompt="Supprimer ce biberon ?"
                 triggerAriaLabel={`Supprimer le biberon de ${b.quantityMl} ml`}
@@ -59,6 +83,19 @@ export default function BottleFeedingPanel({ babyId }) {
           ))}
         </ul>
       )}
+
+      <BottomSheet
+        open={editing != null}
+        title={<>✏️ Modifier le biberon</>}
+        onClose={() => setEditing(null)}
+      >
+        {editing && (
+          <BottleFeedingForm
+            initial={editing}
+            onSubmit={(body) => updateMut.mutateAsync({ id: editing.id, patch: body })}
+          />
+        )}
+      </BottomSheet>
     </>
   )
 }

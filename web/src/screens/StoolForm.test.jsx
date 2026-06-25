@@ -45,4 +45,36 @@ describe('StoolForm', () => {
     resolve() // settled → le bouton se ré-active (D5-J/D3-G)
     await waitFor(() => expect(btn).not.toBeDisabled())
   })
+
+  describe('mode édition (Épic 8, DA-1)', () => {
+    it('déplie les détails et préremplit la consistance depuis `initial`', () => {
+      render(
+        <StoolForm
+          onSubmit={vi.fn()}
+          initial={{ occurredAt: '2026-06-21T08:30:00.000Z', consistency: 'soft' }}
+        />,
+      )
+      // détails dépliés d'emblée : pas de bouton « Préciser », le select est visible
+      expect(screen.queryByRole('button', { name: /Préciser/ })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Consistance')).toHaveValue('soft')
+    })
+
+    it('soumet un patch reflétant la consistance modifiée', async () => {
+      const onSubmit = vi.fn().mockResolvedValue(undefined)
+      render(
+        <StoolForm
+          onSubmit={onSubmit}
+          initial={{ occurredAt: '2026-06-21T08:30:00.000Z', consistency: 'soft' }}
+        />,
+      )
+
+      await userEvent.selectOptions(screen.getByLabelText('Consistance'), 'liquid')
+      await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+      const patch = onSubmit.mock.calls[0][0]
+      expect(patch.consistency).toBe('liquid')
+      expect(typeof patch.occurredAt).toBe('string')
+    })
+  })
 })

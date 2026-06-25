@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { startNap, endNap, reopenNap, getCurrentNap, listNaps } from '../api'
+import { startNap, endNap, reopenNap, getCurrentNap, listNaps, updateNap } from '../api'
 import { formatDuration } from '../nap'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { InlineDeleteConfirm } from './DeleteConfirm'
+import BottomSheet from './BottomSheet'
+import NapEditForm from './NapEditForm'
 
 /**
  * Suivi de sieste sur la fiche bébé (US4.1/4.2/4.3). Bouton **contextuel** piloté par
@@ -20,6 +22,7 @@ export default function NapPanel({ babyId }) {
   const currentKey = ['babies', babyId, 'nap-current']
   const listKey = ['babies', babyId, 'naps']
   const [info, setInfo] = useState(null)
+  const [editing, setEditing] = useState(null) // la sieste (fermée) en cours d'édition, ou null
 
   const { data: current, isLoading } = useQuery({ queryKey: currentKey, queryFn: () => getCurrentNap(babyId) })
   const { data: history } = useQuery({ queryKey: listKey, queryFn: () => listNaps(babyId) })
@@ -46,6 +49,18 @@ export default function NapPanel({ babyId }) {
   })
   // Suppression : mapping `delete` distinct du mapping use-case (D7-D). Pas de `neutralOr` ici.
   const deleteMut = useDeleteEvent(babyId)
+  // Édition (Épic 8, DA-3) : exposée uniquement sur les siestes FERMÉES (endAt non null), donc on ne
+  // tente jamais de fermer une sieste ouverte → le 409 est géré par le form mais ne survient pas en
+  // usage normal. Succès : invalidation préfixe (DA-4) pour rafraîchir liste + calendrier + tendances.
+  const updateMut = useMutation({
+    mutationFn: ({ id, patch }) => updateNap(babyId, id, patch),
+    retry: 0,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['babies', babyId] })
+      setEditing(null)
+      setInfo('Sieste mise à jour.')
+    },
+  })
 
   const isNapping = !!current
   const items = history?.items ?? []
@@ -85,6 +100,19 @@ export default function NapPanel({ babyId }) {
                 <span className="event-time">{formatWhen(n.startAt)}</span>{' · '}
                 <strong>{formatDuration(n.startAt, n.endAt)}</strong>
               </span>
+              {/* Édition réservée aux siestes fermées (DA-3) : une sieste ouverte (endAt null) se
+                  termine via « Fin de sieste », pas par le formulaire d'édition. */}
+              {n.endAt && (
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--edit"
+                  aria-label={`Modifier la sieste du ${formatWhen(n.startAt)}`}
+                  title="Modifier"
+                  onClick={() => setEditing(n)}
+                >
+                  ✏️
+                </button>
+              )}
               <InlineDeleteConfirm
                 prompt="Supprimer cette sieste ?"
                 triggerAriaLabel={`Supprimer la sieste du ${formatWhen(n.startAt)}`}
@@ -95,6 +123,19 @@ export default function NapPanel({ babyId }) {
           ))}
         </ul>
       )}
+
+      <BottomSheet
+        open={editing != null}
+        title={<>✏️ Modifier la sieste</>}
+        onClose={() => setEditing(null)}
+      >
+        {editing && (
+          <NapEditForm
+            initial={editing}
+            onSubmit={(patch) => updateMut.mutateAsync({ id: editing.id, patch })}
+          />
+        )}
+      </BottomSheet>
     </>
   )
 }

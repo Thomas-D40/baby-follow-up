@@ -58,4 +58,40 @@ describe('BottleFeedingForm', () => {
     resolve() // settled → le bouton se ré-active (D3-G)
     await waitFor(() => expect(btn).not.toBeDisabled())
   })
+
+  describe('mode édition (Épic 8, DA-1)', () => {
+    it('préremplit les champs depuis `initial`', () => {
+      render(
+        <BottleFeedingForm
+          onSubmit={vi.fn()}
+          initial={{ occurredAt: '2026-06-21T08:30:00.000Z', quantityMl: 150, milkType: 'formula' }}
+        />,
+      )
+      expect(screen.getByLabelText('Quantité (ml)')).toHaveValue(150)
+      expect(screen.getByLabelText('Type de lait')).toHaveValue('formula')
+    })
+
+    it('soumet un patch reflétant les valeurs (édition d’un champ) sans vider après succès', async () => {
+      const onSubmit = vi.fn().mockResolvedValue(undefined)
+      render(
+        <BottleFeedingForm
+          onSubmit={onSubmit}
+          initial={{ occurredAt: '2026-06-21T08:30:00.000Z', quantityMl: 150, milkType: 'formula' }}
+        />,
+      )
+
+      const qty = screen.getByLabelText('Quantité (ml)')
+      await userEvent.clear(qty)
+      await userEvent.type(qty, '200')
+      await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+      const patch = onSubmit.mock.calls[0][0]
+      expect(patch.quantityMl).toBe(200)
+      expect(patch.milkType).toBe('formula')
+      expect(typeof patch.occurredAt).toBe('string')
+      // en édition, les champs ne sont PAS réinitialisés après succès
+      expect(qty).toHaveValue(200)
+    })
+  })
 })

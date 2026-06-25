@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import BottleFeedingPanel from './BottleFeedingPanel'
@@ -7,12 +7,13 @@ import BottleFeedingPanel from './BottleFeedingPanel'
 vi.mock('../api', () => ({
   createBottleFeeding: vi.fn(),
   listBottleFeedings: vi.fn(),
+  updateBottleFeeding: vi.fn(),
   // `useDeleteEvent` route vers les 3 clients : tous présents dans le mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
 }))
-import { listBottleFeedings, deleteBottleFeeding } from '../api'
+import { listBottleFeedings, deleteBottleFeeding, updateBottleFeeding } from '../api'
 
 const ONE = { id: 'bf1', occurredAt: '2026-06-21T08:00:00.000Z', quantityMl: 120, milkType: 'breast' }
 
@@ -69,5 +70,37 @@ describe('BottleFeedingPanel — suppression (Épic 7, D7-B/D7-C)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Échec de la suppression.')
     expect(screen.queryByText('Biberon supprimé.')).not.toBeInTheDocument()
+  })
+})
+
+describe('BottleFeedingPanel — édition (Épic 8, DA-1/DA-2/DA-4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listBottleFeedings.mockResolvedValue({ items: [ONE], nextCursor: null })
+  })
+
+  it('le ✏️ ouvre un sheet pré-rempli ; soumettre appelle updateBottleFeeding(babyId, id, patch)', async () => {
+    updateBottleFeeding.mockResolvedValue({ ...ONE, quantityMl: 200 })
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier le biberon de 120 ml' }))
+
+    // sheet ouvert : il existe désormais 2 formulaires (création + édition). On cible le dialog.
+    const dialog = screen.getByRole('dialog')
+    const qty = within(dialog).getByLabelText('Quantité (ml)')
+    expect(qty).toHaveValue(120)
+
+    await userEvent.clear(qty)
+    await userEvent.type(qty, '200')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateBottleFeeding).toHaveBeenCalledTimes(1))
+    expect(updateBottleFeeding.mock.calls[0][0]).toBe('b1')
+    expect(updateBottleFeeding.mock.calls[0][1]).toBe('bf1')
+    expect(updateBottleFeeding.mock.calls[0][2].quantityMl).toBe(200)
+
+    // sheet fermé + notice de succès
+    expect(await screen.findByRole('status')).toHaveTextContent('Biberon mis à jour.')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })
