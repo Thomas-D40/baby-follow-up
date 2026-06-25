@@ -8,6 +8,7 @@ import BottleFeedingPanel from './BottleFeedingPanel'
 import NapPanel from './NapPanel'
 import StoolPanel from './StoolPanel'
 import CalendarPanel from './CalendarPanel'
+import SharePanel from './SharePanel'
 
 // Recharts est lourd (~430 kB) : on ne le charge qu'à l'ouverture d'une vue graphique (PWA mobile).
 const TrendsPanel = lazy(() => import('./TrendsPanel'))
@@ -194,6 +195,8 @@ export default function BabiesScreen({ me, onLogout }) {
             <TrendsPanel babyId={currentBaby.id} view={calView} />
           </Suspense>
         ))}
+
+      {currentBaby && <SharePanel babyId={currentBaby.id} me={me} />}
 
       {babies.length >= 1 && (
         <button onClick={() => { setNotice(null); setView('add') }} className="linkbtn" style={{ alignSelf: 'center' }}>

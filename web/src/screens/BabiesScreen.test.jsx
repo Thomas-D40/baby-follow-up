@@ -29,6 +29,8 @@ beforeEach(() => {
   api.getCurrentNap.mockResolvedValue(null)
   api.listNaps.mockResolvedValue({ items: [], nextCursor: null })
   api.listStools.mockResolvedValue({ items: [], nextCursor: null })
+  // Section Partage (Épic 8) montée dans la fiche : cercle vide par défaut.
+  api.listCaregivers.mockResolvedValue([])
 })
 
 describe('BabiesScreen — sélection (US2.2)', () => {

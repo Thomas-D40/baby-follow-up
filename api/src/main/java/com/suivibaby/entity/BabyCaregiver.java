@@ -20,4 +20,7 @@ public class BabyCaregiver {
     @Id
     @Column(name = "baby_id")
     public UUID babyId;
+
+    @Column(name = "is_owner", nullable = false)
+    public boolean isOwner;
 }

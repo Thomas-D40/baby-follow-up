@@ -54,7 +54,8 @@ public class BabyService {
         baby.sex = request.sex();
         baby.createdAt = Instant.now();
         babyRepository.persist(baby);
-        babyCaregiverRepository.linkIdempotent(userId, baby.id);
+        // Le créateur du bébé est owner (is_owner=true explicite, jamais via le DEFAULT — D8-H/R5).
+        babyCaregiverRepository.linkIdempotent(userId, baby.id, true);
         return new CreateBabyResponse(baby.id);
     }
 

@@ -30,7 +30,8 @@ public class CaregiverService {
         if (babyRepository.findById(babyId) == null) {
             throw new NotFoundException("Bébé introuvable.");
         }
-        babyCaregiverRepository.linkIdempotent(userId, babyId);
+        // Liaison admin (US1.4) : owner de plein droit, cohérent avec le backfill D8-H.
+        babyCaregiverRepository.linkIdempotent(userId, babyId, true);
     }
 
     public boolean isLinked(UUID userId, UUID babyId) {

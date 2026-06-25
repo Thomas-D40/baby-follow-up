@@ -4,6 +4,7 @@ import com.suivibaby.entity.ActivationToken;
 import com.suivibaby.entity.AppUser;
 import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
+import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
@@ -12,6 +13,7 @@ import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.repository.ActivationTokenRepository;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
+import com.suivibaby.repository.BabyInvitationRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
@@ -51,6 +53,9 @@ public class TestDataFactory {
 
     @Inject
     StoolRepository stoolRepository;
+
+    @Inject
+    BabyInvitationRepository babyInvitationRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -95,12 +100,35 @@ public class TestDataFactory {
         return baby.id;
     }
 
+    /** Lien owner (is_owner=true) : sémantique par défaut des liens pré-Épic 8 (backfill D8-H). */
     @Transactional
     public void link(UUID userId, UUID babyId) {
+        linkWithOwner(userId, babyId, true);
+    }
+
+    /** Lien non-owner (is_owner=false) : sémantique d'une acceptation d'invitation (D8-F). */
+    @Transactional
+    public void linkAsCaregiver(UUID userId, UUID babyId) {
+        linkWithOwner(userId, babyId, false);
+    }
+
+    @Transactional
+    public void linkWithOwner(UUID userId, UUID babyId, boolean owner) {
         BabyCaregiver link = new BabyCaregiver();
         link.appUserId = userId;
         link.babyId = babyId;
+        link.isOwner = owner;
         babyCaregiverRepository.persist(link);
+    }
+
+    @Transactional
+    public boolean isOwner(UUID userId, UUID babyId) {
+        return babyCaregiverRepository.isOwner(userId, babyId);
+    }
+
+    @Transactional
+    public boolean isLinkedHelper(UUID userId, UUID babyId) {
+        return babyCaregiverRepository.isLinked(userId, babyId);
     }
 
     @Transactional
@@ -187,5 +215,32 @@ public class TestDataFactory {
     public boolean tokenConsumed(UUID token) {
         ActivationToken t = activationTokenRepository.findById(token);
         return t != null && t.usedAt != null;
+    }
+
+    // === Épic 8 : invitations de partage ===
+
+    /** Seed direct d'une invitation (Épic 8) — {@code usedAt} null = active, sinon consommée. */
+    @Transactional
+    public UUID createInvitation(UUID babyId, UUID createdBy, Instant expiresAt, Instant usedAt) {
+        BabyInvitation invitation = new BabyInvitation();
+        invitation.token = UUID.randomUUID();
+        invitation.babyId = babyId;
+        invitation.createdBy = createdBy;
+        invitation.expiresAt = expiresAt;
+        invitation.usedAt = usedAt;
+        invitation.acceptedBy = null;
+        babyInvitationRepository.persist(invitation);
+        return invitation.token;
+    }
+
+    @Transactional
+    public boolean invitationConsumed(UUID token) {
+        BabyInvitation i = babyInvitationRepository.findById(token);
+        return i != null && i.usedAt != null;
+    }
+
+    @Transactional
+    public long countActiveInvitations(UUID babyId) {
+        return babyInvitationRepository.count("babyId = ?1 and usedAt is null", babyId);
     }
 }

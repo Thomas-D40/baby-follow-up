@@ -22,8 +22,12 @@ export const DELETE_LABELS = {
   error: 'Échec de la suppression.',
 }
 
-/** Bloc inline pour un item de liste de panel. Gère l'état confirming/pending/erreur localement. */
-export function InlineDeleteConfirm({ prompt, triggerAriaLabel, onDelete, onDeleted }) {
+/**
+ * Bloc inline pour un item de liste de panel. Gère l'état confirming/pending/erreur localement.
+ * `onError(err)` (optionnel) : permet à l'appelant de mapper un code (ex. 409 dernier owner, Épic 8)
+ * sur un message dédié ; sans lui, l'erreur générique locale (`DELETE_LABELS.error`) s'affiche (R3).
+ */
+export function InlineDeleteConfirm({ prompt, triggerAriaLabel, onDelete, onDeleted, onError }) {
   const [confirming, setConfirming] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
@@ -42,9 +46,16 @@ export function InlineDeleteConfirm({ prompt, triggerAriaLabel, onDelete, onDele
     try {
       await onDelete()
       onDeleted?.() // succès (y compris 404 idempotent) : l'item disparaît, ce bloc se démonte
-    } catch {
+    } catch (err) {
       setPending(false)
-      setError(true) // 401/403/500 (R3)
+      if (onError) {
+        // L'appelant mappe le code (ex. 409 dernier owner, Épic 8) et affiche le message à sa surface :
+        // on referme le bloc inline pour ne pas doubler avec le message local générique.
+        setConfirming(false)
+        onError(err)
+      } else {
+        setError(true) // 401/403/500 (R3) — message générique local
+      }
     }
   }
 
