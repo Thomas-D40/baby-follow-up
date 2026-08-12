@@ -10,11 +10,9 @@ import java.util.List;
 @ApplicationScoped
 public class WeightMapper {
 
-    /**
-     * Projette l'historique complet (déjà trié given_on ASC par le repo) en réponse de lecture.
-     * Un seul payload sert la liste ET la courbe (D12-D′) — projection triviale conservée par
-     * convention (mappers dédiés appelés par le service).
-     */
+    // Projects the full history (already sorted given_on ASC by the repo) into the read response.
+    // A single payload serves both the list AND the curve (D12-D′) — trivial projection kept by
+    // convention (dedicated mappers called by the service).
     public WeightHistoryResponse toHistoryResponse(List<Weight> rows) {
         List<WeightPoint> points = rows.stream()
                 .map(w -> new WeightPoint(w.givenOn, w.weightGrams))

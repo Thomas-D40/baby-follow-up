@@ -13,8 +13,8 @@ import WeightPanel from './WeightPanel'
 
 // Recharts est lourd (~430 kB) : on ne le charge qu'à l'ouverture d'une vue graphique (PWA mobile).
 const TrendsPanel = lazy(() => import('./TrendsPanel'))
-// La courbe OMS embarque Recharts ET les tables LMS : chunk lazy isolé, jamais importé par une
-// surface toujours montée (WeightPanel / quick-bar) — cf. D12-G′.
+// The WHO curve bundles Recharts AND the LMS tables: isolated lazy chunk, never imported by an
+// always-mounted surface (WeightPanel / quick-bar) — cf. D12-G′.
 const WeightChart = lazy(() => import('./WeightChart'))
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }

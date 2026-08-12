@@ -12,7 +12,7 @@ vi.mock('../api', () => ({
 }))
 import { getWeightHistory, upsertWeight, deleteWeight } from '../api'
 
-// Store en mémoire keyé par date (mime l'upsert « un/jour, updatable » du back, D12-C′).
+// In-memory store keyed by date (mimics the back-end "one/day, updatable" upsert, D12-C′).
 let store
 const TODAY = parisToday()
 
@@ -67,7 +67,7 @@ describe('WeightPanel — saisie / liste (US12.1)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     expect(await screen.findByText('4.300 kg')).toBeInTheDocument()
-    // Un seul jour → une seule ligne (upsert keyé date, aucun doublon).
+    // A single day → a single row (date-keyed upsert, no duplicate).
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
     expect(upsertWeight).toHaveBeenCalledTimes(2)
   })
@@ -97,8 +97,8 @@ describe('WeightPanel — saisie / liste (US12.1)', () => {
   })
 
   it('poids manquant → erreur locale, aucun appel API (garde-fou JS)', async () => {
-    // Les bornes 0 < g ≤ 30000 sont déjà tenues nativement par min/max de l'input ; ici on couvre
-    // le garde-fou JS (valeur non finie) en soumettant le champ poids vide.
+    // The 0 < g ≤ 30000 bounds are already enforced natively by the input's min/max; here we cover
+    // the JS guard (non-finite value) by submitting the weight field empty.
     renderPanel()
     await screen.findByText('Aucune pesée enregistrée.')
 

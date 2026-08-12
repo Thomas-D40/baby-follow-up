@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { ageInMonths, toChartPoints, growthWindow } from './weight'
 import { bandGrams, buildGrowthData, WHO_BANDS } from './growth/whoBands'
 
-// Quantiles normaux des percentiles OMS tracés (mêmes Z que WHO_BANDS).
+// Normal quantiles of the plotted WHO percentiles (same Z as WHO_BANDS).
 const Z_P3 = -1.88079
 const Z_P50 = 0
 const Z_P97 = 1.88079
 
-// Valeurs OMS publiées (kg) : garçons/filles à des âges connus. Tolérance ±0,06 kg (tables au pas 0,1 kg).
+// Published WHO values (kg): boys/girls at known ages. Tolerance ±0.06 kg (tables in 0.1 kg steps).
 const TOL_KG = 0.06
 const kg = (grams) => grams / 1000
 
@@ -46,7 +46,7 @@ describe('whoBands — garde-fou GOLDEN OMS (P3/P50/P97 = tables publiées, ±0,
     const boy = bandGrams('male', 12, Z_P50)
     const girl = bandGrams('female', 12, Z_P50)
     expect(boy).not.toBe(girl)
-    expect(boy).toBeGreaterThan(girl) // garçons plus lourds à 12 mois (9,6 vs 8,9 kg)
+    expect(boy).toBeGreaterThan(girl) // boys heavier at 12 months (9.6 vs 8.9 kg)
   })
 
   it('interpolation entre deux mois : P50 à 12,5 mois tombe entre m=12 et m=13', () => {
@@ -62,7 +62,7 @@ describe('whoBands — garde-fou GOLDEN OMS (P3/P50/P97 = tables publiées, ±0,
   it('âge > 60 mois → pas de bande (le moteur n\'extrapole pas)', () => {
     expect(bandGrams('male', 61, Z_P50)).toBeNull()
     expect(bandGrams('female', 72, Z_P50)).toBeNull()
-    // La borne exacte 60 est encore couverte.
+    // The exact bound 60 is still covered.
     expect(bandGrams('male', 60, Z_P50)).not.toBeNull()
   })
 
@@ -82,7 +82,7 @@ describe('ageInMonths — âge en mois depuis la naissance', () => {
   })
 
   it('âge fractionnaire : ~3 semaines (21 j) tombe entre 0 et 1 mois', () => {
-    const age = ageInMonths('2026-01-22', '2026-01-01') // 21 jours
+    const age = ageInMonths('2026-01-22', '2026-01-01') // 21 days
     expect(age).toBeGreaterThan(0)
     expect(age).toBeLessThan(1)
     expect(age).toBeCloseTo(21 / (365.25 / 12), 3)
@@ -98,16 +98,16 @@ describe('toChartPoints — historique → points sur l\'axe âge', () => {
   it('jour omis (pesées J1 et J3) → 2 points seulement, aucun point intermédiaire/0 (segment direct)', () => {
     const history = {
       points: [
-        { givenOn: '2026-01-02', weightGrams: 3400 }, // J1 (naissance = 2026-01-01)
-        { givenOn: '2026-01-04', weightGrams: 3600 }, // J3
+        { givenOn: '2026-01-02', weightGrams: 3400 }, // D1 (birth = 2026-01-01)
+        { givenOn: '2026-01-04', weightGrams: 3600 }, // D3
       ],
     }
     const pts = toChartPoints(history, '2026-01-01')
     expect(pts).toHaveLength(2)
     expect(pts.map((p) => p.weightGrams)).toEqual([3400, 3600])
-    // Aucun point à 0 ni intermédiaire injecté : le chart relie J1→J3 en droite.
+    // No zero or intermediate point injected: the chart connects D1→D3 with a straight line.
     expect(pts.some((p) => p.weightGrams === 0)).toBe(false)
-    // Placés à leur âge réel (proportionnel au temps), pas à des index équidistants.
+    // Placed at their real age (proportional to time), not at equidistant indices.
     expect(pts[0].ageMonths).toBeCloseTo(1 / (365.25 / 12), 3)
     expect(pts[1].ageMonths).toBeCloseTo(3 / (365.25 / 12), 3)
   })
@@ -116,7 +116,7 @@ describe('toChartPoints — historique → points sur l\'axe âge', () => {
     const history = {
       points: [
         { givenOn: '2026-03-01', weightGrams: 5000 },
-        { givenOn: '2025-12-01', weightGrams: 9999 }, // avant naissance → écarté
+        { givenOn: '2025-12-01', weightGrams: 9999 }, // before birth → discarded
         { givenOn: '2026-01-01', weightGrams: 3300 },
       ],
     }
@@ -132,7 +132,7 @@ describe('toChartPoints — historique → points sur l\'axe âge', () => {
 
 describe('growthWindow — fenêtre d\'âge Tout / Année / Mois (D12-I′)', () => {
   const birth = '2025-01-01'
-  const today = '2026-08-12' // ~19,4 mois
+  const today = '2026-08-12' // ~19.4 months
 
   it('Tout : de la naissance (0) à l\'âge courant', () => {
     const { minMonths, maxMonths } = growthWindow('all', birth, 0, today)
@@ -151,7 +151,7 @@ describe('growthWindow — fenêtre d\'âge Tout / Année / Mois (D12-I′)', ()
   })
 
   it('borne le max sur la dernière pesée pour qu\'un point futur reste visible', () => {
-    // latest (24 mois) > âge courant (~19,4) → maxMonths suit latest.
+    // latest (24 months) > current age (~19.4) → maxMonths follows latest.
     const { maxMonths } = growthWindow('all', birth, 24, today)
     expect(maxMonths).toBeCloseTo(24, 5)
   })
@@ -166,7 +166,7 @@ describe('buildGrowthData — fusion bandes OMS + points enfant sur l\'axe âge'
     for (const band of WHO_BANDS) {
       expect(at12[band.key]).toBeGreaterThan(0)
     }
-    // Bandes du bon sexe : la P50 à 12 mois vaut la valeur garçon, pas fille.
+    // Bands of the right sex: the P50 at 12 months equals the boy value, not the girl one.
     expect(at12.p50).toBe(bandGrams('male', 12, 0))
   })
 

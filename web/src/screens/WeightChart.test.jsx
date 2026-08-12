@@ -35,7 +35,7 @@ describe('WeightChart — courbe de croissance (US12.1)', () => {
     })
     renderChart({ sex: 'female' })
 
-    // Le sélecteur de période s'affiche, l'état vide non → le chart est monté.
+    // The period selector shows, the empty state does not → the chart is mounted.
     expect(await screen.findByRole('tablist', { name: 'Période de croissance' })).toBeInTheDocument()
     expect(screen.queryByText(/Aucune pesée enregistrée/)).not.toBeInTheDocument()
   })
@@ -45,7 +45,7 @@ describe('WeightChart — courbe de croissance (US12.1)', () => {
     renderChart({ sex: 'male' })
 
     expect(await screen.findByRole('tablist', { name: 'Période de croissance' })).toBeInTheDocument()
-    // Les trois vues de période sont proposées.
+    // The three period views are offered.
     expect(screen.getByRole('tab', { name: 'Tout' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Année' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Mois' })).toBeInTheDocument()

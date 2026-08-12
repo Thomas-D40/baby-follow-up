@@ -41,7 +41,7 @@ class WeightTest {
         return new Caregiver(userId, babyId, AuthFixture.loginCookie(email, PWD));
     }
 
-    /** 2ᵉ parent lié au MÊME bébé (co-gestion Épic 8) — sert au test « dernier gagnant » sur l'author. */
+    // 2nd parent linked to the SAME baby (co-management Épic 8) — used by the "last-writer-wins" test on the author.
     private Caregiver coParent(UUID babyId, String prefix) {
         String email = data.uniqueEmail(prefix);
         UUID userId = data.createActiveParent(email, PWD);
@@ -81,20 +81,20 @@ class WeightTest {
             Caregiver b = coParent(a.babyId(), "wput-b");
             String day = today();
 
-            // A pèse en premier → author = A.
+            // A weighs first → author = A.
             given().cookie(AuthFixture.COOKIE, a.cookie())
                     .contentType(ContentType.JSON).body(Map.of("weightGrams", 4200))
                     .when().put(WEIGHTS_DATE, a.babyId(), day)
                     .then().statusCode(200).body("weightGrams", is(4200));
             assertEquals(a.userId(), data.weightAuthorId(a.babyId(), LocalDate.parse(day)));
 
-            // B corrige le même jour → valeur écrasée ET author devient B (contrairement à vitamine « 1er gagnant »).
+            // B corrects the same day → value overwritten AND author becomes B (unlike vitamin's "first-writer-wins").
             given().cookie(AuthFixture.COOKIE, b.cookie())
                     .contentType(ContentType.JSON).body(Map.of("weightGrams", 4300))
                     .when().put(WEIGHTS_DATE, a.babyId(), day)
                     .then().statusCode(200).body("weightGrams", is(4300));
 
-            assertEquals(1, data.countWeight(a.babyId())); // unicité (baby_id, given_on) : jamais 2 lignes le même jour
+            assertEquals(1, data.countWeight(a.babyId())); // uniqueness (baby_id, given_on): never 2 rows on the same day
             assertEquals(b.userId(), data.weightAuthorId(a.babyId(), LocalDate.parse(day)));
         }
 
@@ -178,7 +178,7 @@ class WeightTest {
         @DisplayName("Scénario : historique trié given_on ASC (peu importe l'ordre de saisie)")
         void historique_trie_asc() {
             Caregiver c = linkedCaregiver("wget");
-            // Saisie volontairement dans le désordre.
+            // Entered deliberately out of order.
             put(c.cookie(), c.babyId(), "2026-01-03", 5200);
             put(c.cookie(), c.babyId(), "2026-01-01", 4200);
             put(c.cookie(), c.babyId(), "2026-01-02", 4800);
@@ -290,7 +290,7 @@ class WeightTest {
         @DisplayName("Scénario : viser le babyId d'un autre bébé → 404 sur les 3 verbes, état intact")
         void acces_croise() {
             Caregiver a = linkedCaregiver("wattacker");
-            // Victime : parent + bébé, avec une pesée seedée via sa propre session.
+            // Victim: parent + baby, with a weigh-in seeded via their own session.
             String victimEmail = data.uniqueEmail("wvictim");
             UUID victim = data.createActiveParent(victimEmail, PWD);
             UUID b2 = data.createBaby("BébéVictime");
@@ -301,7 +301,7 @@ class WeightTest {
                     .contentType(ContentType.JSON).body(Map.of("weightGrams", 4200))
                     .when().put(WEIGHTS_DATE, b2, day).then().statusCode(200);
 
-            // A n'est pas lié à B2 → 404 sur les trois verbes, sans rien révéler.
+            // A is not linked to B2 → 404 on all three verbs, revealing nothing.
             given().cookie(AuthFixture.COOKIE, a.cookie())
                     .when().get(WEIGHTS, b2).then().statusCode(404);
             given().cookie(AuthFixture.COOKIE, a.cookie())
@@ -310,7 +310,7 @@ class WeightTest {
             given().cookie(AuthFixture.COOKIE, a.cookie())
                     .when().delete(WEIGHTS_DATE, b2, day).then().statusCode(404);
 
-            // L'état de la victime est intact : 1 ligne, valeur et author d'origine (le PUT de A n'a rien écrasé).
+            // The victim's state is intact: 1 row, original value and author (A's PUT overwrote nothing).
             assertEquals(1, data.countWeight(b2));
             assertEquals(victim, data.weightAuthorId(b2, LocalDate.parse(day)));
         }

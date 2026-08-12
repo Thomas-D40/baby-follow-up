@@ -5,8 +5,8 @@ import { getWeightHistory } from '../api'
 import { growthWindow, toChartPoints } from '../weight'
 import { WHO_BANDS, buildGrowthData } from '../growth/whoBands'
 
-// Recharts (~430 kB) + les tables OMS ne vivent QUE dans ce chunk lazy (D12-G′) : ce module n'est
-// jamais importé par une surface toujours montée (WeightPanel / quick-bar).
+// Recharts (~430 kB) + the WHO tables live ONLY in this lazy chunk (D12-G′): this module is
+// never imported by an always-mounted surface (WeightPanel / quick-bar).
 
 const GROWTH_VIEWS = ['all', 'year', 'month']
 const GROWTH_VIEW_LABEL = { all: 'Tout', year: 'Année', month: 'Mois' }
@@ -14,15 +14,12 @@ const GROWTH_VIEW_LABEL = { all: 'Tout', year: 'Année', month: 'Mois' }
 const gramsToKg = (g) => `${(g / 1000).toFixed(g % 1000 === 0 ? 0 : 1)} kg`
 const monthTick = (m) => `${Math.round(m)} m`
 
-/**
- * Courbe de croissance (US12.1) : bandes de percentiles OMS (poids-pour-âge, du bon sexe) en fond,
- * pesées de l'enfant par-dessus. Axe X = âge en mois (depuis `birthDate`), axe Y = grammes (kg au
- * tick). La vue Croissance ne monte ce composant que quand le gate `birthDate` ET `sex` est passé
- * (garanti par le parent), donc `sex`/`birthDate` sont non nuls ici.
- *
- * Cache `['babies', babyId, 'weight-history']` sous le préfixe `['babies', babyId]` → l'invalidation
- * après saisie/suppression (WeightPanel) rafraîchit aussi la courbe.
- */
+// Growth curve (US12.1): WHO percentile bands (weight-for-age, of the right sex) in the background,
+// the child's weigh-ins on top. X axis = age in months (from `birthDate`), Y axis = grams (kg at the
+// tick). The Growth view mounts this component only once the `birthDate` AND `sex` gate is passed
+// (guaranteed by the parent), so `sex`/`birthDate` are non-null here.
+// Cache `['babies', babyId, 'weight-history']` under the prefix `['babies', babyId]` → invalidation
+// after entry/deletion (WeightPanel) also refreshes the curve.
 export default function WeightChart({ babyId, sex, birthDate }) {
   const [view, setView] = useState('all')
   const { data, isLoading } = useQuery({

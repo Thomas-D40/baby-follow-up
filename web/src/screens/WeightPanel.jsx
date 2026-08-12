@@ -4,24 +4,20 @@ import { getWeightHistory, upsertWeight, deleteWeight } from '../api'
 import { parisToday } from '../calendar'
 import { InlineDeleteConfirm } from './DeleteConfirm'
 
-/**
- * Saisie / liste / correction du poids (US12.1). Poids = état-jour keyé date (D12-A′) : l'écriture est
- * un upsert « dernier écrivain gagne » (D12-C′), donc un **seul** form inline (date + poids en g) sert
- * la saisie ET la correction — ni sheet d'édition ni composant `WeightForm` séparé (ce fork n'est utile
- * qu'au biberon, keyé `{id}`). ✏️ sur une ligne pré-remplit le form (même date → re-saisie du jour).
- *
- * Suppression **locale** via `deleteWeight(babyId, day)` (204 idempotent) — PAS `useDeleteEvent`, dont
- * le contrat `(babyId, id)` est incompatible avec le keyage par date (D12-F). Corriger le JOUR d'une
- * pesée mal datée = supprimer l'ancien jour puis saisir le bon (cas rare).
- *
- * Écritures en `retry: 0` (pas de rejeu qui doublonnerait en réponse-perdue) ; au succès, invalidation
- * par **préfixe** `['babies', babyId]` → rafraîchit la liste ET la courbe (`weight-history`).
- */
+// Weight entry / list / correction (US12.1). Weight = date-keyed day-state (D12-A′): writing is
+// a "last-writer-wins" upsert (D12-C′), so a SINGLE inline form (date + weight in g) serves
+// both entry AND correction — no edit sheet nor separate `WeightForm` component (that fork is only
+// useful for the bottle, keyed `{id}`). ✏️ on a row pre-fills the form (same date → re-entry of the day).
+// LOCAL deletion via `deleteWeight(babyId, day)` (204 idempotent) — NOT `useDeleteEvent`, whose
+// `(babyId, id)` contract is incompatible with date keying (D12-F). Fixing the DAY of a
+// mis-dated weigh-in = delete the old day then enter the right one (rare case).
+// Writes with `retry: 0` (no replay that would duplicate on a lost response); on success, invalidation
+// by PREFIX `['babies', babyId]` → refreshes the list AND the curve (`weight-history`).
 export default function WeightPanel({ babyId }) {
   const qc = useQueryClient()
   const key = ['babies', babyId, 'weight-history']
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => getWeightHistory(babyId) })
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['babies', babyId] }) // préfixe (liste + courbe)
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['babies', babyId] }) // prefix (list + curve)
 
   const [day, setDay] = useState(() => parisToday())
   const [grams, setGrams] = useState('')
@@ -40,7 +36,7 @@ export default function WeightPanel({ babyId }) {
   })
 
   const points = data?.points ?? []
-  const rows = [...points].sort((a, b) => (a.givenOn < b.givenOn ? 1 : -1)) // given_on DESC à l'affichage
+  const rows = [...points].sort((a, b) => (a.givenOn < b.givenOn ? 1 : -1)) // given_on DESC for display
 
   async function handleSubmit(e) {
     e.preventDefault()

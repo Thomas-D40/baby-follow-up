@@ -12,21 +12,17 @@ import java.util.UUID;
 @ApplicationScoped
 public class WeightRepository implements PanacheRepositoryBase<Weight, UUID> {
 
-    /**
-     * Historique complet trié given_on ASC, borné à 2000 lignes (garde-fou anti-bug, D12-D′).
-     * Panache n'a pas de mot-clé {@code LIMIT} → {@code .range(0, 1999)} (bornes inclusives).
-     */
+    // Full history sorted given_on ASC, capped at 2000 rows (anti-bug guard, D12-D′).
+    // Panache has no LIMIT keyword → .range(0, 1999) (inclusive bounds).
     public List<Weight> listAll(UUID babyId) {
         return find("babyId = ?1", Sort.by("givenOn").ascending(), babyId)
                 .range(0, 1999)
                 .list();
     }
 
-    /**
-     * Upsert keyé date « dernier écrivain gagne » (D12-C′) : {@code ON CONFLICT DO UPDATE} sur la
-     * contrainte unique (baby_id, given_on) → écrase la valeur ET l'author. Natif car Panache ne sait
-     * pas exprimer {@code ON CONFLICT}.
-     */
+    // Date-keyed "last-writer-wins" upsert (D12-C′): ON CONFLICT DO UPDATE on the unique
+    // constraint (baby_id, given_on) → overwrites the value AND the author. Native because Panache
+    // cannot express ON CONFLICT.
     public void upsert(UUID babyId, LocalDate givenOn, int weightGrams, UUID authorId) {
         getEntityManager()
                 .createNativeQuery("INSERT INTO weight "
@@ -41,7 +37,7 @@ public class WeightRepository implements PanacheRepositoryBase<Weight, UUID> {
                 .executeUpdate();
     }
 
-    /** Suppression idempotente (D12-D′) : supprime 0 ou 1 ligne, jamais d'erreur si absente. */
+    // Idempotent deletion (D12-D′): deletes 0 or 1 row, never errors if absent.
     public long deleteByKey(UUID babyId, LocalDate givenOn) {
         return delete("babyId = ?1 and givenOn = ?2", babyId, givenOn);
     }

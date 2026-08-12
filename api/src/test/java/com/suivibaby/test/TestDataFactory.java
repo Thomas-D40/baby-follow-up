@@ -226,13 +226,13 @@ public class TestDataFactory {
         return vitaminIntakeRepository.count("babyId", babyId);
     }
 
-    /** Nombre de lignes poids d'un bébé (Épic 12) — vérifie l'unicité par jour (upsert, D12-C′). */
+    // Number of weight rows for a baby (Épic 12) — checks per-day uniqueness (upsert, D12-C′).
     @Transactional
     public long countWeight(UUID babyId) {
         return weightRepository.count("babyId", babyId);
     }
 
-    /** Author courant de la pesée d'un jour (Épic 12) — vérifie le « dernier gagnant » (D12-C′). */
+    // Current author of a day's weigh-in (Épic 12) — checks "last-writer-wins" (D12-C′).
     @Transactional
     public UUID weightAuthorId(UUID babyId, LocalDate givenOn) {
         Weight row = weightRepository.find("babyId = ?1 and givenOn = ?2", babyId, givenOn).firstResult();

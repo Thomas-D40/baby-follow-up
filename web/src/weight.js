@@ -1,15 +1,15 @@
-// Logique pure du poids (Épic 12), extraite pour test unitaire. Aucun appel réseau ici, et
-// SURTOUT aucun import des gros JSON OMS ni de Recharts : ce module reste léger, importable
-// partout sans alourdir le bundle. Le moteur de bandes OMS vit dans `growth/whoBands.js`,
-// importé uniquement par le chart lazy (D12-G′).
+// Pure weight logic (Épic 12), extracted for unit testing. No network calls here, and
+// ABOVE ALL no import of the large WHO JSON files nor Recharts: this module stays light, importable
+// anywhere without bloating the bundle. The WHO band engine lives in `growth/whoBands.js`,
+// imported only by the lazy chart (D12-G′).
 
 import { parisToday } from './calendar'
 
-// Nombre de jours moyens dans un mois (année julienne / 12) — conversion âge jours → mois pour
-// coïncider avec l'axe des tables OMS (poids-pour-âge en mois).
+// Average number of days in a month (Julian year / 12) — converts age days → months to
+// match the axis of the WHO tables (weight-for-age in months).
 const DAYS_PER_MONTH = 365.25 / 12
 
-/** Différence en jours entiers entre deux dates YYYY-MM-DD (calcul en UTC pur, indépendant du fuseau). */
+// Whole-day difference between two YYYY-MM-DD dates (pure UTC computation, timezone-independent).
 function daysBetween(fromYmd, toYmd) {
   const [fy, fm, fd] = fromYmd.split('-').map(Number)
   const [ty, tm, td] = toYmd.split('-').map(Number)
@@ -18,11 +18,9 @@ function daysBetween(fromYmd, toYmd) {
   return Math.round((to - from) / 86400000)
 }
 
-/**
- * Âge (en mois, décimal) d'une pesée `givenOn` par rapport à `birthDate` (deux YYYY-MM-DD).
- * Naissance = 0. Interpolation continue → un âge non entier tombe entre deux points OMS mensuels.
- * Renvoie `null` si une des dates manque/est invalide (le gate garantit `birthDate` côté vue).
- */
+// Age (in decimal months) of a weigh-in `givenOn` relative to `birthDate` (both YYYY-MM-DD).
+// Birth = 0. Continuous interpolation → a non-integer age falls between two monthly WHO points.
+// Returns `null` if one of the dates is missing/invalid (the gate guarantees `birthDate` on the view side).
 export function ageInMonths(givenOn, birthDate) {
   if (!givenOn || !birthDate) return null
   const days = daysBetween(birthDate, givenOn)
@@ -30,11 +28,9 @@ export function ageInMonths(givenOn, birthDate) {
   return days / DAYS_PER_MONTH
 }
 
-/**
- * Transforme l'historique (`{ points: [{ givenOn, weightGrams }] }`) en points de courbe sur l'axe
- * âge : `[{ ageMonths, weightGrams, givenOn }]`, triés par âge croissant. Les pesées antérieures à la
- * naissance (âge négatif) ou sans âge calculable sont écartées.
- */
+// Transforms the history (`{ points: [{ givenOn, weightGrams }] }`) into curve points on the age
+// axis: `[{ ageMonths, weightGrams, givenOn }]`, sorted by increasing age. Weigh-ins before
+// birth (negative age) or without a computable age are discarded.
 export function toChartPoints(history, birthDate) {
   const points = history?.points ?? []
   return points
@@ -43,14 +39,12 @@ export function toChartPoints(history, birthDate) {
     .sort((a, b) => a.ageMonths - b.ageMonths)
 }
 
-/**
- * Fenêtre d'âge affichée (en mois) selon la vue, exprimée en termes d'ÂGE (D12-I′) :
- * - `all`   : naissance → âge actuel (0 → aujourd'hui).
- * - `year`  : 12 derniers mois d'âge.
- * - `month` : ~30 derniers jours d'âge (1 mois).
- * `latest` = âge (mois) de la dernière pesée ; on borne au max de l'âge courant et de `latest` pour
- * qu'un point futur (jour saisi = aujourd'hui) reste visible. Renvoie `{ minMonths, maxMonths }`.
- */
+// Displayed age window (in months) depending on the view, expressed in terms of AGE (D12-I′):
+// - `all`   : birth → current age (0 → today).
+// - `year`  : last 12 months of age.
+// - `month` : ~last 30 days of age (1 month).
+// `latest` = age (months) of the last weigh-in; we cap at the max of the current age and `latest` so
+// that a future point (day entered = today) stays visible. Returns `{ minMonths, maxMonths }`.
 export function growthWindow(view, birthDate, latest = 0, today = parisToday()) {
   const currentAge = birthDate ? Math.max(0, ageInMonths(today, birthDate) ?? 0) : 0
   const maxMonths = Math.max(currentAge, latest ?? 0, 1)

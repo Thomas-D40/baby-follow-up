@@ -39,7 +39,7 @@ public class WeightController {
                              @PathParam("date") String date,
                              UpsertWeightRequest body) {
         AppUser currentUser = currentUserResolver.require();
-        return weightService.upsert(currentUser.id, babyId, date, body); // 200 dernier gagnant (D12-C′)
+        return weightService.upsert(currentUser.id, babyId, date, body); // 200 last-writer-wins (D12-C′)
     }
 
     @DELETE

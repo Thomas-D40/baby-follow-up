@@ -1,13 +1,13 @@
-// Moteur de bandes OMS (poids-pour-âge), Épic 12 — Lot B. Importe les gros JSON de référence et
-// applique la formule LMS. À N'IMPORTER QUE depuis le chart lazy (`WeightChart`), jamais depuis une
-// surface toujours montée : sinon les tables OMS fuient dans le bundle principal (D12-G′).
+// WHO band engine (weight-for-age), Épic 12 — Lot B. Imports the large reference JSON files and
+// applies the LMS formula. IMPORT ONLY from the lazy chart (`WeightChart`), never from an
+// always-mounted surface: otherwise the WHO tables leak into the main bundle (D12-G′).
 import boys from './who-wfa-boys.json'
 import girls from './who-wfa-girls.json'
 
 const MAX_AGE_MONTHS = 60
 
-// Bandes tracées (choix carnet de santé) avec le quantile normal Z du percentile. Z vérifiés :
-// la formule LMS reproduit les colonnes P* tabulées à ±0,05 kg.
+// Plotted bands (health-record choice) with the normal quantile Z of the percentile. Z verified:
+// the LMS formula reproduces the tabulated P* columns to within ±0.05 kg.
 export const WHO_BANDS = [
   { key: 'p3', z: -1.88079, label: 'P3' },
   { key: 'p15', z: -1.03643, label: 'P15' },
@@ -19,10 +19,10 @@ export const WHO_BANDS = [
 function rowsForSex(sex) {
   if (sex === 'female') return girls.rows
   if (sex === 'male') return boys.rows
-  return null // sexe inconnu → pas de bande (jamais de rabat silencieux, cohérent avec le gate D12-G′)
+  return null // unknown sex → no band (never a silent fallback, consistent with the D12-G′ gate)
 }
 
-/** L/M/S interpolés linéairement à un âge (mois) ; `null` hors table [0, 60] ou sexe inconnu. */
+// L/M/S linearly interpolated at an age (months); `null` outside the [0, 60] table or unknown sex.
 function lmsAt(rows, month) {
   if (!rows || month < 0 || month > MAX_AGE_MONTHS) return null
   const lo = Math.floor(month)
@@ -38,33 +38,29 @@ function lmsAt(rows, month) {
   }
 }
 
-/** Poids (kg) du percentile de quantile `z` via LMS : w = M·(1+L·S·Z)^(1/L) ; L≈0 → w = M·e^(S·Z). */
+// Weight (kg) of the percentile with quantile `z` via LMS: w = M·(1+L·S·Z)^(1/L); L≈0 → w = M·e^(S·Z).
 function weightKg(lms, z) {
   const { L, M, S } = lms
   if (Math.abs(L) < 1e-7) return M * Math.exp(S * z)
   return M * Math.pow(1 + L * S * z, 1 / L)
 }
 
-/** Poids (grammes entiers) d'un percentile à un âge, ou `null` hors [0,60] mois. L'app stocke des grammes. */
+// Weight (whole grams) of a percentile at an age, or `null` outside [0,60] months. The app stores grams.
 export function bandGrams(sex, month, z) {
   const lms = lmsAt(rowsForSex(sex), month)
   if (!lms) return null
   return Math.round(weightKg(lms, z) * 1000)
 }
 
-/**
- * Données fusionnées pour le `LineChart` : une ligne par âge échantillonné, portant les 5 bandes OMS
- * (grammes) ET, aux âges des pesées, le poids de l'enfant (`child`). Bandes et points partagent ainsi
- * le même axe âge. Les âges > 60 mois portent des bandes `null` (points de l'enfant tracés seuls).
- *
- * @param sex 'female' | 'male'
- * @param childPoints [{ ageMonths, weightGrams }] (issu de `toChartPoints`)
- * @param window { minMonths, maxMonths }
- */
+// Merged data for the `LineChart`: one row per sampled age, carrying the 5 WHO bands
+// (grams) AND, at the weigh-in ages, the child's weight (`child`). Bands and points thus share
+// the same age axis. Ages > 60 months carry `null` bands (child points drawn alone).
+// sex: 'female' | 'male'; childPoints: [{ ageMonths, weightGrams }] (from `toChartPoints`);
+// window: { minMonths, maxMonths }.
 export function buildGrowthData(sex, childPoints, window) {
   const { minMonths, maxMonths } = window
   const ages = new Set()
-  // Échantillonnage mensuel des bandes sur la fenêtre (clampé à la table OMS pour la partie bandes).
+  // Monthly sampling of the bands over the window (clamped to the WHO table for the band part).
   const from = Math.floor(minMonths)
   const to = Math.ceil(maxMonths)
   for (let m = from; m <= to; m++) {
@@ -72,7 +68,7 @@ export function buildGrowthData(sex, childPoints, window) {
   }
   ages.add(minMonths)
   ages.add(maxMonths)
-  // Âges réels des pesées (dans la fenêtre) → points de l'enfant exactement placés.
+  // Real ages of the weigh-ins (within the window) → child points exactly placed.
   for (const p of childPoints) {
     if (p.ageMonths >= minMonths && p.ageMonths <= maxMonths) ages.add(p.ageMonths)
   }

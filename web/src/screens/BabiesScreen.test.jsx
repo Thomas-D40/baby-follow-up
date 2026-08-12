@@ -7,8 +7,8 @@ import * as api from '../api'
 
 vi.mock('../api')
 
-// Stub léger de la courbe (lazy, Recharts + tables OMS) : le gate est ce qu'on teste ici, pas le
-// rendu du chart (couvert par WeightChart.test.jsx). Évite le coût/flakiness du chunk lazy réel.
+// Light stub of the curve (lazy, Recharts + WHO tables): the gate is what we test here, not the
+// chart's rendering (covered by WeightChart.test.jsx). Avoids the cost/flakiness of the real lazy chunk.
 vi.mock('./WeightChart', () => ({
   default: ({ sex, birthDate }) => (
     <div data-testid="weight-chart">chart {sex} {birthDate}</div>
@@ -39,7 +39,7 @@ beforeEach(() => {
   api.listStools.mockResolvedValue({ items: [], nextCursor: null })
   // Section Partage (Épic 8) montée dans la fiche : cercle vide par défaut.
   api.listCaregivers.mockResolvedValue([])
-  // Courbe de croissance (Épic 12) : historique vide par défaut si la vue est ouverte.
+  // Growth curve (Épic 12): empty history by default if the view is opened.
   api.getWeightHistory.mockResolvedValue({ points: [] })
 })
 
@@ -127,7 +127,7 @@ describe('BabiesScreen — gate courbe de croissance (Épic 12, D12-G′)', () =
 
     await userEvent.click(screen.getByRole('tab', { name: 'Croissance' }))
 
-    // WeightChart (lazy) monté avec le bon sexe + birthDate ; message de gate absent.
+    // WeightChart (lazy) mounted with the right sex + birthDate; gate message absent.
     const chart = await screen.findByTestId('weight-chart')
     expect(chart).toHaveTextContent('female')
     expect(chart).toHaveTextContent('2026-01-15')

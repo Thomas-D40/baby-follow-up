@@ -32,17 +32,15 @@ public class WeightService {
     @Inject
     WeightMapper weightMapper;
 
-    /** Historique complet trié given_on ASC (D12-D′). Un seul payload sert liste et courbe. */
+    // Full history sorted given_on ASC (D12-D′). A single payload serves both list and curve.
     public WeightHistoryResponse history(UUID userId, UUID babyId) {
         requireLinked(userId, babyId);
         return weightMapper.toHistoryResponse(weightRepository.listAll(babyId));
     }
 
-    /**
-     * Upsert keyé date (D12-C′) : dernier écrivain gagne sur valeur ET author. Renvoie directement
-     * {@code new WeightPoint(day, grams)} — la valeur écrite étant la valeur courante, aucune
-     * relecture DB n'est nécessaire (contrairement à vitamine « premier gagnant »).
-     */
+    // Date-keyed upsert (D12-C′): last writer wins on value AND author. Returns
+    // new WeightPoint(day, grams) directly — the written value being the current value, no DB
+    // re-read is needed (unlike vitamin's "first-writer-wins").
     @Transactional
     public WeightPoint upsert(UUID userId, UUID babyId, String dateParam, UpsertWeightRequest body) {
         requireLinked(userId, babyId);
@@ -52,7 +50,7 @@ public class WeightService {
         return new WeightPoint(day, grams);
     }
 
-    /** Suppression idempotente (D12-D′) : 204 systématique, supprime 0 ou 1 ligne. */
+    // Idempotent deletion (D12-D′): always 204, deletes 0 or 1 row.
     @Transactional
     public void delete(UUID userId, UUID babyId, String dateParam) {
         requireLinked(userId, babyId);
@@ -68,7 +66,7 @@ public class WeightService {
         }
     }
 
-    /** Valeur en grammes : 0 < g ≤ 30000 (D12-B), sinon 400. */
+    // Value in grams: 0 < g ≤ 30000 (D12-B), otherwise 400.
     private int validateWeight(UpsertWeightRequest body) {
         if (body == null || body.weightGrams() == null) {
             throw new BadRequestException("Poids requis.");
@@ -80,7 +78,7 @@ public class WeightService {
         return grams;
     }
 
-    /** Jour d'écriture : format invalide → 400 ; jour futur → 400 (D12-C′). */
+    // Write date: invalid format → 400; future day → 400 (D12-C′).
     private LocalDate resolveWritableDate(String dateParam) {
         LocalDate day;
         try {
