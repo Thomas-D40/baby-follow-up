@@ -20,11 +20,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * US9.1 — vitamine = état-jour idempotent (D9-A). Un {@code @Nested} par cible d'AC (cf. §4 du plan) :
- * coche (POST 200 idempotent, D9-B), décoche (DELETE 204 systématique), état du jour (GET matrice d/k),
- * idempotence (contrainte unique = zéro doublon, D9-G) et **jalon IDOR** (un seul check suffit, D9-C/US1.5).
- */
 @QuarkusTest
 class VitaminTest {
 
