@@ -9,14 +9,18 @@ import NapPanel from './NapPanel'
 import StoolPanel from './StoolPanel'
 import CalendarPanel from './CalendarPanel'
 import SharePanel from './SharePanel'
+import WeightPanel from './WeightPanel'
 
 // Recharts est lourd (~430 kB) : on ne le charge qu'à l'ouverture d'une vue graphique (PWA mobile).
 const TrendsPanel = lazy(() => import('./TrendsPanel'))
+// The WHO curve bundles Recharts AND the LMS tables: isolated lazy chunk, never imported by an
+// always-mounted surface (WeightPanel / quick-bar) — cf. D12-G′.
+const WeightChart = lazy(() => import('./WeightChart'))
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 const SEX_EMOJI = { female: '👧', male: '👦' }
-const CAL_VIEWS = ['day', 'week', 'month', 'year']
-const CAL_VIEW_LABEL = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année' }
+const CAL_VIEWS = ['day', 'week', 'month', 'year', 'growth']
+const CAL_VIEW_LABEL = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', growth: 'Croissance' }
 
 /**
  * Fiche bébé (US2.1 create, US2.2 select, D2-E edit/delete). Design « pastel doux & rond » : une
@@ -31,7 +35,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [view, setView] = useState('list') // list | add | edit
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
-  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'stool'
+  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'stool' | 'weight'
   const [calView, setCalView] = useState('day') // day = liste du jour ; week|month|year = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
@@ -169,6 +173,10 @@ export default function BabiesScreen({ me, onLogout }) {
             <span className="emoji" aria-hidden="true">💩</span>
             <span className="label">Selle</span>
           </button>
+          <button className="quick-btn quick-btn--weight" onClick={() => openSheet('weight')}>
+            <span className="emoji" aria-hidden="true">⚖️</span>
+            <span className="label">Poids</span>
+          </button>
         </div>
       )}
 
@@ -188,13 +196,30 @@ export default function BabiesScreen({ me, onLogout }) {
         </div>
       )}
 
-      {currentBaby && (calView === 'day'
-        ? <CalendarPanel babyId={currentBaby.id} />
-        : (
+      {currentBaby && calView === 'day' && <CalendarPanel babyId={currentBaby.id} />}
+
+      {currentBaby && (calView === 'week' || calView === 'month' || calView === 'year') && (
+        <Suspense fallback={<section className="card"><p className="empty">…</p></section>}>
+          <TrendsPanel babyId={currentBaby.id} view={calView} />
+        </Suspense>
+      )}
+
+      {currentBaby && calView === 'growth' && (
+        currentBaby.birthDate && currentBaby.sex ? (
           <Suspense fallback={<section className="card"><p className="empty">…</p></section>}>
-            <TrendsPanel babyId={currentBaby.id} view={calView} />
+            <WeightChart babyId={currentBaby.id} sex={currentBaby.sex} birthDate={currentBaby.birthDate} />
           </Suspense>
-        ))}
+        ) : (
+          <section className="card">
+            <p className="empty">
+              Pour comparer aux courbes de croissance OMS, renseignez la date de naissance et le sexe de {currentBaby.firstName}.
+            </p>
+            <button onClick={() => { setNotice(null); setView('edit') }} className="btn btn--primary" style={{ alignSelf: 'center' }}>
+              Compléter la fiche
+            </button>
+          </section>
+        )
+      )}
 
       {currentBaby && <SharePanel babyId={currentBaby.id} me={me} />}
 
@@ -214,6 +239,9 @@ export default function BabiesScreen({ me, onLogout }) {
           </BottomSheet>
           <BottomSheet open={sheet === 'stool'} onClose={closeSheet} title={<><span aria-hidden="true">💩</span> Selle</>}>
             <StoolPanel babyId={currentBaby.id} />
+          </BottomSheet>
+          <BottomSheet open={sheet === 'weight'} onClose={closeSheet} title={<><span aria-hidden="true">⚖️</span> Poids</>}>
+            <WeightPanel babyId={currentBaby.id} />
           </BottomSheet>
         </>
       )}

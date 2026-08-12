@@ -7,6 +7,14 @@ import * as api from '../api'
 
 vi.mock('../api')
 
+// Light stub of the curve (lazy, Recharts + WHO tables): the gate is what we test here, not the
+// chart's rendering (covered by WeightChart.test.jsx). Avoids the cost/flakiness of the real lazy chunk.
+vi.mock('./WeightChart', () => ({
+  default: ({ sex, birthDate }) => (
+    <div data-testid="weight-chart">chart {sex} {birthDate}</div>
+  ),
+}))
+
 const me = { firstName: 'Parent', email: 'p@test.local', role: 'parent' }
 
 function renderScreen() {
@@ -31,6 +39,8 @@ beforeEach(() => {
   api.listStools.mockResolvedValue({ items: [], nextCursor: null })
   // Section Partage (Épic 8) montée dans la fiche : cercle vide par défaut.
   api.listCaregivers.mockResolvedValue([])
+  // Growth curve (Épic 12): empty history by default if the view is opened.
+  api.getWeightHistory.mockResolvedValue({ points: [] })
 })
 
 describe('BabiesScreen — sélection (US2.2)', () => {
@@ -80,5 +90,47 @@ describe('BabiesScreen — suppression (D2-H)', () => {
     await waitFor(() => expect(api.deleteBaby).toHaveBeenCalled())
     expect(api.deleteBaby.mock.calls[0][0]).toBe('a')
     expect(await screen.findByRole('status')).toHaveTextContent('Bébé supprimé.')
+  })
+})
+
+describe('BabiesScreen — gate courbe de croissance (Épic 12, D12-G′)', () => {
+  it('birthDate manquant → message + lien vers la fiche, aucune courbe', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', sex: 'female' }]) // pas de birthDate
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Croissance' }))
+
+    expect(await screen.findByText(/renseignez la date de naissance et le sexe/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Compléter la fiche' })).toBeInTheDocument()
+    // Aucune courbe : ni sélecteur de période, ni appel à l'historique.
+    expect(screen.queryByRole('tablist', { name: 'Période de croissance' })).not.toBeInTheDocument()
+    expect(api.getWeightHistory).not.toHaveBeenCalled()
+  })
+
+  it('sexe manquant → même gate (jamais de rabat silencieux sur \'male\')', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15' }]) // pas de sex
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Croissance' }))
+
+    expect(await screen.findByText(/renseignez la date de naissance et le sexe/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Compléter la fiche' })).toBeInTheDocument()
+    expect(api.getWeightHistory).not.toHaveBeenCalled()
+  })
+
+  it('birthDate ET sexe présents → la courbe se monte (gate franchi)', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Croissance' }))
+
+    // WeightChart (lazy) mounted with the right sex + birthDate; gate message absent.
+    const chart = await screen.findByTestId('weight-chart')
+    expect(chart).toHaveTextContent('female')
+    expect(chart).toHaveTextContent('2026-01-15')
+    expect(screen.queryByText(/renseignez la date de naissance et le sexe/i)).not.toBeInTheDocument()
   })
 })
