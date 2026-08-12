@@ -27,10 +27,9 @@ export default function NapPanel({ babyId }) {
   const { data: current, isLoading } = useQuery({ queryKey: currentKey, queryFn: () => getCurrentNap(babyId) })
   const { data: history } = useQuery({ queryKey: listKey, queryFn: () => listNaps(babyId) })
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: currentKey })
-    qc.invalidateQueries({ queryKey: listKey })
-  }
+  // Invalidation par **préfixe** `['babies', babyId]` (DA-4/US11.3) : couvre `nap-current` + `naps`
+  // ET rafraîchit le récap calendrier (events + daily-totals) qui dérive des mêmes siestes.
+  const refresh = () => qc.invalidateQueries({ queryKey: ['babies', babyId] })
   // 409 use-case = info neutre (D4-K) ; autre échec = message d'erreur générique.
   const neutralOr = (msg) => (err) => setInfo(err?.status === 409 ? msg : "Échec de l'opération.")
   const onDone = () => { setInfo(null); refresh() }
