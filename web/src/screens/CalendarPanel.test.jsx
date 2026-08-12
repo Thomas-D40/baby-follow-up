@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import CalendarPanel from './CalendarPanel'
 import { toLocalInputValue } from '../bottleFeeding'
+import { toLocalInputValue as toLocalInputValueStool } from '../stool'
 
 vi.mock('../api', () => ({
   getDayEvents: vi.fn(),
@@ -170,8 +171,9 @@ describe('CalendarPanel — édition depuis le récap (US11.2) + ordre reçu (US
     renderPanel()
     await userEvent.click(await screen.findByRole('button', { name: /Modifier selle/ }))
     const when = within(screen.getByRole('dialog')).getByLabelText('Quand')
-    expect(when).toHaveValue(toLocalInputValue(new Date(STOOL_PAST.startAt)))
-    expect(when.value).not.toBe(toLocalInputValue(new Date()))
+    // StoolForm lit `../stool` → l'assertion utilise la même source (helpers identiques aujourd'hui).
+    expect(when).toHaveValue(toLocalInputValueStool(new Date(STOOL_PAST.startAt)))
+    expect(when.value).not.toBe(toLocalInputValueStool(new Date()))
   })
 
   it('soumission biberon : updateBottleFeeding(b1, id, patch) une fois, sheet fermé, préfixe invalidé', async () => {
@@ -222,8 +224,10 @@ describe('CalendarPanel — édition depuis le récap (US11.2) + ordre reçu (US
 
     await userEvent.click(await screen.findByRole('button', { name: /Modifier sieste/ }))
     const dialog = screen.getByRole('dialog')
-    // datetime-local : fireEvent.change (fiable) plutôt que userEvent.type. Fin bien après le début.
-    fireEvent.change(within(dialog).getByLabelText('Fin'), { target: { value: '2026-06-21T23:30' } })
+    // Même pattern que NapEditForm.test.jsx (:35-36) : clear + type sur le datetime-local. Fin > début.
+    const fin = within(dialog).getByLabelText('Fin')
+    await userEvent.clear(fin)
+    await userEvent.type(fin, '2026-06-21T23:30')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
 
     await waitFor(() => expect(updateNap).toHaveBeenCalledTimes(1))
@@ -246,10 +250,11 @@ describe('CalendarPanel — édition depuis le récap (US11.2) + ordre reçu (US
     expect(await screen.findByRole('button', { name: /Modifier sieste/ })).toBeInTheDocument()
   })
 
-  it('409 à l’édition d’une sieste : message clair via NapEditForm, pas de crash, sheet ouvert', async () => {
+  it('409 à l’édition d’une sieste : message clair via NapEditForm, pas de crash, sheet ouvert, PAS d’invalidation', async () => {
     getDayEvents.mockResolvedValue([NAP_CLOSED])
     updateNap.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
-    renderPanel()
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
 
     await userEvent.click(await screen.findByRole('button', { name: /Modifier sieste/ }))
     const dialog = screen.getByRole('dialog')
@@ -257,6 +262,8 @@ describe('CalendarPanel — édition depuis le récap (US11.2) + ordre reçu (US
 
     expect(await screen.findByText('Sieste en cours : terminez-la d’abord.')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Échec 409 → onError, jamais onSuccess : le sheet reste ouvert et le récap n'est PAS invalidé.
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('US11.1 (front) : rend les événements dans l’ordre reçu de getDayEvents, sans re-tri client', async () => {

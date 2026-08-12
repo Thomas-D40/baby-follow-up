@@ -21,11 +21,11 @@ const DAY = {
 
 function renderSection() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(
+  return { qc, ...render(
     <QueryClientProvider client={qc}>
       <VitaminSection babyId="b1" date="2026-08-12" />
     </QueryClientProvider>,
-  )
+  ) }
 }
 
 describe('VitaminSection — cases à cocher du récap (US9.1)', () => {
@@ -64,12 +64,17 @@ describe('VitaminSection — cases à cocher du récap (US9.1)', () => {
     expect(setVitamin).not.toHaveBeenCalled()
   })
 
-  it('rafraîchit après toggle : getVitamins ré-appelé (invalidation préfixe D7-C)', async () => {
-    renderSection()
+  it('rafraîchit après toggle par PRÉFIXE [babies, b1] : getVitamins ré-appelé (D7-C/US11.3)', async () => {
+    const { qc } = renderSection()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
     await waitFor(() => expect(getVitamins).toHaveBeenCalledTimes(1))
     const k = await screen.findByRole('checkbox', { name: /Vitamine K/ })
     await userEvent.click(k)
     await waitFor(() => expect(getVitamins).toHaveBeenCalledTimes(2))
+    // Garde-fou : prouve le PRÉFIXE, pas la clé propre ['babies','b1','vitamins',date]. Si
+    // VitaminSection.jsx:30 régressait vers sa clé propre, getVitamins serait quand même rappelé 2×
+    // (la clé propre est incluse dans le préfixe) → seule cette assertion attraperait la régression.
+    expect(spy.mock.calls[0][0]).toEqual({ queryKey: ['babies', 'b1'] })
   })
 
   it('anti-double-saisie : les cases sont désactivées pendant l’écriture (D9-G)', async () => {
