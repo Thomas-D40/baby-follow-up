@@ -14,6 +14,10 @@ const GROWTH_VIEW_LABEL = { all: 'Tout', year: 'Année', month: 'Mois' }
 const gramsToKg = (g) => `${(g / 1000).toFixed(g % 1000 === 0 ? 0 : 1)} kg`
 const monthTick = (m) => `${Math.round(m)} m`
 
+// Bands labelled at the right edge so the reader tells the normal corridor apart at a glance
+// (the dashed bands are otherwise the same grey; only the tooltip named them).
+const LABELLED = new Set(['p3', 'p50', 'p97'])
+
 // Growth curve (US12.1): WHO percentile bands (weight-for-age, of the right sex) in the background,
 // the child's weigh-ins on top. X axis = age in months (from `birthDate`), Y axis = grams (kg at the
 // tick). The Growth view mounts this component only once the `birthDate` AND `sex` gate is passed
@@ -31,6 +35,12 @@ export default function WeightChart({ babyId, sex, birthDate }) {
   const latest = childPoints.length ? childPoints[childPoints.length - 1].ageMonths : 0
   const window = growthWindow(view, birthDate, latest)
   const rows = buildGrowthData(sex, childPoints, window)
+  // Last row carrying band values (bands are null past 60 months) — where the P-labels are pinned.
+  const lastBandIndex = rows.reduce((acc, r, i) => (r.p50 != null ? i : acc), -1)
+  const bandEndLabel = (text) => ({ x, y, index }) =>
+    index === lastBandIndex
+      ? <text key={text} x={x} y={y} dx={5} dy={3} fontSize={9} fontWeight={600} fill="var(--muted)">{text}</text>
+      : null
 
   return (
     <section className="card">
@@ -54,7 +64,7 @@ export default function WeightChart({ babyId, sex, birthDate }) {
         <p className="empty">Aucune pesée enregistrée. Ajoutez un poids pour voir la courbe.</p>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={rows} margin={{ top: 6, right: 12, bottom: 4, left: -8 }}>
+          <LineChart data={rows} margin={{ top: 6, right: 30, bottom: 4, left: -8 }}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
             <XAxis
               type="number"
@@ -89,6 +99,7 @@ export default function WeightChart({ babyId, sex, birthDate }) {
                 strokeDasharray={band.key === 'p50' ? undefined : '4 3'}
                 dot={false}
                 activeDot={false}
+                label={LABELLED.has(band.key) ? bandEndLabel(band.label) : undefined}
                 connectNulls
                 isAnimationActive={false}
               />
