@@ -259,6 +259,25 @@ button { font-family: inherit; }
 .chip--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .chip--stool { background: var(--stool-bg); color: var(--stool-ink); }
 
+/* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
+.vitamins { margin-top: 0.75rem; }
+.vitamins-title {
+  display: block; font-size: 0.8rem; font-weight: 800;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+  margin-bottom: 0.4rem;
+}
+.vitamin-list { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.vitamin-check {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem; font-weight: 700;
+  background: var(--surface-2); color: var(--text);
+  cursor: pointer;
+}
+.vitamin-check input { accent-color: var(--primary-deep); cursor: pointer; }
+.vitamin-check input:disabled { cursor: progress; }
+
 /* ── Listes d'événements ────────────────────────────────────────────────── */
 .event-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem; }
 .event-row {
