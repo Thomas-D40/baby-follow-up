@@ -13,6 +13,7 @@ import {
 } from '../calendar'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { ConfirmDeleteModal } from './DeleteConfirm'
+import VitaminSection from './VitaminSection'
 
 /**
  * Vue calendrier d'un jour (US6.1 liste + US6.3 totaux). Réutilise les endpoints `GET /events` et
@@ -76,6 +77,8 @@ export default function CalendarPanel({ babyId }) {
           <li className="chip chip--stool">💩 <strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
         </ul>
       )}
+
+      <VitaminSection babyId={babyId} date={date} />
 
       {eventsQuery.isLoading ? (
         <p className="empty">…</p>

@@ -8,8 +8,10 @@ import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
+import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
+import com.suivibaby.model.VitaminType;
 import com.suivibaby.repository.ActivationTokenRepository;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
@@ -18,12 +20,14 @@ import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
+import com.suivibaby.repository.VitaminIntakeRepository;
 import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -56,6 +60,9 @@ public class TestDataFactory {
 
     @Inject
     BabyInvitationRepository babyInvitationRepository;
+
+    @Inject
+    VitaminIntakeRepository vitaminIntakeRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -193,6 +200,25 @@ public class TestDataFactory {
     @Transactional
     public long countStool(UUID babyId) {
         return stoolRepository.count("babyId", babyId);
+    }
+
+    /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */
+    @Transactional
+    public UUID giveVitamin(UUID babyId, UUID authorId, VitaminType type, LocalDate givenOn) {
+        VitaminIntake row = new VitaminIntake();
+        row.id = UUID.randomUUID();
+        row.babyId = babyId;
+        row.vitaminType = type;
+        row.givenOn = givenOn;
+        row.authorId = authorId;
+        row.createdAt = Instant.now();
+        vitaminIntakeRepository.persist(row);
+        return row.id;
+    }
+
+    @Transactional
+    public long countVitamin(UUID babyId) {
+        return vitaminIntakeRepository.count("babyId", babyId);
     }
 
     @Transactional

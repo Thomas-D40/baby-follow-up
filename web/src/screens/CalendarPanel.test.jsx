@@ -11,8 +11,12 @@ vi.mock('../api', () => ({
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
+  // Section Vitamines (Épic 9) rendue par CalendarPanel.
+  getVitamins: vi.fn(),
+  setVitamin: vi.fn(),
+  unsetVitamin: vi.fn(),
 }))
-import { getDayEvents, getDailyTotals, deleteBottleFeeding, deleteNap } from '../api'
+import { getDayEvents, getDailyTotals, deleteBottleFeeding, deleteNap, getVitamins } from '../api'
 
 const EVENTS = [
   { type: 'bottle_feeding', id: 'bf1', startAt: '2026-06-21T08:00:00.000Z', quantityMl: 120, milkType: 'breast' },
@@ -31,6 +35,10 @@ describe('CalendarPanel — suppression depuis le calendrier (Épic 7, D7-E)', (
     vi.clearAllMocks()
     getDayEvents.mockResolvedValue(EVENTS)
     getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 0 })
+    getVitamins.mockResolvedValue({ date: '2026-06-21', items: [
+      { vitaminType: 'd', given: false, authorId: null },
+      { vitaminType: 'k', given: false, authorId: null },
+    ] })
   })
 
   it('ouvre une modale de confirmation (pas de bloc inline) ; « Annuler » la referme sans appel', async () => {
