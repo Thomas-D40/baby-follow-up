@@ -19,6 +19,7 @@
   --milk: #5f9fd6;   --milk-ink: #2e6ca3;   --milk-bg: #e9f3fb;
   --sleep: #9b8bdb;  --sleep-ink: #5f4fb0;  --sleep-bg: #efeafb;
   --stool: #d99a63;  --stool-ink: #a86c33;  --stool-bg: #fbefe1;
+  --weight: #7bbf9e; --weight-ink: #3f8f6b; --weight-bg: #e6f5ee;
 
   /* Action principale (chaleureuse) */
   --primary: #f0998a;     --primary-ink: #ffffff;  --primary-deep: #e07e6d;
@@ -173,7 +174,7 @@ button { font-family: inherit; }
 /* ── Barre d'actions rapides ────────────────────────────────────────────── */
 .quick-bar {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
   gap: 0.7rem;
 }
 .quick-btn {
@@ -199,6 +200,7 @@ button { font-family: inherit; }
 .quick-btn--milk { background: var(--milk-bg); color: var(--milk-ink); }
 .quick-btn--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .quick-btn--stool { background: var(--stool-bg); color: var(--stool-ink); }
+.quick-btn--weight { background: var(--weight-bg); color: var(--weight-ink); }
 
 .quick-badge {
   position: absolute;

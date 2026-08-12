@@ -9,6 +9,7 @@ import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
 import com.suivibaby.entity.VitaminIntake;
+import com.suivibaby.entity.Weight;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.model.VitaminType;
@@ -21,6 +22,7 @@ import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
 import com.suivibaby.repository.VitaminIntakeRepository;
+import com.suivibaby.repository.WeightRepository;
 import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -63,6 +65,9 @@ public class TestDataFactory {
 
     @Inject
     VitaminIntakeRepository vitaminIntakeRepository;
+
+    @Inject
+    WeightRepository weightRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -219,6 +224,19 @@ public class TestDataFactory {
     @Transactional
     public long countVitamin(UUID babyId) {
         return vitaminIntakeRepository.count("babyId", babyId);
+    }
+
+    /** Nombre de lignes poids d'un bébé (Épic 12) — vérifie l'unicité par jour (upsert, D12-C′). */
+    @Transactional
+    public long countWeight(UUID babyId) {
+        return weightRepository.count("babyId", babyId);
+    }
+
+    /** Author courant de la pesée d'un jour (Épic 12) — vérifie le « dernier gagnant » (D12-C′). */
+    @Transactional
+    public UUID weightAuthorId(UUID babyId, LocalDate givenOn) {
+        Weight row = weightRepository.find("babyId = ?1 and givenOn = ?2", babyId, givenOn).firstResult();
+        return row == null ? null : row.authorId;
     }
 
     @Transactional

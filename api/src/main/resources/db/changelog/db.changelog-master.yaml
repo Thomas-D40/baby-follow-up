@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/006-sharing.sql
   - include:
       file: db/changelog/007-vitamin.sql
+  - include:
+      file: db/changelog/008-weight.sql
