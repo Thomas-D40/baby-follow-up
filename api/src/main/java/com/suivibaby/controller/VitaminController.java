@@ -13,11 +13,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
-/**
- * Vitamines d'un bébé au niveau **jour** (US9.1). Toggle par présence de ligne (D9-A) :
- * {@code POST} coche (200 idempotent), {@code DELETE} décoche (204 systématique), {@code GET} lit
- * l'état du jour. Un seul check IDOR côté service (D9-C). {@code type} ∈ {d, k} sinon 400 (D9-D).
- */
 @Path("/api/babies/{babyId}/vitamins")
 @Authenticated
 public class VitaminController {

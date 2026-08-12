@@ -18,11 +18,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
-/**
- * Vitamine = **état-jour idempotent** (US9.1, D9-A) : cocher = présence de ligne, décocher = absence.
- * Un seul check IDOR (D9-C) : {@code requireLinked} sur {@code babyId} de chemin suffit — aucun id
- * d'événement nu à forger. Bornes jour en Europe/Paris (D9-E), cohérent avec le récap calendrier.
- */
 @ApplicationScoped
 public class VitaminService {
 
