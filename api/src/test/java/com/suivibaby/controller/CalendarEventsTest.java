@@ -192,10 +192,12 @@ class CalendarEventsTest {
     class ListBehaviour {
 
         @Test
-        @DisplayName("Scénario : biberons + siestes + selles → triés par heure ASC, types corrects")
+        @DisplayName("Scénario : biberons + siestes + selles → triés par heure DESC (anté-chronologique, US11.1), types corrects")
         void journee_mixte_triee() {
             Caregiver c = linkedCaregiver("mixed");
-            // Désordre d'insertion volontaire ; tri attendu : 08:00 nap, 09:00 bottle, 10:00 stool.
+            // Désordre d'insertion volontaire ; startAt distincts et croissants à la saisie (08:00 nap,
+            // 09:00 bottle, 10:00 stool). Tri attendu ANTÉ-CHRONOLOGIQUE (US11.1) : le plus récent en
+            // premier → 10:00 stool, 09:00 bottle, 08:00 nap. L'ordre DESC est donc sans ambiguïté.
             data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), StoolConsistency.liquid);
             data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.breast);
             data.createNap(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), paris(2026, 7, 15, 8, 45));
@@ -204,9 +206,9 @@ class CalendarEventsTest {
                     .queryParam("date", "2026-07-15")
                     .when().get("/api/babies/{babyId}/events", c.babyId())
                     .then().statusCode(200)
-                    .body("type", contains("nap", "bottle_feeding", "stool"))
-                    .body("[1].quantityMl", is(150))
-                    .body("[2].consistency", is("liquid"));
+                    .body("type", contains("stool", "bottle_feeding", "nap"))
+                    .body("[0].consistency", is("liquid"))
+                    .body("[1].quantityMl", is(150));
         }
 
         @Test

@@ -15,13 +15,15 @@ vi.mock('../api', () => ({
   deleteBottleFeeding: vi.fn(),
   deleteStool: vi.fn(),
 }))
-import { getCurrentNap, listNaps, startNap, endNap, deleteNap } from '../api'
+import { getCurrentNap, listNaps, startNap, endNap, reopenNap, deleteNap } from '../api'
+
+const PREFIX = { queryKey: ['babies', 'b1'] }
 
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(
+  return { qc, ...render(
     <QueryClientProvider client={qc}><NapPanel babyId="b1" /></QueryClientProvider>,
-  )
+  ) }
 }
 
 const ONE_NAP = { id: 'n1', startAt: '2026-06-21T10:00:00.000Z', endAt: '2026-06-21T11:00:00.000Z', authorId: 'u1' }
@@ -123,5 +125,65 @@ describe('NapPanel — suppression (Épic 7, confirmation + mapping delete, D7-B
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Échec de la suppression.')
     expect(screen.queryByText('Sieste supprimée.')).not.toBeInTheDocument()
+  })
+})
+
+describe('NapPanel — invalidation par préfixe après start/end/reopen (US11.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listNaps.mockResolvedValue({ items: [], nextCursor: null })
+  })
+
+  it('un « Début de sieste » réussi invalide le préfixe [babies, b1], une seule fois (retry:0)', async () => {
+    getCurrentNap.mockResolvedValue(null)
+    startNap.mockResolvedValue({ id: 'n1' })
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Début de sieste' }))
+
+    await waitFor(() => expect(startNap).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy.mock.calls[0][0]).toEqual(PREFIX)
+  })
+
+  it('une « Fin de sieste » réussie invalide le préfixe [babies, b1], une seule fois (retry:0)', async () => {
+    getCurrentNap.mockResolvedValue({ id: 'n1', startAt: '2026-06-21T10:00:00.000Z', endAt: null, authorId: 'u1' })
+    endNap.mockResolvedValue(null)
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Fin de sieste' }))
+
+    await waitFor(() => expect(endNap).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy.mock.calls[0][0]).toEqual(PREFIX)
+  })
+
+  it('un « Reprendre la dernière sieste » réussi invalide le préfixe [babies, b1] (retry:0)', async () => {
+    getCurrentNap.mockResolvedValue(null)
+    reopenNap.mockResolvedValue({ id: 'n1' })
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reprendre la dernière sieste' }))
+
+    await waitFor(() => expect(reopenNap).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy.mock.calls[0][0]).toEqual(PREFIX)
+  })
+
+  it('un 409 (info neutre, D4-K) N’invalide PAS : le mécanisme neutralOr reste intact', async () => {
+    getCurrentNap.mockResolvedValue({ id: 'n1', startAt: '2026-06-21T10:00:00.000Z', endAt: null, authorId: 'u1' })
+    endNap.mockRejectedValue(Object.assign(new Error('end -> 409'), { status: 409 }))
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Fin de sieste' }))
+
+    // 409 → info neutre, pas d'erreur, et surtout pas d'invalidation (onError, pas onSuccess).
+    expect(await screen.findByRole('status')).toHaveTextContent('Aucune sieste en cours.')
+    expect(screen.queryByText("Échec de l'opération.")).not.toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
   })
 })
