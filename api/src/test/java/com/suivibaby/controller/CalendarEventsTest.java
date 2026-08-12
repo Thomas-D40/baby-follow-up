@@ -14,7 +14,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
@@ -192,10 +195,12 @@ class CalendarEventsTest {
     class ListBehaviour {
 
         @Test
-        @DisplayName("Scénario : biberons + siestes + selles → triés par heure ASC, types corrects")
+        @DisplayName("Scénario : biberons + siestes + selles → triés par heure DESC (anté-chronologique, US11.1), types corrects")
         void journee_mixte_triee() {
             Caregiver c = linkedCaregiver("mixed");
-            // Désordre d'insertion volontaire ; tri attendu : 08:00 nap, 09:00 bottle, 10:00 stool.
+            // Désordre d'insertion volontaire ; startAt distincts et croissants à la saisie (08:00 nap,
+            // 09:00 bottle, 10:00 stool). Tri attendu ANTÉ-CHRONOLOGIQUE (US11.1) : le plus récent en
+            // premier → 10:00 stool, 09:00 bottle, 08:00 nap. L'ordre DESC est donc sans ambiguïté.
             data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), StoolConsistency.liquid);
             data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.breast);
             data.createNap(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), paris(2026, 7, 15, 8, 45));
@@ -204,9 +209,36 @@ class CalendarEventsTest {
                     .queryParam("date", "2026-07-15")
                     .when().get("/api/babies/{babyId}/events", c.babyId())
                     .then().statusCode(200)
-                    .body("type", contains("nap", "bottle_feeding", "stool"))
-                    .body("[1].quantityMl", is(150))
-                    .body("[2].consistency", is("liquid"));
+                    .body("type", contains("stool", "bottle_feeding", "nap"))
+                    .body("[0].consistency", is("liquid"))
+                    .body("[1].quantityMl", is(150));
+        }
+
+        @Test
+        @DisplayName("Scénario : deux événements au MÊME startAt → tie-break déterministe par id DESC (US11.1)")
+        void meme_instant_tiebreak_id_desc() {
+            Caregiver c = linkedCaregiver("tiebreak");
+            // Deux selles à l'instant EXACT identique (même seconde) : à startAt égal, seul le tie-break
+            // `id` départage. Exerce donc le `thenComparing(id)` du tri décroissant (jamais atteint quand
+            // tous les startAt diffèrent).
+            Instant sameInstant = paris(2026, 7, 15, 9, 0);
+            UUID a = data.createStool(c.babyId(), c.userId(), sameInstant, StoolConsistency.soft);
+            UUID b = data.createStool(c.babyId(), c.userId(), sameInstant, StoolConsistency.liquid);
+
+            // Ordre attendu = id DESC : le comparateur `comparing(startAt).thenComparing(id).reversed()`
+            // trie startAt décroissant puis, à startAt égal, id décroissant (UUID.compareTo). Calculé
+            // depuis les id RÉELS, pas codé en dur → on prouve le DÉTERMINISME, pas une valeur fixe.
+            List<String> expected = Stream.of(a, b)
+                    .sorted(Comparator.reverseOrder())
+                    .map(UUID::toString)
+                    .toList();
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(2))
+                    .body("id", contains(expected.get(0), expected.get(1)));
         }
 
         @Test

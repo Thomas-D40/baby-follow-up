@@ -13,15 +13,17 @@ vi.mock('../api', () => ({
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
 }))
-import { listBottleFeedings, deleteBottleFeeding, updateBottleFeeding } from '../api'
+import { listBottleFeedings, deleteBottleFeeding, updateBottleFeeding, createBottleFeeding } from '../api'
 
 const ONE = { id: 'bf1', occurredAt: '2026-06-21T08:00:00.000Z', quantityMl: 120, milkType: 'breast' }
 
+const PREFIX = { queryKey: ['babies', 'b1'] }
+
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(
+  return { qc, ...render(
     <QueryClientProvider client={qc}><BottleFeedingPanel babyId="b1" /></QueryClientProvider>,
-  )
+  ) }
 }
 
 describe('BottleFeedingPanel — suppression (Épic 7, D7-B/D7-C)', () => {
@@ -102,5 +104,28 @@ describe('BottleFeedingPanel — édition (Épic 8, DA-1/DA-2/DA-4)', () => {
     // sheet fermé + notice de succès
     expect(await screen.findByRole('status')).toHaveTextContent('Biberon mis à jour.')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+describe('BottleFeedingPanel — invalidation par préfixe après création (US11.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listBottleFeedings.mockResolvedValue({ items: [ONE], nextCursor: null })
+  })
+
+  it('une création réussie invalide le préfixe [babies, b1] (récap calendrier), une seule fois (retry:0)', async () => {
+    createBottleFeeding.mockResolvedValue({ id: 'bf2', occurredAt: '2026-06-21T09:00:00.000Z', quantityMl: 90, milkType: null })
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await screen.findByText('120 ml') // liste initiale chargée
+
+    // Le premier formulaire (création, hors dialog) : on saisit une quantité puis on valide.
+    await userEvent.type(screen.getByLabelText('Quantité (ml)'), '90')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createBottleFeeding).toHaveBeenCalledTimes(1))
+    // L'invalidation vise le PRÉFIXE (pas la clé propre ['babies','b1','bottle-feedings']), une seule fois.
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy.mock.calls[0][0]).toEqual(PREFIX)
   })
 })

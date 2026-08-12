@@ -22,14 +22,15 @@ export default function BottleFeedingPanel({ babyId }) {
   const qc = useQueryClient()
   const key = ['babies', babyId, 'bottle-feedings']
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => listBottleFeedings(babyId) })
-  const refresh = () => qc.invalidateQueries({ queryKey: key })
   const [notice, setNotice] = useState(null)
   const [editing, setEditing] = useState(null) // l'event en cours d'édition, ou null
 
   const createMut = useMutation({
     mutationFn: (body) => createBottleFeeding(babyId, body),
     retry: 0,
-    onSuccess: refresh,
+    // Invalidation par **préfixe** `['babies', babyId]` (DA-4/US11.3) : rafraîchit aussi le récap
+    // calendrier (events + daily-totals) qui dérive du même event, pas seulement la liste locale.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['babies', babyId] }),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, patch }) => updateBottleFeeding(babyId, id, patch),
