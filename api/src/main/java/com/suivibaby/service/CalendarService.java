@@ -49,7 +49,9 @@ public class CalendarService {
         napService.listForDay(userId, babyId, from, to).forEach(n -> events.add(calendarMapper.fromNap(n)));
         stoolService.listForDay(userId, babyId, from, to).forEach(s -> events.add(calendarMapper.fromStool(s)));
 
-        events.sort(Comparator.comparing(CalendarEventResponse::startAt).thenComparing(CalendarEventResponse::id));
+        // Récap du jour en ordre anté-chronologique (US11.1) : dernier événement en haut. Tie-break
+        // déterministe sur l'id, l'ensemble étant inversé (`reversed()`) pour le tri décroissant.
+        events.sort(Comparator.comparing(CalendarEventResponse::startAt).thenComparing(CalendarEventResponse::id).reversed());
         return events;
     }
 
