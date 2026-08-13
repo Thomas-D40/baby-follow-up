@@ -8,6 +8,7 @@ import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
+import com.suivibaby.entity.Urine;
 import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.entity.Weight;
 import com.suivibaby.model.MilkType;
@@ -21,6 +22,7 @@ import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
+import com.suivibaby.repository.UrineRepository;
 import com.suivibaby.repository.VitaminIntakeRepository;
 import com.suivibaby.repository.WeightRepository;
 import com.suivibaby.security.PasswordUtil;
@@ -59,6 +61,9 @@ public class TestDataFactory {
 
     @Inject
     StoolRepository stoolRepository;
+
+    @Inject
+    UrineRepository urineRepository;
 
     @Inject
     BabyInvitationRepository babyInvitationRepository;
@@ -205,6 +210,24 @@ public class TestDataFactory {
     @Transactional
     public long countStool(UUID babyId) {
         return stoolRepository.count("babyId", babyId);
+    }
+
+    /** Seed direct d'une miction (Épic urine) — sert notamment au jalon IDOR (événement d'un autre bébé). */
+    @Transactional
+    public UUID createUrine(UUID babyId, UUID authorId, Instant occurredAt) {
+        Urine event = new Urine();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        urineRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countUrine(UUID babyId) {
+        return urineRepository.count("babyId", babyId);
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */

@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/007-vitamin.sql
   - include:
       file: db/changelog/008-weight.sql
+  - include:
+      file: db/changelog/009-urine.sql
