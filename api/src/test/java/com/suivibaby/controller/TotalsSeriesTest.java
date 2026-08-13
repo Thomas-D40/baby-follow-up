@@ -68,12 +68,10 @@ class TotalsSeriesTest {
                     .body("bucket", is("day"))
                     .body("points.size()", is(7))
                     .body("points[0].date", is("2026-06-15"))
-                    .body("points[0].bottleCount", is(2))
                     .body("points[0].totalMilkMl", is(200))
                     .body("points[2].date", is("2026-06-17"))
-                    .body("points[2].bottleCount", is(1))
                     .body("points[2].totalMilkMl", is(100))
-                    .body("points[1].bottleCount", is(0));
+                    .body("points[1].totalMilkMl", is(0));
         }
 
         @Test

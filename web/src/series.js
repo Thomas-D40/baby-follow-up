@@ -92,12 +92,10 @@ export function formatPointLabel(dateYmd, bucket) {
 }
 
 /**
- * Les 4 courbes affichées. `value` extrait la valeur traçable d'un point de série (le sommeil est
+ * Les 3 courbes affichées. `value` extrait la valeur traçable d'un point de série (le sommeil est
  * converti en heures pour rester lisible), `format` produit le texte du tooltip.
  */
 export const TREND_METRICS = [
-  { key: 'bottleCount', label: 'Biberons', emoji: '🍼', color: 'var(--milk-ink)',
-    value: (p) => p.bottleCount, format: (v) => `${v} biberon${v > 1 ? 's' : ''}` },
   { key: 'totalMilkMl', label: 'Lait', emoji: '🍼', color: 'var(--milk)',
     value: (p) => p.totalMilkMl, format: (v) => `${v} ml` },
   { key: 'sleepHours', label: 'Sommeil', emoji: '😴', color: 'var(--sleep)',

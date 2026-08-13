@@ -66,11 +66,9 @@ public final class SeriesAggregator {
                                               Instant now) {
         List<SeriesPoint> points = new ArrayList<>(buckets.size());
         for (Bucket bucket : buckets) {
-            long bottleCount = 0;
             int totalMilkMl = 0;
             for (BottleFeedingResponse bottle : bottles) {
                 if (within(bottle.occurredAt(), bucket)) {
-                    bottleCount++;
                     if (bottle.quantityMl() != null) {
                         totalMilkMl += bottle.quantityMl();
                     }
@@ -90,7 +88,7 @@ public final class SeriesAggregator {
             }
             long totalSleepMinutes = Math.round(sleepSeconds / 60.0);
 
-            points.add(new SeriesPoint(bucket.date(), bottleCount, totalMilkMl,
+            points.add(new SeriesPoint(bucket.date(), totalMilkMl,
                     totalSleepMinutes, stoolCount));
         }
         return points;

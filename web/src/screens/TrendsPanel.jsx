@@ -13,7 +13,7 @@ import {
 } from '../series'
 
 /**
- * Vue tendances (calendrier élargi) : courbes des biberons, lait, sommeil et selles sur une période
+ * Vue tendances (calendrier élargi) : courbes du lait, du sommeil et des selles sur une période
  * semaine / mois / année. Réutilise l'endpoint d'agrégation `GET /totals-series` (buckets Paris,
  * clipping sieste par bucket comme les totaux quotidiens). `view` ∈ {week, month, year} est piloté
  * par le sélecteur de `BabiesScreen` ; la navigation période −/+ reste interne au panneau.
@@ -33,7 +33,7 @@ export default function TrendsPanel({ babyId, view }) {
 
   const points = query.data?.points ?? []
   const rows = toChartRows(points, bucket)
-  const hasData = points.some((p) => p.bottleCount || p.totalMilkMl || p.totalSleepMinutes || p.stoolCount)
+  const hasData = points.some((p) => p.totalMilkMl || p.totalSleepMinutes || p.stoolCount)
 
   return (
     <section className="card">
