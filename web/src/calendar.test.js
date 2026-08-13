@@ -65,6 +65,10 @@ describe('describeEvent — détail par type (US6.1)', () => {
     expect(describeEvent({ type: 'stool', consistency: 'liquid' })).toBe('Liquide')
     expect(describeEvent({ type: 'stool', consistency: null })).toBe('—')
   })
+
+  it('urine : libellé fixe « Urine » (US13.2 Lot 3)', () => {
+    expect(describeEvent({ type: 'urine' })).toBe('Urine')
+  })
 })
 
 describe('isOngoing / isLongNap — états sieste (D6-G)', () => {
@@ -100,7 +104,7 @@ describe('formatSleepTotal — totaux (US6.3)', () => {
 })
 
 describe('EVENT_TYPE_LABEL', () => {
-  it('libellés FR par type', () => {
-    expect(EVENT_TYPE_LABEL).toEqual({ bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle' })
+  it('libellés FR par type (urine ajoutée — US13.2 Lot 3)', () => {
+    expect(EVENT_TYPE_LABEL).toEqual({ bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle', urine: 'Urine' })
   })
 })

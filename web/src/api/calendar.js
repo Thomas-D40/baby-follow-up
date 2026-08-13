@@ -9,7 +9,7 @@ export function getDayEvents(babyId, date) {
   return apiGet(`/babies/${babyId}/events${qs}`)
 }
 
-// Totaux quotidiens (US6.3) : { date, totalMilkMl, totalSleepMinutes, stoolCount }. `date` = YYYY-MM-DD (Paris).
+// Totaux quotidiens (US6.3) : { date, totalMilkMl, totalSleepMinutes, stoolCount, urineCount }. `date` = YYYY-MM-DD (Paris).
 export function getDailyTotals(babyId, date) {
   const qs = date ? `?date=${encodeURIComponent(date)}` : ''
   return apiGet(`/babies/${babyId}/daily-totals${qs}`)

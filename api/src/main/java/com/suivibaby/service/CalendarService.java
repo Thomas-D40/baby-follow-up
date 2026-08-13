@@ -37,6 +37,9 @@ public class CalendarService {
     StoolService stoolService;
 
     @Inject
+    UrineService urineService;
+
+    @Inject
     CalendarMapper calendarMapper;
 
     public List<CalendarEventResponse> eventsOfDay(UUID userId, UUID babyId, String date) {
@@ -48,6 +51,7 @@ public class CalendarService {
         bottleFeedingService.listForDay(userId, babyId, from, to).forEach(b -> events.add(calendarMapper.fromBottle(b)));
         napService.listForDay(userId, babyId, from, to).forEach(n -> events.add(calendarMapper.fromNap(n)));
         stoolService.listForDay(userId, babyId, from, to).forEach(s -> events.add(calendarMapper.fromStool(s)));
+        urineService.listForDay(userId, babyId, from, to).forEach(u -> events.add(calendarMapper.fromUrine(u)));
 
         // Récap du jour en ordre anté-chronologique (US11.1) : dernier événement en haut. Tie-break
         // déterministe sur l'id, l'ensemble étant inversé (`reversed()`) pour le tri décroissant.
@@ -63,7 +67,8 @@ public class CalendarService {
         int totalMilkMl = bottleFeedingService.totalMilkForDay(userId, babyId, from, to);
         long totalSleepMinutes = napService.sleepMinutesForDay(userId, babyId, from, to);
         long stoolCount = stoolService.countForDay(userId, babyId, from, to);
-        return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount);
+        long urineCount = urineService.countForDay(userId, babyId, from, to);
+        return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount);
     }
 
     /** Plafond de buckets retournés : garde-fou contre une plage abusive (ex. année en jours). */

@@ -9,10 +9,11 @@ import { toLocalInputValue as toLocalInputValueStool } from '../stool'
 vi.mock('../api', () => ({
   getDayEvents: vi.fn(),
   getDailyTotals: vi.fn(),
-  // `useDeleteEvent` route vers les 3 clients : tous présents dans le mock.
+  // `useDeleteEvent` route vers les 4 clients : tous présents dans le mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
+  deleteUrine: vi.fn(),
   // Édition depuis le récap (US11.2) : les 3 clients d'update.
   updateBottleFeeding: vi.fn(),
   updateNap: vi.fn(),
@@ -278,5 +279,180 @@ describe('CalendarPanel — édition depuis le récap (US11.2) + ordre reçu (US
     const names = deleteButtons.map((b) => b.getAttribute('aria-label'))
     expect(names[0]).toMatch(/Supprimer sieste/)
     expect(names[1]).toMatch(/Supprimer biberon/)
+  })
+})
+
+describe('CalendarPanel — urine dans le récap et le calendrier (US13.2 Lot 3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getVitamins.mockResolvedValue({ date: '2026-06-21', items: [
+      { vitaminType: 'd', given: false, authorId: null },
+      { vitaminType: 'k', given: false, authorId: null },
+    ] })
+  })
+
+  it('chip 💧 : affiche urineCount avec le PLURIEL au-delà de 1 (« 3 urines »)', async () => {
+    getDayEvents.mockResolvedValue([])
+    getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 3 })
+    renderPanel()
+
+    // La chip porte l'emoji 💧 et la valeur ; texte pluralisé « urines ».
+    const chip = await screen.findByText((_, node) => node?.className === 'chip chip--urine')
+    expect(chip).toHaveTextContent('💧')
+    expect(chip).toHaveTextContent('3')
+    expect(chip).toHaveTextContent('urines')
+  })
+
+  it('chip 💧 : SINGULIER pour exactement 1 (« 1 urine »), et 0 reste singulier', async () => {
+    getDayEvents.mockResolvedValue([])
+    getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 1 })
+    const { unmount } = renderPanel()
+    const chipOne = await screen.findByText((_, node) => node?.className === 'chip chip--urine')
+    expect(chipOne).toHaveTextContent('1 urine')
+    expect(chipOne).not.toHaveTextContent('urines')
+    unmount()
+
+    getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0 })
+    renderPanel()
+    const chipZero = await screen.findByText((_, node) => node?.className === 'chip chip--urine')
+    expect(chipZero).toHaveTextContent('0 urine')
+    expect(chipZero).not.toHaveTextContent('urines')
+  })
+
+  it('ligne d’événement urine : emoji 💧, libellé « Urine », tag event-tag--urine', async () => {
+    getDayEvents.mockResolvedValue([
+      { type: 'urine', id: 'u1', startAt: '2026-06-21T08:30:00.000Z', endAt: null },
+    ])
+    getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 1 })
+    renderPanel()
+
+    // Le tag de la ligne : emoji + libellé, classe dédiée urine.
+    const tag = await screen.findByText((_, node) => node?.className === 'event-tag event-tag--urine')
+    expect(tag).toHaveTextContent('💧')
+    expect(tag).toHaveTextContent('Urine')
+    // describeEvent(urine) → « Urine » rendu dans le détail de la ligne.
+    expect(screen.getByText('Urine', { selector: '.event-detail' })).toBeInTheDocument()
+    // La ligne reste supprimable (bouton 🗑 par type urine).
+    expect(screen.getByRole('button', { name: /Supprimer urine/ })).toBeInTheDocument()
+  })
+})
+
+describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (US13.3, Lot 5)', () => {
+  // Un event de CHAQUE type + des totaux non nuls pour chaque compteur : on veut prouver que le filtre
+  // ne touche QUE la liste, jamais les chips totaux.
+  const MIXED_EVENTS = [
+    { type: 'bottle_feeding', id: 'bf1', startAt: '2026-06-21T08:00:00.000Z', quantityMl: 120, milkType: 'breast' },
+    { type: 'nap', id: 'n1', startAt: '2026-06-21T09:00:00.000Z', endAt: '2026-06-21T10:00:00.000Z' },
+    { type: 'stool', id: 's1', startAt: '2026-06-21T11:00:00.000Z', consistency: 'soft' },
+    { type: 'urine', id: 'u1', startAt: '2026-06-21T12:00:00.000Z', endAt: null },
+  ]
+  const TOTALS = { date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 2, urineCount: 3 }
+
+  // Le groupe de toggles (aria-label) isole les boutons du filtre des boutons 🗑/✏️ des lignes.
+  const filterGroup = () => screen.getByRole('group', { name: 'Filtrer la liste par type' })
+  const chip = (cls) => screen.queryByText((_, node) => node?.className === `chip chip--${cls}`)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+    localStorage.clear()
+    getDayEvents.mockResolvedValue(MIXED_EVENTS)
+    getDailyTotals.mockResolvedValue(TOTALS)
+    getVitamins.mockResolvedValue({ date: '2026-06-21', items: [
+      { vitaminType: 'd', given: false, authorId: null },
+      { vitaminType: 'k', given: false, authorId: null },
+    ] })
+  })
+
+  it('défaut (sessionStorage vide) : toutes les lignes affichées, tous les toggles aria-pressed="true"', async () => {
+    renderPanel()
+    // Les 4 lignes sont là (une par type, repérée par son 🗑).
+    expect(await screen.findByRole('button', { name: /Supprimer biberon/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer sieste/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer selle/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer urine/ })).toBeInTheDocument()
+
+    // Les 4 toggles sont « enfoncés » (rien de masqué au montage).
+    const toggles = within(filterGroup()).getAllByRole('button')
+    expect(toggles).toHaveLength(4)
+    toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'true'))
+  })
+
+  it('masquer un type retire ses lignes MAIS laisse les chips totaux inchangées', async () => {
+    renderPanel()
+    await screen.findByRole('button', { name: /Supprimer selle/ }) // liste rendue
+
+    // Repère la chip 💩 AVANT le toggle : valeur « 2 selles ».
+    expect(chip('stool')).toHaveTextContent('💩')
+    expect(chip('stool')).toHaveTextContent('2')
+
+    // Clic sur le toggle « Selle » (dans le groupe de filtre → pas d'ambiguïté avec le 🗑).
+    await userEvent.click(within(filterGroup()).getByRole('button', { name: /Selle/ }))
+
+    // La ligne selle disparaît…
+    expect(screen.queryByRole('button', { name: /Supprimer selle/ })).not.toBeInTheDocument()
+    // …le toggle passe à aria-pressed="false"…
+    expect(within(filterGroup()).getByRole('button', { name: /Selle/ })).toHaveAttribute('aria-pressed', 'false')
+    // …mais les autres lignes restent…
+    expect(screen.getByRole('button', { name: /Supprimer biberon/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer urine/ })).toBeInTheDocument()
+    // …et surtout la chip 💩 est TOUJOURS là, inchangée (le filtre n'affecte pas les totaux).
+    expect(chip('stool')).toBeInTheDocument()
+    expect(chip('stool')).toHaveTextContent('💩')
+    expect(chip('stool')).toHaveTextContent('2')
+  })
+
+  it('recliquer le toggle réaffiche les lignes du type', async () => {
+    renderPanel()
+    await screen.findByRole('button', { name: /Supprimer urine/ })
+
+    await userEvent.click(within(filterGroup()).getByRole('button', { name: /Urine/ })) // masque
+    expect(screen.queryByRole('button', { name: /Supprimer urine/ })).not.toBeInTheDocument()
+
+    await userEvent.click(within(filterGroup()).getByRole('button', { name: /Urine/ })) // ré-affiche
+    expect(screen.getByRole('button', { name: /Supprimer urine/ })).toBeInTheDocument()
+    expect(within(filterGroup()).getByRole('button', { name: /Urine/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('tout masqué → message « Aucun événement pour les types affichés. » et chips toujours présentes', async () => {
+    renderPanel()
+    await screen.findByRole('button', { name: /Supprimer biberon/ })
+
+    // Masque les 4 types un à un.
+    for (const name of [/Biberon/, /Sieste/, /Selle/, /Urine/]) {
+      await userEvent.click(within(filterGroup()).getByRole('button', { name }))
+    }
+
+    expect(screen.getByText('Aucun événement pour les types affichés.')).toBeInTheDocument()
+    // Plus aucune ligne (aucun 🗑).
+    expect(screen.queryByRole('button', { name: /^Supprimer/ })).not.toBeInTheDocument()
+    // Les chips totaux restent toutes affichées.
+    expect(chip('milk')).toBeInTheDocument()
+    expect(chip('sleep')).toBeInTheDocument()
+    expect(chip('stool')).toBeInTheDocument()
+    expect(chip('urine')).toBeInTheDocument()
+    // Les toggles restent visibles pour pouvoir tout réafficher.
+    expect(within(filterGroup()).getAllByRole('button')).toHaveLength(4)
+  })
+
+  it('persistance sessionStorage : le type masqué est stocké, un remontage conserve l’état (PAS localStorage)', async () => {
+    const { unmount } = renderPanel()
+    await screen.findByRole('button', { name: /Supprimer selle/ })
+    await userEvent.click(within(filterGroup()).getByRole('button', { name: /Selle/ }))
+
+    // C'est bien sessionStorage (clé calendar.dayFilter) qui porte le type masqué, PAS localStorage.
+    const raw = sessionStorage.getItem('calendar.dayFilter')
+    expect(raw).not.toBeNull()
+    expect(JSON.parse(raw)).toContain('stool')
+    expect(localStorage.getItem('calendar.dayFilter')).toBeNull()
+
+    // Remontage dans la MÊME session (storage rempli) : l'état masqué est rechargé au montage.
+    unmount()
+    renderPanel()
+    await screen.findByRole('button', { name: /Supprimer biberon/ }) // liste rechargée
+    expect(screen.queryByRole('button', { name: /Supprimer selle/ })).not.toBeInTheDocument()
+    expect(within(filterGroup()).getByRole('button', { name: /Selle/ })).toHaveAttribute('aria-pressed', 'false')
+    // La chip 💩 reste présente après remontage (filtre ≠ totaux).
+    expect(chip('stool')).toBeInTheDocument()
   })
 })

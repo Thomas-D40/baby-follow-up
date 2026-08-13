@@ -6,6 +6,7 @@ import {
   updateBottleFeeding,
   updateNap,
   updateStool,
+  updateUrine,
 } from '../api'
 import {
   EVENT_TYPE_LABEL,
@@ -23,6 +24,7 @@ import { ConfirmDeleteModal } from './DeleteConfirm'
 import BottomSheet from './BottomSheet'
 import BottleFeedingForm from './BottleFeedingForm'
 import StoolForm from './StoolForm'
+import UrineForm from './UrineForm'
 import NapEditForm from './NapEditForm'
 import VitaminSection from './VitaminSection'
 
@@ -51,6 +53,17 @@ export default function CalendarPanel({ babyId }) {
   const [toDelete, setToDelete] = useState(null) // { type, id } en attente de confirmation
   const [deleteError, setDeleteError] = useState(false)
   const [editing, setEditing] = useState(null) // l'event en cours d'édition, ou null
+  // US13.3 (D13-H) : filtre d'affichage par type sur la SEULE liste chronologique. Multi-sélection,
+  // défaut = tout affiché (impératif de lecture). Persistance sessionStorage (PAS localStorage : l'état
+  // ne doit pas survivre à la fermeture de l'onglet). N'affecte ni les chips totaux ni les requêtes.
+  const [hidden, setHidden] = useState(loadHiddenTypes) // types masqués (array), [] = tout affiché
+  const toggleType = (type) => {
+    setHidden((prev) => {
+      const next = prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+      try { sessionStorage.setItem(DAY_FILTER_KEY, JSON.stringify(next)) } catch { /* stockage indispo */ }
+      return next
+    })
+  }
   const deleteMut = useDeleteEvent(babyId)
 
   // Trois mutations d'édition calquées sur les panels (retry: 0, invalidation préfixe DA-4). Le
@@ -66,6 +79,11 @@ export default function CalendarPanel({ babyId }) {
   })
   const stoolUpdateMut = useMutation({
     mutationFn: ({ id, patch }) => updateStool(babyId, id, patch),
+    retry: 0,
+    onSuccess: editSuccess,
+  })
+  const urineUpdateMut = useMutation({
+    mutationFn: ({ id, patch }) => updateUrine(babyId, id, patch),
     retry: 0,
     onSuccess: editSuccess,
   })
@@ -85,6 +103,7 @@ export default function CalendarPanel({ babyId }) {
   })
 
   const events = eventsQuery.data ?? []
+  const visibleEvents = events.filter((e) => !hidden.includes(e.type)) // prédicat d'affichage (US13.3)
   const totals = totalsQuery.data
   const isToday = date === parisToday()
 
@@ -118,6 +137,7 @@ export default function CalendarPanel({ babyId }) {
           <li className="chip chip--milk">🍼 <strong>{totals.totalMilkMl}</strong> ml</li>
           <li className="chip chip--sleep">😴 <strong>{formatSleepTotal(totals.totalSleepMinutes)}</strong></li>
           <li className="chip chip--stool">💩 <strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
+          <li className="chip chip--urine">💧 <strong>{totals.urineCount}</strong> urine{totals.urineCount > 1 ? 's' : ''}</li>
         </ul>
       )}
 
@@ -128,8 +148,28 @@ export default function CalendarPanel({ babyId }) {
       ) : events.length === 0 ? (
         <p className="empty">Aucun événement ce jour-là.</p>
       ) : (
-        <ul className="event-list">
-          {events.map((e) => (
+        <>
+          <div className="day-filter" role="group" aria-label="Filtrer la liste par type">
+            {FILTER_ORDER.map((type) => {
+              const on = !hidden.includes(type)
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => toggleType(type)}
+                  aria-pressed={on}
+                  className={`filter-chip filter-chip--${TAG_CLASS[type]}`}
+                >
+                  {EVENT_EMOJI[type]} {EVENT_TYPE_LABEL[type]}
+                </button>
+              )
+            })}
+          </div>
+          {visibleEvents.length === 0 ? (
+            <p className="empty">Aucun événement pour les types affichés.</p>
+          ) : (
+            <ul className="event-list">
+              {visibleEvents.map((e) => (
             <li key={`${e.type}-${e.id}`} className="event-row">
               <span className="event-time">{formatParisTime(e.startAt)}</span>
               <span className={`event-tag event-tag--${TAG_CLASS[e.type]}`}>{EVENT_EMOJI[e.type]} {EVENT_TYPE_LABEL[e.type]}</span>
@@ -157,8 +197,10 @@ export default function CalendarPanel({ babyId }) {
                 🗑
               </button>
             </li>
-          ))}
-        </ul>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       <BottomSheet
@@ -176,6 +218,12 @@ export default function CalendarPanel({ babyId }) {
           <StoolForm
             initial={{ ...editing, occurredAt: editing.startAt }}
             onSubmit={(body) => stoolUpdateMut.mutateAsync({ id: editing.id, patch: body })}
+          />
+        )}
+        {editing?.type === 'urine' && (
+          <UrineForm
+            initial={{ ...editing, occurredAt: editing.startAt }}
+            onSubmit={(body) => urineUpdateMut.mutateAsync({ id: editing.id, patch: body })}
           />
         )}
         {editing?.type === 'nap' && (
@@ -199,5 +247,22 @@ export default function CalendarPanel({ babyId }) {
   )
 }
 
-const TAG_CLASS = { bottle_feeding: 'milk', nap: 'sleep', stool: 'stool' }
-const EVENT_EMOJI = { bottle_feeding: '🍼', nap: '😴', stool: '💩' }
+const TAG_CLASS = { bottle_feeding: 'milk', nap: 'sleep', stool: 'stool', urine: 'urine' }
+const EVENT_EMOJI = { bottle_feeding: '🍼', nap: '😴', stool: '💩', urine: '💧' }
+
+// US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.
+const FILTER_ORDER = ['bottle_feeding', 'nap', 'stool', 'urine']
+const DAY_FILTER_KEY = 'calendar.dayFilter'
+
+// État initial du filtre depuis sessionStorage. Rien de stocké → [] (tout affiché, défaut de lecture).
+// On ne garde que des types connus : une valeur corrompue retombe donc silencieusement sur « tout affiché ».
+function loadHiddenTypes() {
+  try {
+    const raw = sessionStorage.getItem(DAY_FILTER_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((t) => FILTER_ORDER.includes(t)) : []
+  } catch {
+    return []
+  }
+}

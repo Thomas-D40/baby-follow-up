@@ -215,6 +215,50 @@ class CalendarEventsTest {
         }
 
         @Test
+        @DisplayName("Scénario : une urine du jour apparaît dans la liste, type=urine, au bon rang DESC parmi les autres types (US13.2 Lot 3)")
+        void urine_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("urine-mixed");
+            // startAt distincts et croissants à la saisie : 08:00 nap, 09:00 bottle, 10:00 urine, 11:00 stool.
+            // Tri attendu ANTÉ-CHRONOLOGIQUE (US11.1) → 11:00 stool, 10:00 urine, 09:00 bottle, 08:00 nap.
+            data.createNap(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), paris(2026, 7, 15, 8, 45));
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.breast);
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0));
+            data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 11, 0), StoolConsistency.liquid);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(4))
+                    .body("type", contains("stool", "urine", "bottle_feeding", "nap"))
+                    // L'urine expose son type et son startAt ; les autres champs de détail sont null.
+                    .body("[1].type", is("urine"))
+                    .body("[1].endAt", nullValue())
+                    .body("[1].quantityMl", nullValue())
+                    .body("[1].consistency", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : une urine seule dans la journée → liste d'un élément type=urine")
+        void urine_seule() {
+            Caregiver c = linkedCaregiver("urine-solo");
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 14, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("urine"));
+
+            // Pas sur le jour suivant (bornes [from,to) Paris).
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200).body("", hasSize(0));
+        }
+
+        @Test
         @DisplayName("Scénario : deux événements au MÊME startAt → tie-break déterministe par id DESC (US11.1)")
         void meme_instant_tiebreak_id_desc() {
             Caregiver c = linkedCaregiver("tiebreak");
