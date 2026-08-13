@@ -5,7 +5,7 @@
 const PARIS = 'Europe/Paris'
 const LONG_NAP_MINUTES = 10 * 60 // signalement « sieste longue » (D6-G), pur affichage
 
-export const EVENT_TYPE_LABEL = { bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle' }
+export const EVENT_TYPE_LABEL = { bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle', urine: 'Urine' }
 
 /** Heure d'un instant ISO rendue en Europe/Paris ("HH:mm"), quel que soit le fuseau du device (D6-D). */
 export function formatParisTime(iso) {
@@ -72,6 +72,9 @@ export function describeEvent(event, now = new Date()) {
   if (event.type === 'stool') {
     const label = { hard: 'Dure', soft: 'Molle', liquid: 'Liquide' }[event.consistency]
     return label ?? '—'
+  }
+  if (event.type === 'urine') {
+    return 'Urine'
   }
   return ''
 }

@@ -10,10 +10,11 @@ vi.mock('../api', () => ({
   startNap: vi.fn(),
   endNap: vi.fn(),
   reopenNap: vi.fn(),
-  // `useDeleteEvent` route vers les 3 clients de suppression : tous doivent exister dans le mock.
+  // `useDeleteEvent` route vers les 4 clients de suppression : tous doivent exister dans le mock.
   deleteNap: vi.fn(),
   deleteBottleFeeding: vi.fn(),
   deleteStool: vi.fn(),
+  deleteUrine: vi.fn(),
 }))
 import { getCurrentNap, listNaps, startNap, endNap, reopenNap, deleteNap } from '../api'
 

@@ -140,6 +140,74 @@ class DailyTotalsTest {
     }
 
     @Nested
+    @DisplayName("Urines (US13.2 Lot 3)")
+    class UrineCount {
+
+        @Test
+        @DisplayName("Scénario : N urines dans la journée → urineCount = N")
+        void plusieurs_urines() {
+            Caregiver c = linkedCaregiver("urine-n");
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0));
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 30));
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 20, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("date", is("2026-07-15"))
+                    .body("urineCount", is(3));
+        }
+
+        @Test
+        @DisplayName("Scénario : une seule urine → urineCount = 1")
+        void une_urine() {
+            Caregiver c = linkedCaregiver("urine-1");
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("urineCount", is(1));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans urine → urineCount = 0")
+        void aucune_urine() {
+            Caregiver c = linkedCaregiver("urine-0");
+            data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), StoolConsistency.soft);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("urineCount", is(0));
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — une urine hors du jour n'est pas comptée")
+        void urine_hors_jour_non_comptee() {
+            Caregiver c = linkedCaregiver("urine-bornes");
+            // Dans le jour : 00:00 Paris (borne basse inclusive).
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 0, 0));
+            // Hors du jour : 00:00 Paris du J+1 (borne haute exclusive) → ne doit PAS compter sur J.
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 16, 0, 0));
+            // Hors du jour : la veille à 23:30 Paris.
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 14, 23, 30));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("urineCount", is(1)); // seule celle de 00:00 le 15
+
+            // La borne haute (00:00 du 16) est bien comptée sur J+1, pas perdue.
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("urineCount", is(1));
+        }
+    }
+
+    @Nested
     @DisplayName("Isolation (US1.5 / D6-E)")
     class Isolation {
 

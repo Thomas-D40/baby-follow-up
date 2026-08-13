@@ -6,7 +6,7 @@ import BabyForm from './BabyForm'
 import BottomSheet from './BottomSheet'
 import BottleFeedingPanel from './BottleFeedingPanel'
 import NapPanel from './NapPanel'
-import StoolPanel from './StoolPanel'
+import DiaperChangePanel from './DiaperChangePanel'
 import CalendarPanel from './CalendarPanel'
 import SharePanel from './SharePanel'
 import WeightPanel from './WeightPanel'
@@ -35,7 +35,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [view, setView] = useState('list') // list | add | edit
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
-  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'stool' | 'weight'
+  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'diaper' | 'weight'
   const [calView, setCalView] = useState('day') // day = liste du jour ; week|month|year = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
@@ -169,9 +169,9 @@ export default function BabiesScreen({ me, onLogout }) {
             <span className="emoji" aria-hidden="true">😴</span>
             <span className="label">Sieste</span>
           </button>
-          <button className="quick-btn quick-btn--stool" onClick={() => openSheet('stool')}>
-            <span className="emoji" aria-hidden="true">💩</span>
-            <span className="label">Selle</span>
+          <button className="quick-btn quick-btn--stool" onClick={() => openSheet('diaper')}>
+            <span className="emoji" aria-hidden="true">🧷</span>
+            <span className="label">Couche</span>
           </button>
           <button className="quick-btn quick-btn--weight" onClick={() => openSheet('weight')}>
             <span className="emoji" aria-hidden="true">⚖️</span>
@@ -237,8 +237,8 @@ export default function BabiesScreen({ me, onLogout }) {
           <BottomSheet open={sheet === 'nap'} onClose={closeSheet} title={<><span aria-hidden="true">😴</span> Sieste</>}>
             <NapPanel babyId={currentBaby.id} />
           </BottomSheet>
-          <BottomSheet open={sheet === 'stool'} onClose={closeSheet} title={<><span aria-hidden="true">💩</span> Selle</>}>
-            <StoolPanel babyId={currentBaby.id} />
+          <BottomSheet open={sheet === 'diaper'} onClose={closeSheet} title={<><span aria-hidden="true">🧷</span> Couche</>}>
+            <DiaperChangePanel babyId={currentBaby.id} />
           </BottomSheet>
           <BottomSheet open={sheet === 'weight'} onClose={closeSheet} title={<><span aria-hidden="true">⚖️</span> Poids</>}>
             <WeightPanel babyId={currentBaby.id} />

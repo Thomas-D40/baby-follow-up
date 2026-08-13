@@ -7,6 +7,7 @@ vi.mock('./api', () => ({
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
+  deleteUrine: vi.fn(),
 }))
 import { deleteBottleFeeding, deleteNap, deleteStool } from './api'
 
