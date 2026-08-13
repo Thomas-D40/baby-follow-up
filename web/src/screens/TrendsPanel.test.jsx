@@ -19,8 +19,8 @@ const SERIES = {
   from: '2026-06-15',
   to: '2026-06-21',
   points: [
-    { date: '2026-06-15', bottleCount: 3, totalMilkMl: 360, totalSleepMinutes: 600, stoolCount: 2 },
-    { date: '2026-06-16', bottleCount: 4, totalMilkMl: 420, totalSleepMinutes: 540, stoolCount: 1 },
+    { date: '2026-06-15', totalMilkMl: 360, totalSleepMinutes: 600, stoolCount: 2 },
+    { date: '2026-06-16', totalMilkMl: 420, totalSleepMinutes: 540, stoolCount: 1 },
   ],
 }
 
@@ -29,12 +29,11 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
     vi.clearAllMocks()
   })
 
-  it('affiche les 4 courbes quand il y a des données', async () => {
+  it('affiche les 3 courbes quand il y a des données', async () => {
     getTotalsSeries.mockResolvedValue(SERIES)
     renderPanel('week')
 
-    expect(await screen.findByRole('heading', { name: /Biberons/ })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Lait/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Lait/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Sommeil/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Selles/ })).toBeInTheDocument()
   })
@@ -42,7 +41,7 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
   it('affiche un état vide quand tous les agrégats sont à zéro', async () => {
     getTotalsSeries.mockResolvedValue({
       bucket: 'day', from: '2026-06-15', to: '2026-06-21',
-      points: [{ date: '2026-06-15', bottleCount: 0, totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0 }],
+      points: [{ date: '2026-06-15', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0 }],
     })
     renderPanel('week')
 
@@ -61,7 +60,7 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
   it('la navigation période change la plage demandée', async () => {
     getTotalsSeries.mockResolvedValue(SERIES)
     renderPanel('week')
-    await screen.findByRole('heading', { name: /Biberons/ })
+    await screen.findByRole('heading', { name: /Lait/ })
 
     await userEvent.click(screen.getByRole('button', { name: 'Période précédente' }))
 

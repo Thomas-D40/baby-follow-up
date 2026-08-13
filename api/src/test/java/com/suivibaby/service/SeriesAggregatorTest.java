@@ -83,8 +83,8 @@ class SeriesAggregatorTest {
     class Aggregate {
 
         @Test
-        @DisplayName("Compte les biberons et somme le lait par jour")
-        void biberons_par_jour() {
+        @DisplayName("Somme le lait et compte les selles par jour")
+        void lait_par_jour() {
             var buckets = SeriesAggregator.buckets(
                     LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 16), SeriesBucket.day, PARIS);
             List<SeriesPoint> points = SeriesAggregator.aggregate(
@@ -96,10 +96,8 @@ class SeriesAggregatorTest {
                     List.of(stool(paris(2026, 6, 15, 10, 0))),
                     Instant.now());
 
-            assertEquals(2, points.get(0).bottleCount());
             assertEquals(200, points.get(0).totalMilkMl());
             assertEquals(1, points.get(0).stoolCount());
-            assertEquals(1, points.get(1).bottleCount());
             assertEquals(100, points.get(1).totalMilkMl());
             assertEquals(0, points.get(1).stoolCount());
         }
@@ -156,7 +154,6 @@ class SeriesAggregatorTest {
                     buckets, List.of(), List.of(), List.of(), Instant.now());
 
             SeriesPoint p = points.get(0);
-            assertEquals(0, p.bottleCount());
             assertEquals(0, p.totalMilkMl());
             assertEquals(0, p.totalSleepMinutes());
             assertEquals(0, p.stoolCount());

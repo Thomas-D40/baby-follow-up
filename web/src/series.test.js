@@ -65,17 +65,16 @@ describe('formatPeriodLabel / formatPointLabel', () => {
 describe('toChartRows — points de série → lignes Recharts', () => {
   it('mappe chaque métrique et convertit le sommeil en heures', () => {
     const points = [
-      { date: '2026-06-15', bottleCount: 3, totalMilkMl: 360, totalSleepMinutes: 90, stoolCount: 2 },
+      { date: '2026-06-15', totalMilkMl: 360, totalSleepMinutes: 90, stoolCount: 2 },
     ]
     const [row] = toChartRows(points, 'day')
     expect(row.label).toBe('15/06')
-    expect(row.bottleCount).toBe(3)
     expect(row.totalMilkMl).toBe(360)
     expect(row.sleepHours).toBe(1.5) // 90 min → 1,5 h
     expect(row.stoolCount).toBe(2)
   })
 
-  it('expose exactement les 4 courbes attendues', () => {
-    expect(TREND_METRICS.map((m) => m.key)).toEqual(['bottleCount', 'totalMilkMl', 'sleepHours', 'stoolCount'])
+  it('expose exactement les 3 courbes attendues', () => {
+    expect(TREND_METRICS.map((m) => m.key)).toEqual(['totalMilkMl', 'sleepHours', 'stoolCount'])
   })
 })
