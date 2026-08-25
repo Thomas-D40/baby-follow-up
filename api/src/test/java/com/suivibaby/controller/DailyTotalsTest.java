@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.test.AuthFixture;
@@ -21,6 +22,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.nullValue;
 
 /**
  * US6.3 — totaux quotidiens (fast-follow, D6-F/G). Lait sommé, sommeil <strong>clippé</strong> à la
@@ -208,6 +210,151 @@ class DailyTotalsTest {
     }
 
     @Nested
+    @DisplayName("Maximum de température (US15.1, D15-K)")
+    class MaxTemperature {
+
+        @Test
+        @DisplayName("Scénario : deux mesures 37,2 puis 38,4 → maxTemperatureCelsiusX10 = 384 (le MAXIMUM)")
+        void deux_mesures_le_maximum() {
+            Caregiver c = linkedCaregiver("temp-max");
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 372);
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 18, 0), 384);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("date", is("2026-07-15"))
+                    // Ni la dernière saisie (384 ici l'est par hasard, cf. le test suivant), ni un
+                    // comptage (qui vaudrait 2) : le PIC de la journée.
+                    .body("maxTemperatureCelsiusX10", is(384));
+        }
+
+        @Test
+        @DisplayName("Scénario : le maximum n'est pas la dernière mesure — 38,4 puis 37,2 → 384")
+        void le_maximum_pas_la_derniere() {
+            Caregiver c = linkedCaregiver("temp-order");
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 384);
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 18, 0), 372);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("maxTemperatureCelsiusX10", is(384));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans mesure → maxTemperatureCelsiusX10 = null (jamais 0)")
+        void aucune_mesure_null() {
+            Caregiver c = linkedCaregiver("temp-none");
+            // Journée peuplée d'autres événements : c'est bien l'ABSENCE de mesure qui produit le null.
+            data.createUrine(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("urineCount", is(1))
+                    // Garde-fou de D15-K : une absence de mesure n'est pas un zéro. Le front ne doit
+                    // rendre AUCUNE chip 🌡 — ni 0, ni tiret. Ne « corrigez » jamais ce null en 0.
+                    .body("maxTemperatureCelsiusX10", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — une mesure hors du jour n'entre pas dans le maximum")
+        void mesure_hors_jour_hors_maximum() {
+            Caregiver c = linkedCaregiver("temp-bornes");
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 0, 0), 371);
+            // Borne haute exclusive : 00:00 du 16 compte sur J+1, pas sur J, même si sa valeur est plus haute.
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 16, 0, 0), 402);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("maxTemperatureCelsiusX10", is(371));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("maxTemperatureCelsiusX10", is(402));
+        }
+    }
+
+    @Nested
+    @DisplayName("Comptages de soins (US15.2, D15-K)")
+    class MedicalCareCounts {
+
+        @Test
+        @DisplayName("Scénario : 2 yeux + 3 nez le même jour → eyeCareCount = 2 et noseCareCount = 3")
+        void comptages_distincts_par_type() {
+            Caregiver c = linkedCaregiver("care-counts");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 8, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 20, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 9, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 13, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 19, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    // Deux chips distinctes = deux comptages indépendants, jamais un total de 5.
+                    .body("eyeCareCount", is(2))
+                    .body("noseCareCount", is(3));
+        }
+
+        @Test
+        @DisplayName("Scénario : des soins des yeux seuls laissent noseCareCount à 0 (indépendance des types)")
+        void independance_des_types() {
+            Caregiver c = linkedCaregiver("care-eye-only");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 8, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("eyeCareCount", is(1))
+                    .body("noseCareCount", is(0));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans soin → comptages à 0, et non null (contrairement au maximum)")
+        void aucun_soin_zero_pas_null() {
+            Caregiver c = linkedCaregiver("care-none");
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    // Un comptage à 0 EST une information (« aucun lavage de nez aujourd'hui ») ;
+                    // un maximum à 0 serait un mensonge (0 °C) — d'où l'asymétrie assumée.
+                    .body("eyeCareCount", is(0))
+                    .body("noseCareCount", is(0))
+                    .body("maxTemperatureCelsiusX10", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — un soin hors du jour n'est pas compté")
+        void soin_hors_jour_non_compte() {
+            Caregiver c = linkedCaregiver("care-bornes");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 0, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 16, 0, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 14, 23, 30));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("noseCareCount", is(1));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("noseCareCount", is(1));
+        }
+    }
+
+    @Nested
     @DisplayName("Isolation (US1.5 / D6-E)")
     class Isolation {
 
@@ -216,6 +363,22 @@ class DailyTotalsTest {
         void bebe_non_lie() {
             Caregiver c = linkedCaregiver("iso");
             UUID autrui = data.createBaby("Autrui");
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", autrui)
+                    .then().statusCode(404);
+        }
+
+        @Test
+        @DisplayName("Scénario : bébé non lié avec température et soins → 404 (maxForDay et countForDay portent requireLinked)")
+        void bebe_non_lie_temperature_et_soins() {
+            Caregiver c = linkedCaregiver("iso-med");
+            UUID otherUser = data.createActiveParent(data.uniqueEmail("victim-med"), PWD);
+            UUID autrui = data.createBaby("AutruiMédical");
+            data.link(otherUser, autrui);
+            data.createTemperature(autrui, otherUser, paris(2026, 7, 15, 9, 0), 391);
+            data.createMedicalCare(autrui, otherUser, CareType.eye, paris(2026, 7, 15, 10, 0));
+
             given().cookie(AuthFixture.COOKIE, c.cookie())
                     .queryParam("date", "2026-07-15")
                     .when().get("/api/babies/{babyId}/daily-totals", autrui)

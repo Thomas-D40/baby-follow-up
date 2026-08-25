@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.test.AuthFixture;
@@ -23,7 +24,9 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.hasKey;
 
 /**
  * US6.1 — événements d'un jour (lecture seule, D6-A à D6-H). Un {@code @Nested} par cible d'AC (§4 du
@@ -316,6 +319,116 @@ class CalendarEventsTest {
     }
 
     @Nested
+    @DisplayName("Températures (US15.1)")
+    class Temperatures {
+
+        @Test
+        @DisplayName("Scénario : une mesure du jour apparaît dans la frise avec son startAt et sa valeur")
+        void temperature_dans_la_frise() {
+            Caregiver c = linkedCaregiver("temp-solo");
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 14, 0), 384);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("temperature"))
+                    .body("[0].startAt", is(paris(2026, 7, 15, 14, 0).toString()))
+                    .body("[0].temperatureCelsiusX10", is(384))
+                    // Les autres natures de détail restent nulles : un champ par nature (D15-F′).
+                    .body("[0].quantityMl", nullValue())
+                    .body("[0].consistency", nullValue())
+                    .body("[0].endAt", nullValue());
+
+            // Pas sur le jour suivant (bornes [from,to) Paris).
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200).body("", hasSize(0));
+        }
+
+        @Test
+        @DisplayName("Scénario : la température s'insère au bon rang DESC parmi les autres types")
+        void temperature_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("temp-mixed");
+            // 09:00 bottle, 10:00 température, 11:00 selle → DESC : selle, température, biberon.
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.breast);
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), 372);
+            data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 11, 0), StoolConsistency.liquid);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(3))
+                    .body("type", contains("stool", "temperature", "bottle_feeding"))
+                    .body("[1].temperatureCelsiusX10", is(372))
+                    // ⛔ Le biberon n'est PAS pollué : quantityMl reste des millilitres.
+                    .body("[2].quantityMl", is(150))
+                    .body("[2].temperatureCelsiusX10", nullValue());
+        }
+    }
+
+    @Nested
+    @DisplayName("Soins médicaux — deux types de calendrier (US15.2, K1/D15-F′)")
+    class MedicalCares {
+
+        @Test
+        @DisplayName("Scénario : un soin des yeux remonte en type=eye_care, un soin du nez en type=nose_care")
+        void deux_types_de_presentation_distincts() {
+            Caregiver c = linkedCaregiver("care-types");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 9, 0));
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 10, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(2))
+                    // DESC : le nez (10:00) puis les yeux (09:00). Deux types DISTINCTS, jamais un
+                    // unique `medical_care` : sans ça, les deux toggles de filtre ne masqueraient rien.
+                    .body("type", contains("nose_care", "eye_care"));
+        }
+
+        @Test
+        @DisplayName("Scénario : le DTO calendrier d'un soin ne porte AUCUN champ careType (corollaire K1)")
+        void aucun_champ_care_type_dans_le_dto_calendrier() {
+            Caregiver c = linkedCaregiver("care-nofield");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 9, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("eye_care"))
+                    // Absence du champ, pas « champ à null » : avec deux types de présentation, plus
+                    // rien ne le lit côté front. `careType` reste sur MedicalCareResponse.
+                    .body("[0]", not(hasKey("careType")));
+        }
+
+        @Test
+        @DisplayName("Scénario : soins et température cohabitent dans la frise, triés DESC")
+        void soins_et_temperature_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("care-mixed");
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.eye, paris(2026, 7, 15, 8, 0));
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 380);
+            data.createMedicalCare(c.babyId(), c.userId(), CareType.nose, paris(2026, 7, 15, 10, 0));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(3))
+                    .body("type", contains("nose_care", "temperature", "eye_care"))
+                    .body("[1].temperatureCelsiusX10", is(380))
+                    // Un soin ne porte aucune valeur de température.
+                    .body("[0].temperatureCelsiusX10", nullValue());
+        }
+    }
+
+    @Nested
     @DisplayName("Isolation (US1.5 / D6-E)")
     class Isolation {
 
@@ -338,6 +451,22 @@ class CalendarEventsTest {
             UUID b2 = data.createBaby("BébéVictime");
             data.link(otherUser, b2);
             data.createBottleFeeding(b2, otherUser, paris(2026, 7, 15, 9, 0), 100, MilkType.formula);
+
+            given().cookie(AuthFixture.COOKIE, a.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", b2)
+                    .then().statusCode(404);
+        }
+
+        @Test
+        @DisplayName("Scénario : accès croisé sur une journée de température et de soins → 404, rien fuité (US15.1/US15.2)")
+        void acces_croise_temperature_et_soins() {
+            Caregiver a = linkedCaregiver("attacker-med");
+            UUID otherUser = data.createActiveParent(data.uniqueEmail("victim-med"), PWD);
+            UUID b2 = data.createBaby("BébéVictimeMédical");
+            data.link(otherUser, b2);
+            data.createTemperature(b2, otherUser, paris(2026, 7, 15, 9, 0), 385);
+            data.createMedicalCare(b2, otherUser, CareType.nose, paris(2026, 7, 15, 10, 0));
 
             given().cookie(AuthFixture.COOKIE, a.cookie())
                     .queryParam("date", "2026-07-15")

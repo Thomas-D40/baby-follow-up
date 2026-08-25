@@ -3,6 +3,7 @@ package com.suivibaby.service;
 import com.suivibaby.mapper.CalendarMapper;
 import com.suivibaby.model.BottleFeedingResponse;
 import com.suivibaby.model.CalendarEventResponse;
+import com.suivibaby.model.CareType;
 import com.suivibaby.model.DailyTotalsResponse;
 import com.suivibaby.model.NapResponse;
 import com.suivibaby.model.SeriesBucket;
@@ -40,6 +41,12 @@ public class CalendarService {
     UrineService urineService;
 
     @Inject
+    TemperatureService temperatureService;
+
+    @Inject
+    MedicalCareService medicalCareService;
+
+    @Inject
     CalendarMapper calendarMapper;
 
     public List<CalendarEventResponse> eventsOfDay(UUID userId, UUID babyId, String date) {
@@ -52,6 +59,9 @@ public class CalendarService {
         napService.listForDay(userId, babyId, from, to).forEach(n -> events.add(calendarMapper.fromNap(n)));
         stoolService.listForDay(userId, babyId, from, to).forEach(s -> events.add(calendarMapper.fromStool(s)));
         urineService.listForDay(userId, babyId, from, to).forEach(u -> events.add(calendarMapper.fromUrine(u)));
+        temperatureService.listForDay(userId, babyId, from, to).forEach(t -> events.add(calendarMapper.fromTemperature(t)));
+        // Both care types come from a single listForDay; the mapper splits them into two calendar types.
+        medicalCareService.listForDay(userId, babyId, from, to).forEach(m -> events.add(calendarMapper.fromMedicalCare(m)));
 
         // Récap du jour en ordre anté-chronologique (US11.1) : dernier événement en haut. Tie-break
         // déterministe sur l'id, l'ensemble étant inversé (`reversed()`) pour le tri décroissant.
@@ -68,7 +78,14 @@ public class CalendarService {
         long totalSleepMinutes = napService.sleepMinutesForDay(userId, babyId, from, to);
         long stoolCount = stoolService.countForDay(userId, babyId, from, to);
         long urineCount = urineService.countForDay(userId, babyId, from, to);
-        return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount);
+        // Maximum, not a count: the 🌡 chip shows the peak of the day, and stays null (no chip at all)
+        // when nothing was measured (D15-K).
+        Integer maxTemperatureCelsiusX10 = temperatureService.maxForDay(userId, babyId, from, to);
+        // Two distinct chips means two distinct counts: one query per care type.
+        long eyeCareCount = medicalCareService.countForDay(userId, babyId, CareType.eye, from, to);
+        long noseCareCount = medicalCareService.countForDay(userId, babyId, CareType.nose, from, to);
+        return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount,
+                maxTemperatureCelsiusX10, eyeCareCount, noseCareCount);
     }
 
     /** Plafond de buckets retournés : garde-fou contre une plage arbitrairement large. */
