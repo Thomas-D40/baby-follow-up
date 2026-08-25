@@ -6,12 +6,14 @@ import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
 import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
+import com.suivibaby.entity.MedicalCare;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
 import com.suivibaby.entity.Temperature;
 import com.suivibaby.entity.Urine;
 import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.entity.Weight;
+import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.model.VitaminType;
@@ -21,6 +23,7 @@ import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyInvitationRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
+import com.suivibaby.repository.MedicalCareRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
 import com.suivibaby.repository.TemperatureRepository;
@@ -78,6 +81,9 @@ public class TestDataFactory {
 
     @Inject
     TemperatureRepository temperatureRepository;
+
+    @Inject
+    MedicalCareRepository medicalCareRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -259,6 +265,31 @@ public class TestDataFactory {
     @Transactional
     public Integer maxTemperatureForDay(UUID babyId, Instant from, Instant to) {
         return temperatureRepository.maxForDay(babyId, from, to);
+    }
+
+    // Direct seed of an eye/nose care (Épic 15) — used by the keyset and IDOR milestones.
+    @Transactional
+    public UUID createMedicalCare(UUID babyId, UUID authorId, CareType careType, Instant occurredAt) {
+        MedicalCare event = new MedicalCare();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.careType = careType;
+        event.occurredAt = occurredAt;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        medicalCareRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countMedicalCare(UUID babyId) {
+        return medicalCareRepository.count("babyId", babyId);
+    }
+
+    // Per-type count (D15-K): the recap renders one chip per care type, so the two are counted apart.
+    @Transactional
+    public long countMedicalCare(UUID babyId, CareType careType) {
+        return medicalCareRepository.count("babyId = ?1 and careType = ?2", babyId, careType);
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */
