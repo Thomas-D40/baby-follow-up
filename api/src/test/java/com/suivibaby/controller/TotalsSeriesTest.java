@@ -8,6 +8,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 
 /**
  * Série temporelle agrégée (vue tendances) : {@code GET …/totals-series?from&to&bucket}. Buckets
@@ -65,7 +68,11 @@ class TotalsSeriesTest {
                     .queryParam("bucket", "day")
                     .when().get("/api/babies/{babyId}/totals-series", c.babyId())
                     .then().statusCode(200)
-                    .body("bucket", is("day"))
+                    // Forme de la réponse : { from, to, points } — le champ `bucket` a été purgé
+                    // du contrat (Épic 14, D14-Q), sa réapparition doit rougir ici.
+                    .body("bucket", nullValue())
+                    .body("from", is("2026-06-15"))
+                    .body("to", is("2026-06-21"))
                     .body("points.size()", is(7))
                     .body("points[0].date", is("2026-06-15"))
                     .body("points[0].totalMilkMl", is(200))
@@ -93,43 +100,36 @@ class TotalsSeriesTest {
     }
 
     @Nested
-    @DisplayName("Buckets mois")
-    class MonthBuckets {
-
-        @Test
-        @DisplayName("Scénario : une année en buckets mois → 12 points, comptages par mois")
-        void annee_en_mois() {
-            Caregiver c = linkedCaregiver("year");
-            data.createStool(c.babyId(), c.userId(), paris(2026, 1, 10, 9, 0), null);
-            data.createStool(c.babyId(), c.userId(), paris(2026, 1, 20, 9, 0), null);
-            data.createStool(c.babyId(), c.userId(), paris(2026, 3, 5, 9, 0), null);
-
-            given().cookie(AuthFixture.COOKIE, c.cookie())
-                    .queryParam("from", "2026-01-01")
-                    .queryParam("to", "2026-12-31")
-                    .queryParam("bucket", "month")
-                    .when().get("/api/babies/{babyId}/totals-series", c.babyId())
-                    .then().statusCode(200)
-                    .body("bucket", is("month"))
-                    .body("points.size()", is(12))
-                    .body("points[0].date", is("2026-01-01"))
-                    .body("points[0].stoolCount", is(2))
-                    .body("points[2].date", is("2026-03-01"))
-                    .body("points[2].stoolCount", is(1))
-                    .body("points[1].stoolCount", is(0));
-        }
-    }
-
-    @Nested
     @DisplayName("Validation des paramètres")
     class Validation {
 
-        @Test
-        @DisplayName("Scénario : bucket invalide → 400")
-        void bucket_invalide() {
+        @ParameterizedTest(name = "bucket={0} → 400")
+        @ValueSource(strings = {"year", "month", "week"})
+        @DisplayName("Scénario : bucket invalide → 400 (les granularités retirées incluses)")
+        void bucket_invalide(String bucket) {
             Caregiver c = linkedCaregiver("badbucket");
             given().cookie(AuthFixture.COOKIE, c.cookie())
-                    .queryParam("from", "2026-06-15").queryParam("to", "2026-06-21").queryParam("bucket", "year")
+                    .queryParam("from", "2026-06-15").queryParam("to", "2026-06-21").queryParam("bucket", bucket)
+                    .when().get("/api/babies/{babyId}/totals-series", c.babyId())
+                    .then().statusCode(400);
+        }
+
+        @Test
+        @DisplayName("Scénario : bucket manquant → 400 (le paramètre reste requis)")
+        void bucket_manquant() {
+            Caregiver c = linkedCaregiver("nobucket");
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("from", "2026-06-15").queryParam("to", "2026-06-21")
+                    .when().get("/api/babies/{babyId}/totals-series", c.babyId())
+                    .then().statusCode(400);
+        }
+
+        @Test
+        @DisplayName("Scénario : bucket vide → 400")
+        void bucket_vide() {
+            Caregiver c = linkedCaregiver("emptybucket");
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("from", "2026-06-15").queryParam("to", "2026-06-21").queryParam("bucket", "")
                     .when().get("/api/babies/{babyId}/totals-series", c.babyId())
                     .then().statusCode(400);
         }

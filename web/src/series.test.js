@@ -9,16 +9,15 @@ import {
   toChartRows,
 } from './series'
 
-describe('periodRange — vue → plage de dates + bucket', () => {
-  it('semaine : lundi→dimanche, buckets jour', () => {
+describe('periodRange — vue → plage de dates', () => {
+  it('semaine : lundi→dimanche', () => {
     // 2026-06-17 = mercredi → semaine du lundi 15 au dimanche 21.
-    expect(periodRange('week', '2026-06-17')).toEqual({ from: '2026-06-15', to: '2026-06-21', bucket: 'day' })
+    expect(periodRange('week', '2026-06-17')).toEqual({ from: '2026-06-15', to: '2026-06-21' })
   })
 
-  it('mois : 1er→dernier jour, buckets jour (gère février)', () => {
-    expect(periodRange('month', '2026-02-10')).toEqual({ from: '2026-02-01', to: '2026-02-28', bucket: 'day' })
+  it('mois : 1er→dernier jour (gère février)', () => {
+    expect(periodRange('month', '2026-02-10')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
   })
-
 })
 
 describe('D14-D — fonctions totales et défensives', () => {
@@ -68,9 +67,9 @@ describe('formatPeriodLabel / formatPointLabel', () => {
     expect(formatPeriodLabel('month', '2026-06-17')).toBe('juin 2026')
   })
 
-  it('axe X : jour en JJ/MM, mois abrégé', () => {
-    expect(formatPointLabel('2026-06-15', 'day')).toBe('15/06')
-    expect(formatPointLabel('2026-01-01', 'month')).toBe('janv.')
+  it('axe X : jour en JJ/MM', () => {
+    expect(formatPointLabel('2026-06-15')).toBe('15/06')
+    expect(formatPointLabel('2026-01-01')).toBe('01/01')
   })
 })
 
@@ -79,7 +78,7 @@ describe('toChartRows — points de série → lignes Recharts', () => {
     const points = [
       { date: '2026-06-15', totalMilkMl: 360, totalSleepMinutes: 90, stoolCount: 2 },
     ]
-    const [row] = toChartRows(points, 'day')
+    const [row] = toChartRows(points)
     expect(row.label).toBe('15/06')
     expect(row.totalMilkMl).toBe(360)
     expect(row.sleepHours).toBe(1.5) // 90 min → 1,5 h

@@ -71,7 +71,7 @@ public class CalendarService {
         return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount);
     }
 
-    /** Plafond de buckets retournés : garde-fou contre une plage abusive (ex. année en jours). */
+    /** Plafond de buckets retournés : garde-fou contre une plage arbitrairement large. */
     static final int MAX_BUCKETS = 366;
 
     public TotalsSeriesResponse totalsSeries(UUID userId, UUID babyId, String fromParam,
@@ -97,7 +97,7 @@ public class CalendarService {
         List<StoolResponse> stools = stoolService.listForDay(userId, babyId, rangeFrom, rangeTo);
 
         List<SeriesPoint> points = SeriesAggregator.aggregate(buckets, bottles, naps, stools, Instant.now());
-        return new TotalsSeriesResponse(bucket, from, to, points);
+        return new TotalsSeriesResponse(from, to, points);
     }
 
     private LocalDate requireDate(String date, String field) {

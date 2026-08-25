@@ -23,7 +23,6 @@ function expectedRange(view) {
 }
 
 const SERIES = {
-  bucket: 'day',
   from: '2026-06-15',
   to: '2026-06-21',
   points: [
@@ -48,7 +47,7 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
 
   it('affiche un état vide quand tous les agrégats sont à zéro', async () => {
     getTotalsSeries.mockResolvedValue({
-      bucket: 'day', from: '2026-06-15', to: '2026-06-21',
+      from: '2026-06-15', to: '2026-06-21',
       points: [{ date: '2026-06-15', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0 }],
     })
     renderPanel('week')
