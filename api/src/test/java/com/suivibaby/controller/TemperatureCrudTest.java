@@ -554,8 +554,8 @@ class TemperatureCrudTest {
             UUID otherUser = data.createActiveParent(data.uniqueEmail("victim"), PWD);
             UUID b2 = data.createBaby("BébéVictime");
             data.link(otherUser, b2);
-            UUID eventOfB2 = data.createTemperature(b2, otherUser,
-                    Instant.now().minus(1, ChronoUnit.HOURS), 378);
+            Instant mesuree = Instant.now().minus(1, ChronoUnit.HOURS);
+            UUID eventOfB2 = data.createTemperature(b2, otherUser, mesuree, 378);
 
             // Check IDOR n°2 : A est lié à B1 (path), mais l'événement appartient à B2 → 404.
             given().cookie(AuthFixture.COOKIE, a.cookie())
@@ -573,8 +573,11 @@ class TemperatureCrudTest {
                     .when().delete("/api/babies/{babyId}/temperatures/{id}", b2, eventOfB2)
                     .then().statusCode(404);
 
-            // La mesure de la victime est intacte (ni éditée ni supprimée).
+            // La mesure de la victime est intacte : ni supprimée (elle est toujours là), ni éditée
+            // (le PATCH tentait 402, la base porte toujours 378).
             assertEquals(1, data.countTemperature(b2));
+            assertEquals(378, data.maxTemperatureForDay(b2,
+                    mesuree.minus(1, ChronoUnit.MINUTES), mesuree.plus(1, ChronoUnit.MINUTES)).intValue());
             given().cookie(AuthFixture.COOKIE, a.cookie())
                     .when().get("/api/babies/{babyId}/temperatures", b2)
                     .then().statusCode(404); // et A ne peut toujours pas la lire

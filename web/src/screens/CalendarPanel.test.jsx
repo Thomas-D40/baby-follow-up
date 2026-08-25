@@ -508,6 +508,17 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
     expect(screen.queryByText(/🌡/)).not.toBeInTheDocument()
   })
 
+  it('chip 🌡 : `0` N’EST PAS `null` → la chip reste VISIBLE (garde `!= null`, jamais falsy)', async () => {
+    // Sans ce cas, le test `null` ci-dessus passerait à l'identique avec une garde falsy
+    // (`{totals.max… && …}`), qui masquerait aussi un 0 — une valeur pourtant transmise par le serveur.
+    getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: 0 })
+    renderPanel()
+
+    const c = await screen.findByText((_, node) => node?.className === 'chip chip--temperature')
+    expect(c).toHaveTextContent('🌡')
+    expect(c).toHaveTextContent('0,0 °C')
+  })
+
   it('chips 👁 et 👃 : comptages distincts l’un de l’autre ET de 🌡', async () => {
     getDailyTotals.mockResolvedValue({
       ...BASE_TOTALS, maxTemperatureCelsiusX10: 372, eyeCareCount: 2, noseCareCount: 3,
@@ -630,7 +641,7 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
     expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
   })
 
-  it('soumission soin : PATCH par RESSOURCE (updateMedicalCare) avec careType traduit, jamais l’acte composite', async () => {
+  it('soumission soin : PATCH par RESSOURCE (updateMedicalCare) réduit à l’heure, jamais l’acte composite', async () => {
     getDayEvents.mockResolvedValue([EYE_PAST])
     updateMedicalCare.mockResolvedValue({})
     renderPanel()
@@ -645,8 +656,8 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
     await waitFor(() => expect(updateMedicalCare).toHaveBeenCalledTimes(1))
     expect(updateMedicalCare.mock.calls[0][0]).toBe('b1')
     expect(updateMedicalCare.mock.calls[0][1]).toBe('e1')
-    // 'eye_care' (présentation) → 'eye' (ressource) : le point de traduction du vocabulaire.
-    expect(updateMedicalCare.mock.calls[0][2].careType).toBe('eye')
+    // Le type de soin est immuable en édition : le patch ne porte QUE le champ corrigé.
+    expect(updateMedicalCare.mock.calls[0][2]).toEqual({ occurredAt: expect.any(String) })
   })
 
   it('BUG LATENT FERMÉ : ✏️ sur une ligne 💧 ouvre UrineForm et poste updateUrine', async () => {

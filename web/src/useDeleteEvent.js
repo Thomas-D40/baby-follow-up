@@ -31,7 +31,8 @@ const DELETE_CLIENT = {
  * - **404 = succès idempotent** (D7-C) : l'événement est déjà supprimé → on rafraîchit **sans** erreur.
  *   Seuls `401/403/500` remontent en erreur (R3) — ne jamais avaler tout échec.
  * - **Invalidation par préfixe** `['babies', babyId]` au succès : couvre en un appel **toutes** les
- *   sous-clés (`events`, `daily-totals`, les 3 listes de panels, `nap-current`) → vues cohérentes
+ *   sous-clés (`events`, `daily-totals`, les 6 listes de panels — biberons, siestes, selles, urines,
+ *   températures, soins —, `nap-current`) → vues cohérentes
  *   inter-surfaces (D7-C, R1) sans que la vue déclenchante connaisse la `date` de l'autre.
  */
 export function useDeleteEvent(babyId) {

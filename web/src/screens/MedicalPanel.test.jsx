@@ -134,7 +134,7 @@ describe('MedicalPanel — liste fusionnée : traduction du vocabulaire (K1)', (
     expect(deleteMedicalCare).not.toHaveBeenCalled()
   })
 
-  it('✏️ sur une ligne 👃 : PATCH par ressource avec le careType traduit', async () => {
+  it('✏️ sur une ligne 👃 : PATCH par ressource, réduit au seul champ édité', async () => {
     updateMedicalCare.mockResolvedValue({})
     renderPanel()
 
@@ -146,7 +146,8 @@ describe('MedicalPanel — liste fusionnée : traduction du vocabulaire (K1)', (
     await waitFor(() => expect(updateMedicalCare).toHaveBeenCalledTimes(1))
     expect(updateMedicalCare.mock.calls[0][0]).toBe('b1')
     expect(updateMedicalCare.mock.calls[0][1]).toBe('n1')
-    expect(updateMedicalCare.mock.calls[0][2].careType).toBe('nose')
+    // Le libellé « Soin : Nez » prouve la traduction ; le type reste immuable, donc hors du patch.
+    expect(updateMedicalCare.mock.calls[0][2]).toEqual({ occurredAt: expect.any(String) })
   })
 })
 
