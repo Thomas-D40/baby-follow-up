@@ -21,6 +21,11 @@
   --stool: #d99a63;  --stool-ink: #a86c33;  --stool-bg: #fbefe1;
   --urine: #6cc5d9;  --urine-ink: #2f8ba3;  --urine-bg: #e4f5f9;
   --weight: #7bbf9e; --weight-ink: #3f8f6b; --weight-bg: #e6f5ee;
+  /* Médical (Épic 15) : DEUX familles, pas trois. La température a la sienne (elle porte une
+     valeur, pas un comptage) ; les deux soins PARTAGENT --care et se distinguent par l'emoji
+     👁 / 👃. Trois teintes de plus sur une barre qui en compte déjà quatre la rendraient illisible. */
+  --temp: #e08a8a;   --temp-ink: #b45252;   --temp-bg: #fbeaea;
+  --care: #c98fbf;   --care-ink: #8f4f85;   --care-bg: #f8ecf6;
 
   /* Action principale (chaleureuse) */
   --primary: #f0998a;     --primary-ink: #ffffff;  --primary-deep: #e07e6d;
@@ -155,7 +160,10 @@ button { font-family: inherit; }
 .btn--milk { background: var(--milk); color: #fff; box-shadow: 0 6px 16px rgba(95, 159, 214, 0.32); }
 .btn--sleep { background: var(--sleep); color: #fff; box-shadow: 0 6px 16px rgba(155, 139, 219, 0.32); }
 .btn--stool { background: var(--stool); color: #fff; box-shadow: 0 6px 16px rgba(217, 154, 99, 0.32); }
-.btn--milk:hover, .btn--sleep:hover, .btn--stool:hover { filter: brightness(0.96); background-clip: padding-box; }
+.btn--temp { background: var(--temp); color: #fff; box-shadow: 0 6px 16px rgba(224, 138, 138, 0.32); }
+.btn--care { background: var(--care); color: #fff; box-shadow: 0 6px 16px rgba(201, 143, 191, 0.32); }
+.btn--milk:hover, .btn--sleep:hover, .btn--stool:hover,
+.btn--temp:hover, .btn--care:hover { filter: brightness(0.96); background-clip: padding-box; }
 .btn--ghost { background: var(--surface-2); }
 .btn--danger { background: var(--danger); color: #fff; box-shadow: 0 6px 16px rgba(219, 98, 88, 0.30); }
 .btn--danger:hover { background: var(--danger-deep); }
@@ -173,17 +181,23 @@ button { font-family: inherit; }
 .linkbtn--danger { color: var(--danger-deep); }
 
 /* ── Barre d'actions rapides ────────────────────────────────────────────── */
+/* 5 boutons depuis l'Épic 15. `repeat(auto-fit, minmax(70px, 1fr))` + gap 0.7rem exigerait
+   5×70 + 4×11,2 = 394,8 px, soit un viewport ≥ 430 px : sur TOUS les téléphones courants
+   (375/390/393/414/428) `auto-fit` ne plaçait que 4 colonnes et le 5ᵉ bouton tombait seul en
+   rangée 2, aligné à gauche. Cinq colonnes explicites + gap 0.5rem → 61,6 px/bouton à 375 px,
+   d'où l'emoji et le libellé réduits ci-dessous. */
 .quick-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-  gap: 0.7rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
 }
 .quick-btn {
   position: relative;
+  min-width: 0;
   border: 0;
   cursor: pointer;
   border-radius: var(--radius);
-  padding: 0.95rem 0.5rem 0.8rem;
+  padding: 0.8rem 0.25rem 0.7rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -196,12 +210,13 @@ button { font-family: inherit; }
 }
 .quick-btn:active { transform: translateY(2px) scale(0.98); }
 .quick-btn:focus-visible { outline: none; box-shadow: var(--ring); }
-.quick-btn .emoji { font-size: 1.9rem; line-height: 1; }
-.quick-btn .label { font-size: 0.92rem; }
+.quick-btn .emoji { font-size: 1.5rem; line-height: 1; }
+.quick-btn .label { font-size: 0.72rem; line-height: 1.1; }
 .quick-btn--milk { background: var(--milk-bg); color: var(--milk-ink); }
 .quick-btn--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .quick-btn--stool { background: var(--stool-bg); color: var(--stool-ink); }
 .quick-btn--weight { background: var(--weight-bg); color: var(--weight-ink); }
+.quick-btn--medical { background: var(--temp-bg); color: var(--temp-ink); }
 
 .quick-badge {
   position: absolute;
@@ -241,6 +256,8 @@ button { font-family: inherit; }
 }
 .toggle-chip:focus-visible { outline: none; box-shadow: var(--ring); }
 .toggle-chip--on { background: var(--stool-bg); color: var(--stool-ink); border-color: var(--stool); }
+/* Même toggle, teinte « soin » pour la feuille Médical (Épic 15). */
+.toggle-chip--care-on { background: var(--care-bg); color: var(--care-ink); border-color: var(--care); }
 
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field-label { font-size: 0.82rem; font-weight: 800; color: var(--text); }
@@ -281,6 +298,10 @@ button { font-family: inherit; }
 .chip--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .chip--stool { background: var(--stool-bg); color: var(--stool-ink); }
 .chip--urine { background: var(--urine-bg); color: var(--urine-ink); }
+.chip--temperature { background: var(--temp-bg); color: var(--temp-ink); }
+/* 👁 et 👃 partagent la teinte « soin » : c'est l'emoji qui les distingue (Épic 15). */
+.chip--eye-care { background: var(--care-bg); color: var(--care-ink); }
+.chip--nose-care { background: var(--care-bg); color: var(--care-ink); }
 
 /* ── Récap : filtre par type de la liste du jour (US13.3) ───────────────── */
 /* N'agit que sur la liste chronologique ; les chips totaux ci-dessus sont intouchés. */
@@ -303,6 +324,9 @@ button { font-family: inherit; }
 .filter-chip--sleep[aria-pressed="true"] { background: var(--sleep-bg); color: var(--sleep-ink); border-color: var(--sleep); }
 .filter-chip--stool[aria-pressed="true"] { background: var(--stool-bg); color: var(--stool-ink); border-color: var(--stool); }
 .filter-chip--urine[aria-pressed="true"] { background: var(--urine-bg); color: var(--urine-ink); border-color: var(--urine); }
+.filter-chip--temperature[aria-pressed="true"] { background: var(--temp-bg); color: var(--temp-ink); border-color: var(--temp); }
+.filter-chip--eye-care[aria-pressed="true"],
+.filter-chip--nose-care[aria-pressed="true"] { background: var(--care-bg); color: var(--care-ink); border-color: var(--care); }
 
 /* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
 .vitamins { margin-top: 0.75rem; }
@@ -342,6 +366,9 @@ button { font-family: inherit; }
 .event-tag--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .event-tag--stool { background: var(--stool-bg); color: var(--stool-ink); }
 .event-tag--urine { background: var(--urine-bg); color: var(--urine-ink); }
+.event-tag--temperature { background: var(--temp-bg); color: var(--temp-ink); }
+.event-tag--eye-care { background: var(--care-bg); color: var(--care-ink); }
+.event-tag--nose-care { background: var(--care-bg); color: var(--care-ink); }
 .event-detail { color: var(--text); }
 .event-detail strong { color: var(--text-strong); }
 .flag { color: var(--stool-ink); font-weight: 700; }

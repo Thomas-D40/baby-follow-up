@@ -9,15 +9,20 @@ import { toLocalInputValue as toLocalInputValueStool } from '../stool'
 vi.mock('../api', () => ({
   getDayEvents: vi.fn(),
   getDailyTotals: vi.fn(),
-  // `useDeleteEvent` route vers les 4 clients : tous présents dans le mock.
+  // `useDeleteEvent` route vers les 6 clients : tous présents dans le mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
   deleteUrine: vi.fn(),
-  // Édition depuis le récap (US11.2) : les 3 clients d'update.
+  deleteTemperature: vi.fn(),
+  deleteMedicalCare: vi.fn(),
+  // Édition depuis le récap (US11.2) : les 6 clients d'update.
   updateBottleFeeding: vi.fn(),
   updateNap: vi.fn(),
   updateStool: vi.fn(),
+  updateUrine: vi.fn(),
+  updateTemperature: vi.fn(),
+  updateMedicalCare: vi.fn(),
   // Section Vitamines (Épic 9) rendue par CalendarPanel.
   getVitamins: vi.fn(),
   setVitamin: vi.fn(),
@@ -30,8 +35,11 @@ import {
   deleteNap,
   getVitamins,
   updateBottleFeeding,
+  updateMedicalCare,
   updateNap,
   updateStool,
+  updateTemperature,
+  updateUrine,
 } from '../api'
 
 const PREFIX = { queryKey: ['babies', 'b1'] }
@@ -372,9 +380,9 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     expect(screen.getByRole('button', { name: /Supprimer selle/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Supprimer urine/ })).toBeInTheDocument()
 
-    // Les 4 toggles sont « enfoncés » (rien de masqué au montage).
+    // Les 7 toggles sont « enfoncés » (rien de masqué au montage) — 4 + température/yeux/nez.
     const toggles = within(filterGroup()).getAllByRole('button')
-    expect(toggles).toHaveLength(4)
+    expect(toggles).toHaveLength(7)
     toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'true'))
   })
 
@@ -432,7 +440,7 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     expect(chip('stool')).toBeInTheDocument()
     expect(chip('urine')).toBeInTheDocument()
     // Les toggles restent visibles pour pouvoir tout réafficher.
-    expect(within(filterGroup()).getAllByRole('button')).toHaveLength(4)
+    expect(within(filterGroup()).getAllByRole('button')).toHaveLength(7)
   })
 
   it('persistance sessionStorage : le type masqué est stocké, un remontage conserve l’état (PAS localStorage)', async () => {
@@ -454,5 +462,210 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     expect(within(filterGroup()).getByRole('button', { name: /Selle/ })).toHaveAttribute('aria-pressed', 'false')
     // La chip 💩 reste présente après remontage (filtre ≠ totaux).
     expect(chip('stool')).toBeInTheDocument()
+  })
+})
+
+describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US15.2)', () => {
+  const VITAMINS = { date: '2026-06-21', items: [
+    { vitaminType: 'd', given: false, authorId: null },
+    { vitaminType: 'k', given: false, authorId: null },
+  ] }
+  const BASE_TOTALS = {
+    date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
+    maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
+  }
+  const chip = (cls) => screen.queryByText((_, node) => node?.className === `chip chip--${cls}`)
+  const filterGroup = () => screen.getByRole('group', { name: 'Filtrer la liste par type' })
+
+  const TEMP_PAST = { type: 'temperature', id: 't1', startAt: '2020-03-15T09:30:00.000Z', temperatureCelsiusX10: 384 }
+  const EYE_PAST = { type: 'eye_care', id: 'e1', startAt: '2020-03-15T08:00:00.000Z' }
+  const NOSE_PAST = { type: 'nose_care', id: 'n1', startAt: '2020-03-15T07:00:00.000Z' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+    getVitamins.mockResolvedValue(VITAMINS)
+    getDayEvents.mockResolvedValue([])
+    getDailyTotals.mockResolvedValue(BASE_TOTALS)
+  })
+
+  it('chip 🌡 : rend le MAXIMUM du jour en °C (384 → « 38,4 °C »)', async () => {
+    getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: 384 })
+    renderPanel()
+
+    const c = await screen.findByText((_, node) => node?.className === 'chip chip--temperature')
+    expect(c).toHaveTextContent('🌡')
+    expect(c).toHaveTextContent('38,4 °C')
+  })
+
+  it('chip 🌡 : `null` (aucune mesure) → AUCUNE chip rendue — ni 0, ni tiret (D15-K)', async () => {
+    getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: null })
+    renderPanel()
+
+    // Les autres chips sont là (les totaux sont bien chargés), la 🌡 non.
+    await waitFor(() => expect(chip('milk')).toBeInTheDocument())
+    expect(chip('temperature')).not.toBeInTheDocument()
+    expect(screen.queryByText(/🌡/)).not.toBeInTheDocument()
+  })
+
+  it('chips 👁 et 👃 : comptages distincts l’un de l’autre ET de 🌡', async () => {
+    getDailyTotals.mockResolvedValue({
+      ...BASE_TOTALS, maxTemperatureCelsiusX10: 372, eyeCareCount: 2, noseCareCount: 3,
+    })
+    renderPanel()
+
+    const eye = await screen.findByText((_, node) => node?.className === 'chip chip--eye-care')
+    const nose = screen.getByText((_, node) => node?.className === 'chip chip--nose-care')
+    const temp = screen.getByText((_, node) => node?.className === 'chip chip--temperature')
+
+    expect(eye).toHaveTextContent('👁')
+    expect(eye).toHaveTextContent('2 soins des yeux')
+    expect(nose).toHaveTextContent('👃')
+    expect(nose).toHaveTextContent('3 soins du nez')
+    expect(temp).toHaveTextContent('37,2 °C')
+    // Trois nœuds distincts : ni fusion, ni doublon.
+    expect(new Set([eye, nose, temp]).size).toBe(3)
+  })
+
+  it('ligne de frise température : heure + tag 🌡 + valeur formatée', async () => {
+    getDayEvents.mockResolvedValue([TEMP_PAST])
+    renderPanel()
+
+    const tag = await screen.findByText((_, node) => node?.className === 'event-tag event-tag--temperature')
+    expect(tag).toHaveTextContent('🌡')
+    expect(tag).toHaveTextContent('Température')
+    expect(screen.getByText('38,4 °C', { selector: '.event-detail' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer température/ })).toBeInTheDocument()
+  })
+
+  it('lignes de frise soins : tags 👁 / 👃 distincts et détail explicite', async () => {
+    getDayEvents.mockResolvedValue([EYE_PAST, NOSE_PAST])
+    renderPanel()
+
+    const eyeTag = await screen.findByText((_, node) => node?.className === 'event-tag event-tag--eye-care')
+    const noseTag = screen.getByText((_, node) => node?.className === 'event-tag event-tag--nose-care')
+    expect(eyeTag).toHaveTextContent('👁')
+    expect(noseTag).toHaveTextContent('👃')
+    expect(screen.getByText('Soin des yeux', { selector: '.event-detail' })).toBeInTheDocument()
+    expect(screen.getByText('Soin du nez', { selector: '.event-detail' })).toBeInTheDocument()
+  })
+
+  it('VIABILITÉ DU MODÈLE (D15-I) : 8 soins du nez masqués → 8 lignes disparaissent, chips inchangées, défaut = tout affiché', async () => {
+    const NOSES = Array.from({ length: 8 }, (_, i) => ({
+      type: 'nose_care', id: `n${i}`, startAt: `2026-06-21T0${i}:15:00.000Z`,
+    }))
+    getDayEvents.mockResolvedValue([TEMP_PAST, ...NOSES])
+    getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: 384, noseCareCount: 8 })
+    const { unmount } = renderPanel()
+
+    // Défaut : tout affiché — les 8 lignes 👃 + la ligne 🌡.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Supprimer nez/ })).toHaveLength(8))
+    expect(screen.getByRole('button', { name: /Supprimer température/ })).toBeInTheDocument()
+
+    await userEvent.click(within(filterGroup()).getByRole('button', { name: /Nez/ }))
+
+    // Les 8 lignes disparaissent, la température reste, les chips ne bougent pas.
+    expect(screen.queryByRole('button', { name: /Supprimer nez/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supprimer température/ })).toBeInTheDocument()
+    expect(chip('nose-care')).toHaveTextContent('8 soins du nez')
+    expect(chip('temperature')).toHaveTextContent('38,4 °C')
+
+    // Défaut au rechargement (session vide) = tout affiché.
+    unmount()
+    sessionStorage.clear()
+    renderPanel()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Supprimer nez/ })).toHaveLength(8))
+  })
+
+  it('NON-RÉGRESSION K1 : ✏️ sur une ligne 👁 puis sur une ligne 👃 ouvre le form sans erreur, avec le bon titre', async () => {
+    getDayEvents.mockResolvedValue([EYE_PAST, NOSE_PAST])
+    const { unmount } = renderPanel()
+
+    // Sans les deux types de calendrier, EVENT_TYPE_LABEL[editing.type] serait undefined
+    // → `undefined.toLowerCase()` → TypeError démontant tout CalendarPanel.
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier yeux/ }))
+    let dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier yeux')
+    expect(within(dialog).getByText('Soin : Yeux')).toBeInTheDocument()
+    unmount()
+
+    renderPanel()
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier nez/ }))
+    dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier nez')
+    expect(within(dialog).getByText('Soin : Nez')).toBeInTheDocument()
+  })
+
+  it('GARDE-FOU température : « Quand » prérempli depuis startAt (remap), PAS « maintenant »', async () => {
+    getDayEvents.mockResolvedValue([TEMP_PAST])
+    renderPanel()
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier température/ }))
+
+    const dialog = screen.getByRole('dialog')
+    const when = within(dialog).getByLabelText('Quand')
+    expect(when).toHaveValue(toLocalInputValueStool(new Date(TEMP_PAST.startAt)))
+    expect(when.value).not.toBe(toLocalInputValueStool(new Date()))
+    // La valeur est pré-remplie en °C avec la virgule fr-FR.
+    expect(within(dialog).getByLabelText('Température (°C)')).toHaveValue('38,4')
+  })
+
+  it('soumission température : updateTemperature(b1, id, patch) une fois, sheet fermé, préfixe invalidé', async () => {
+    getDayEvents.mockResolvedValue([TEMP_PAST])
+    updateTemperature.mockResolvedValue({})
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier température/ }))
+    const dialog = screen.getByRole('dialog')
+    const value = within(dialog).getByLabelText('Température (°C)')
+    await userEvent.clear(value)
+    await userEvent.type(value, '37,2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateTemperature).toHaveBeenCalledTimes(1))
+    expect(updateTemperature.mock.calls[0][0]).toBe('b1')
+    expect(updateTemperature.mock.calls[0][1]).toBe('t1')
+    expect(updateTemperature.mock.calls[0][2].temperatureCelsiusX10).toBe(372)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
+  })
+
+  it('soumission soin : PATCH par RESSOURCE (updateMedicalCare) avec careType traduit, jamais l’acte composite', async () => {
+    getDayEvents.mockResolvedValue([EYE_PAST])
+    updateMedicalCare.mockResolvedValue({})
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier yeux/ }))
+    const dialog = screen.getByRole('dialog')
+    // Heure préremplie depuis startAt (remap), pas « maintenant ».
+    const when = within(dialog).getByLabelText('Quand')
+    expect(when).toHaveValue(toLocalInputValueStool(new Date(EYE_PAST.startAt)))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateMedicalCare).toHaveBeenCalledTimes(1))
+    expect(updateMedicalCare.mock.calls[0][0]).toBe('b1')
+    expect(updateMedicalCare.mock.calls[0][1]).toBe('e1')
+    // 'eye_care' (présentation) → 'eye' (ressource) : le point de traduction du vocabulaire.
+    expect(updateMedicalCare.mock.calls[0][2].careType).toBe('eye')
+  })
+
+  it('BUG LATENT FERMÉ : ✏️ sur une ligne 💧 ouvre UrineForm et poste updateUrine', async () => {
+    // `updateUrine` était importé par CalendarPanel mais absent du mock : la suite ne tenait que
+    // parce qu'aucun test n'ouvrait l'édition d'une urine.
+    const URINE_PAST = { type: 'urine', id: 'u1', startAt: '2020-03-15T06:00:00.000Z', endAt: null }
+    getDayEvents.mockResolvedValue([URINE_PAST])
+    updateUrine.mockResolvedValue({})
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier urine/ }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier urine')
+    const when = within(dialog).getByLabelText('Quand')
+    expect(when).toHaveValue(toLocalInputValueStool(new Date(URINE_PAST.startAt)))
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(updateUrine).toHaveBeenCalledTimes(1))
+    expect(updateUrine.mock.calls[0][0]).toBe('b1')
+    expect(updateUrine.mock.calls[0][1]).toBe('u1')
   })
 })

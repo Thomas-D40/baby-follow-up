@@ -3,13 +3,16 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useDeleteEvent } from './useDeleteEvent'
 
+// ⚠️ Ce fichier vit à `web/src/` : le module mocké est './api', pas '../api'.
 vi.mock('./api', () => ({
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
   deleteUrine: vi.fn(),
+  deleteTemperature: vi.fn(),
+  deleteMedicalCare: vi.fn(),
 }))
-import { deleteBottleFeeding, deleteNap, deleteStool } from './api'
+import { deleteBottleFeeding, deleteNap, deleteStool, deleteTemperature, deleteMedicalCare } from './api'
 
 function setup() {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
@@ -35,6 +38,22 @@ describe('useDeleteEvent (Épic 7, D7-B/D7-C)', () => {
     expect(deleteBottleFeeding.mock.calls[0]).toEqual(['b1', 'a'])
     expect(deleteNap.mock.calls[0]).toEqual(['b1', 'b'])
     expect(deleteStool.mock.calls[0]).toEqual(['b1', 'c'])
+  })
+
+  it('les DEUX types de soin routent vers le MÊME deleteMedicalCare (K1), la température vers le sien', async () => {
+    deleteMedicalCare.mockResolvedValue(null)
+    deleteTemperature.mockResolvedValue(null)
+    const { result } = setup()
+
+    await act(() => result.current.mutateAsync({ type: 'eye_care', id: 'e1' }))
+    await act(() => result.current.mutateAsync({ type: 'nose_care', id: 'n1' }))
+    await act(() => result.current.mutateAsync({ type: 'temperature', id: 't1' }))
+
+    // Deux types de présentation, une seule ressource `medical_care` → un seul client, deux appels.
+    expect(deleteMedicalCare).toHaveBeenCalledTimes(2)
+    expect(deleteMedicalCare.mock.calls[0]).toEqual(['b1', 'e1'])
+    expect(deleteMedicalCare.mock.calls[1]).toEqual(['b1', 'n1'])
+    expect(deleteTemperature.mock.calls[0]).toEqual(['b1', 't1'])
   })
 
   it('invalide PAR PRÉFIXE [babies, babyId] au succès (cohérence inter-vues, D7-C/R1)', async () => {

@@ -10,11 +10,13 @@ vi.mock('../api', () => ({
   listUrines: vi.fn(),
   updateStool: vi.fn(),
   updateUrine: vi.fn(),
-  // `useDeleteEvent` route vers les 4 clients de suppression : tous présents dans le mock.
+  // `useDeleteEvent` route vers les 6 clients de suppression : tous présents dans le mock.
   deleteStool: vi.fn(),
   deleteUrine: vi.fn(),
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
+  deleteTemperature: vi.fn(),
+  deleteMedicalCare: vi.fn(),
 }))
 import {
   listStools,

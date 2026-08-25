@@ -2,10 +2,21 @@
 // Tout l'affichage des heures et le découpage du jour sont pinnés sur Europe/Paris (D6-D),
 // JAMAIS le fuseau du device : le bucketing serveur (Paris) et le rendu front doivent coïncider (R5).
 
+import { formatCelsius } from './temperature'
+
 const PARIS = 'Europe/Paris'
 const LONG_NAP_MINUTES = 10 * 60 // signalement « sieste longue » (D6-G), pur affichage
 
-export const EVENT_TYPE_LABEL = { bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle', urine: 'Urine' }
+// Les soins médicaux sont DEUX types de calendrier (K1/D15-F′), keyés comme tous les autres.
+export const EVENT_TYPE_LABEL = {
+  bottle_feeding: 'Biberon',
+  nap: 'Sieste',
+  stool: 'Selle',
+  urine: 'Urine',
+  temperature: 'Température',
+  eye_care: 'Yeux',
+  nose_care: 'Nez',
+}
 
 /** Heure d'un instant ISO rendue en Europe/Paris ("HH:mm"), quel que soit le fuseau du device (D6-D). */
 export function formatParisTime(iso) {
@@ -75,6 +86,17 @@ export function describeEvent(event, now = new Date()) {
   }
   if (event.type === 'urine') {
     return 'Urine'
+  }
+  // Une branche EXPLICITE par type : le `return ''` final est silencieux (un type non traité
+  // n'échoue pas, il affiche du vide) — donc jamais de repli pour un type qu'on supporte (Épic 15).
+  if (event.type === 'temperature') {
+    return formatCelsius(event.temperatureCelsiusX10)
+  }
+  if (event.type === 'eye_care') {
+    return 'Soin des yeux'
+  }
+  if (event.type === 'nose_care') {
+    return 'Soin du nez'
   }
   return ''
 }
