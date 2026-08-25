@@ -8,6 +8,7 @@ import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
+import com.suivibaby.entity.Temperature;
 import com.suivibaby.entity.Urine;
 import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.entity.Weight;
@@ -22,6 +23,7 @@ import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
+import com.suivibaby.repository.TemperatureRepository;
 import com.suivibaby.repository.UrineRepository;
 import com.suivibaby.repository.VitaminIntakeRepository;
 import com.suivibaby.repository.WeightRepository;
@@ -73,6 +75,9 @@ public class TestDataFactory {
 
     @Inject
     WeightRepository weightRepository;
+
+    @Inject
+    TemperatureRepository temperatureRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -228,6 +233,32 @@ public class TestDataFactory {
     @Transactional
     public long countUrine(UUID babyId) {
         return urineRepository.count("babyId", babyId);
+    }
+
+    // Direct seed of a temperature reading (Épic 15) — used by the keyset and IDOR milestones.
+    @Transactional
+    public UUID createTemperature(UUID babyId, UUID authorId, Instant occurredAt, int celsiusX10) {
+        Temperature event = new Temperature();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.temperatureCelsiusX10 = celsiusX10;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        temperatureRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countTemperature(UUID babyId) {
+        return temperatureRepository.count("babyId", babyId);
+    }
+
+    // Highest reading of a window, NULL when there is none (D15-K). Wrapped here because the
+    // repository needs an active session, which a bare test method does not have.
+    @Transactional
+    public Integer maxTemperatureForDay(UUID babyId, Instant from, Instant to) {
+        return temperatureRepository.maxForDay(babyId, from, to);
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */
