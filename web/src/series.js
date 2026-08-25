@@ -1,12 +1,9 @@
 // Logique pure de la vue « tendances » (calendrier élargi), extraite pour test unitaire (comme
-// calendar.js). Une « vue » (semaine/mois/année) se traduit en une plage de dates calendaires
+// calendar.js). Une « vue » (semaine/mois) se traduit en une plage de dates calendaires
 // [from, to] et une granularité de bucket envoyées au serveur, qui les interprète en Europe/Paris.
 //
 // Toute l'arithmétique de dates se fait en UTC pur sur des YYYY-MM-DD (jamais le fuseau du device),
 // pour rester cohérent avec le bucketing serveur (Paris) — même principe que calendar.js (D6-D).
-
-export const VIEWS = ['week', 'month', 'year']
-export const VIEW_LABEL = { week: 'Semaine', month: 'Mois', year: 'Année' }
 
 function ymdToUTC(ymd) {
   const [y, m, d] = ymd.split('-').map(Number)
@@ -28,8 +25,9 @@ function mondayOf(ymd) {
 /**
  * Plage de dates [from, to] (incluses) et granularité de bucket pour une vue ancrée sur `anchorYmd` :
  * - semaine → lundi→dimanche, buckets jour (7 points) ;
- * - mois → 1er→dernier jour du mois, buckets jour (~28-31 points) ;
- * - année → 1er janv.→31 déc., buckets mois (12 points).
+ * - mois → 1er→dernier jour du mois, buckets jour (~28-31 points).
+ * Toute autre vue lève : c'est la garde unique du module (cf. `samePeriod`/`formatPeriodLabel`),
+ * pour qu'aucune vue ne retombe silencieusement sur une période arbitraire.
  */
 export function periodRange(view, anchorYmd) {
   if (view === 'week') {
@@ -38,18 +36,18 @@ export function periodRange(view, anchorYmd) {
     end.setUTCDate(end.getUTCDate() + 6)
     return { from, to: utcToYmd(end), bucket: 'day' }
   }
-  const dt = ymdToUTC(anchorYmd)
-  const y = dt.getUTCFullYear()
   if (view === 'month') {
+    const dt = ymdToUTC(anchorYmd)
+    const y = dt.getUTCFullYear()
     const m = dt.getUTCMonth()
     const from = utcToYmd(new Date(Date.UTC(y, m, 1)))
     const to = utcToYmd(new Date(Date.UTC(y, m + 1, 0))) // jour 0 du mois suivant = dernier jour du mois
     return { from, to, bucket: 'day' }
   }
-  return { from: `${y}-01-01`, to: `${y}-12-31`, bucket: 'month' }
+  throw new Error(`Vue de tendances inconnue : ${view}`)
 }
 
-/** Décale l'ancre d'une vue de `delta` périodes (semaine/mois/année), sans débordement de jour. */
+/** Décale l'ancre d'une vue de `delta` périodes (semaine/mois), sans débordement de jour. */
 export function shiftPeriod(view, anchorYmd, delta) {
   const dt = ymdToUTC(anchorYmd)
   if (view === 'week') {
@@ -58,28 +56,31 @@ export function shiftPeriod(view, anchorYmd, delta) {
     dt.setUTCDate(1) // ancrer au 1er évite Mars 31 +1 mois → Mai
     dt.setUTCMonth(dt.getUTCMonth() + delta)
   } else {
-    dt.setUTCMonth(0, 1)
-    dt.setUTCFullYear(dt.getUTCFullYear() + delta)
+    // Le `throw` va ici, jamais avant/après le `return` unique ci-dessous : avant, la fonction
+    // lèverait pour toutes les vues ; après, ce serait du code mort.
+    throw new Error(`Vue de tendances inconnue : ${view}`)
   }
   return utcToYmd(dt)
 }
+
+// `samePeriod` et `formatPeriodLabel` ne portent volontairement PAS de garde propre : toutes deux
+// appellent `periodRange` en première ligne, qui lève déjà sur une vue inconnue. Un `throw` de plus
+// ici serait prouvablement inatteignable — ne pas les « compléter » par symétrie.
 
 /** Deux ancres tombent-elles dans la même période (pour le bouton « aujourd'hui ») ? */
 export function samePeriod(view, a, b) {
   return periodRange(view, a).from === periodRange(view, b).from
 }
 
-/** Libellé de la période courante (« Semaine du 15 juin », « juin 2026 », « 2026 »). */
+/** Libellé de la période courante (« Semaine du 15 juin », « juin 2026 »). */
 export function formatPeriodLabel(view, anchorYmd) {
   const { from } = periodRange(view, anchorYmd)
   const fromDt = ymdToUTC(from)
   if (view === 'week') {
     return `Semaine du ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(fromDt)}`
   }
-  if (view === 'month') {
-    return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(fromDt)
-  }
-  return String(fromDt.getUTCFullYear())
+  // Vue mois : dernier cas atteignable, `periodRange` ayant écarté tous les autres.
+  return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(fromDt)
 }
 
 /** Libellé court d'un point sur l'axe X : jour « 15/06 » (buckets jour/semaine) ou mois « janv. ». */

@@ -377,7 +377,7 @@ button { font-family: inherit; }
 .daynav-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .daynav-label { flex: 1; text-align: center; font-weight: 800; text-transform: capitalize; font-size: 0.95rem; color: var(--text-strong); }
 
-/* ── Sélecteur de vue (jour / semaine / mois / année) ───────────────────── */
+/* ── Sélecteur de vue (jour / semaine / mois / croissance) ──────────────── */
 .seg {
   display: flex;
   gap: 0.25rem;

@@ -19,8 +19,8 @@ const WeightChart = lazy(() => import('./WeightChart'))
 
 const SEX_LABEL = { female: 'Fille', male: 'Garçon' }
 const SEX_EMOJI = { female: '👧', male: '👦' }
-const CAL_VIEWS = ['day', 'week', 'month', 'year', 'growth']
-const CAL_VIEW_LABEL = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', growth: 'Croissance' }
+const CAL_VIEWS = ['day', 'week', 'month', 'growth']
+const CAL_VIEW_LABEL = { day: 'Jour', week: 'Semaine', month: 'Mois', growth: 'Croissance' }
 
 /**
  * Fiche bébé (US2.1 create, US2.2 select, D2-E edit/delete). Design « pastel doux & rond » : une
@@ -36,7 +36,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'diaper' | 'weight'
-  const [calView, setCalView] = useState('day') // day = liste du jour ; week|month|year = tendances
+  const [calView, setCalView] = useState('day') // day = liste du jour ; week|month = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
 
@@ -198,7 +198,7 @@ export default function BabiesScreen({ me, onLogout }) {
 
       {currentBaby && calView === 'day' && <CalendarPanel babyId={currentBaby.id} />}
 
-      {currentBaby && (calView === 'week' || calView === 'month' || calView === 'year') && (
+      {currentBaby && (calView === 'week' || calView === 'month') && (
         <Suspense fallback={<section className="card"><p className="empty">…</p></section>}>
           <TrendsPanel babyId={currentBaby.id} view={calView} />
         </Suspense>
