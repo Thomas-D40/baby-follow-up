@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TrendsPanel from './TrendsPanel'
+import { parisToday, shiftDate } from '../calendar'
+import { periodRange } from '../series'
 
 vi.mock('../api', () => ({ getTotalsSeries: vi.fn() }))
 import { getTotalsSeries } from '../api'
@@ -12,6 +14,12 @@ function renderPanel(view = 'week') {
   return render(
     <QueryClientProvider client={qc}><TrendsPanel babyId="b1" view={view} /></QueryClientProvider>,
   )
+}
+
+/** Bornes attendues pour la vue, dérivées de l'ancre du jour — jamais écrites en dur. */
+function expectedRange(view) {
+  const { from, to } = periodRange(view, parisToday())
+  return { from, to }
 }
 
 const SERIES = {
@@ -48,13 +56,29 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
     expect(await screen.findByText(/Aucune donnée sur cette période/)).toBeInTheDocument()
   })
 
-  it('demande la série avec le bon bucket selon la vue (année → month)', async () => {
-    getTotalsSeries.mockResolvedValue({ bucket: 'month', from: '2026-01-01', to: '2026-12-31', points: [] })
-    renderPanel('year')
+  // ⚠️ Aucune borne en dur dans ces cas : le panneau s'ancre sur `parisToday()`, une date littérale
+  // les ferait rougir au prochain changement de semaine/mois/année. Les attendus sont dérivés.
+  it('la vue Semaine demande le lundi→dimanche de l’ancre du jour', async () => {
+    getTotalsSeries.mockResolvedValue(SERIES)
+    renderPanel('week')
 
     await waitFor(() => expect(getTotalsSeries).toHaveBeenCalled())
     expect(getTotalsSeries.mock.calls[0][0]).toBe('b1')
-    expect(getTotalsSeries.mock.calls[0][1]).toMatchObject({ from: '2026-01-01', to: '2026-12-31', bucket: 'month' })
+    const { from, to } = getTotalsSeries.mock.calls[0][1]
+    expect({ from, to }).toEqual(expectedRange('week'))
+    expect(new Date(`${from}T00:00:00Z`).getUTCDay()).toBe(1) // lundi ISO
+    expect(shiftDate(from, 6)).toBe(to) // 7 jours inclus
+  })
+
+  it('la vue Mois demande le 1ᵉʳ→dernier jour du mois de l’ancre', async () => {
+    getTotalsSeries.mockResolvedValue(SERIES)
+    renderPanel('month')
+
+    await waitFor(() => expect(getTotalsSeries).toHaveBeenCalled())
+    const { from, to } = getTotalsSeries.mock.calls[0][1]
+    expect({ from, to }).toEqual(expectedRange('month'))
+    expect(from.endsWith('-01')).toBe(true)
+    expect(shiftDate(to, 1).endsWith('-01')).toBe(true) // `to` = dernier jour du mois
   })
 
   it('la navigation période change la plage demandée', async () => {
@@ -65,7 +89,11 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Période précédente' }))
 
     await waitFor(() => expect(getTotalsSeries).toHaveBeenCalledTimes(2))
-    // 2ᵉ appel : semaine précédente (from reculé de 7 jours).
-    expect(getTotalsSeries.mock.calls[1][1].bucket).toBe('day')
+    // 2ᵉ appel : semaine précédente — bornes reculées de 7 jours par rapport au 1ᵉʳ appel
+    // (c'est `from`/`to` qui discriminent la queryKey, donc le cache, d'une période à l'autre).
+    const first = getTotalsSeries.mock.calls[0][1]
+    const second = getTotalsSeries.mock.calls[1][1]
+    expect(second.from).toBe(shiftDate(first.from, -7))
+    expect(second.to).toBe(shiftDate(first.to, -7))
   })
 })

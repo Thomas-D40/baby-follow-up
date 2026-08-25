@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import BabiesScreen from './BabiesScreen'
@@ -13,6 +13,12 @@ vi.mock('./WeightChart', () => ({
   default: ({ sex, birthDate }) => (
     <div data-testid="weight-chart">chart {sex} {birthDate}</div>
   ),
+}))
+
+// Idem pour les tendances (lazy, Recharts) : ici on teste la porte de montage et la vue transmise,
+// pas le tracé des courbes (couvert par TrendsPanel.test.jsx).
+vi.mock('./TrendsPanel', () => ({
+  default: ({ view }) => <div data-testid="trends-panel">trends {view}</div>,
 }))
 
 const me = { firstName: 'Parent', email: 'p@test.local', role: 'parent' }
@@ -90,6 +96,36 @@ describe('BabiesScreen — suppression (D2-H)', () => {
     await waitFor(() => expect(api.deleteBaby).toHaveBeenCalled())
     expect(api.deleteBaby.mock.calls[0][0]).toBe('a')
     expect(await screen.findByRole('status')).toHaveTextContent('Bébé supprimé.')
+  })
+})
+
+describe('BabiesScreen — sélecteur de vue (Épic 14, US14.1)', () => {
+  it('expose exactement 4 onglets, sans « Année »', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    const tabs = within(screen.getByRole('tablist', { name: 'Vue calendrier' })).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Jour', 'Semaine', 'Mois', 'Croissance'])
+    expect(screen.queryByRole('tab', { name: 'Année' })).toBeNull()
+  })
+
+  it('les tendances se montent en Semaine et en Mois, avec la vue transmise', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    // Vue Jour par défaut : pas de tendances.
+    expect(screen.queryByTestId('trends-panel')).toBeNull()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Semaine' }))
+    expect(await screen.findByTestId('trends-panel')).toHaveTextContent('trends week')
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Mois' }))
+    expect(await screen.findByTestId('trends-panel')).toHaveTextContent('trends month')
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Croissance' }))
+    expect(screen.queryByTestId('trends-panel')).toBeNull()
   })
 })
 
