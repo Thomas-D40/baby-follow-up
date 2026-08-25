@@ -23,16 +23,16 @@ import {
  */
 export default function TrendsPanel({ babyId, view }) {
   const [anchor, setAnchor] = useState(() => parisToday())
-  const { from, to, bucket } = periodRange(view, anchor)
+  const { from, to } = periodRange(view, anchor)
   const isCurrent = samePeriod(view, anchor, parisToday())
 
   const query = useQuery({
-    queryKey: ['babies', babyId, 'totals-series', bucket, from, to],
-    queryFn: () => getTotalsSeries(babyId, { from, to, bucket }),
+    queryKey: ['babies', babyId, 'totals-series', from, to],
+    queryFn: () => getTotalsSeries(babyId, { from, to }),
   })
 
   const points = query.data?.points ?? []
-  const rows = toChartRows(points, bucket)
+  const rows = toChartRows(points)
   const hasData = points.some((p) => p.totalMilkMl || p.totalSleepMinutes || p.stoolCount)
 
   return (

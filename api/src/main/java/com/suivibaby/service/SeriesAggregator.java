@@ -9,7 +9,6 @@ import com.suivibaby.model.StoolResponse;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +23,7 @@ public final class SeriesAggregator {
 
     /**
      * Découpe {@code [from, to]} (dates locales incluses) en buckets de granularité {@code unit},
-     * alignés sur la frontière naturelle ≤ from (jour : from ; semaine : lundi ; mois : 1er).
+     * alignés sur la frontière naturelle ≤ from (jour : from).
      */
     public static List<Bucket> buckets(LocalDate from, LocalDate to, SeriesBucket unit, ZoneId zone) {
         List<Bucket> result = new ArrayList<>();
@@ -39,19 +38,17 @@ public final class SeriesAggregator {
         return result;
     }
 
+    // Both switches stay exhaustive over SeriesBucket on purpose: adding a granularity back makes
+    // the compiler point at every site that has to handle it (Épic 14, D14-H).
     private static LocalDate alignStart(LocalDate date, SeriesBucket unit) {
         return switch (unit) {
             case day -> date;
-            case week -> date.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-            case month -> date.withDayOfMonth(1);
         };
     }
 
     private static LocalDate advance(LocalDate date, SeriesBucket unit) {
         return switch (unit) {
             case day -> date.plusDays(1);
-            case week -> date.plusWeeks(1);
-            case month -> date.plusMonths(1);
         };
     }
 

@@ -105,9 +105,12 @@ describe('BabiesScreen — sélecteur de vue (Épic 14, US14.1)', () => {
     renderScreen()
     await screen.findByRole('heading', { name: 'Léa', level: 2 })
 
-    const tabs = within(screen.getByRole('tablist', { name: 'Vue calendrier' })).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Jour', 'Semaine', 'Mois', 'Croissance'])
-    expect(screen.queryByRole('tab', { name: 'Année' })).toBeNull()
+    // ⚠️ Requêtes bornées au tablist « Vue calendrier » : une requête globale passerait aujourd'hui
+    // seulement parce que `WeightChart` est stubé — l'app réelle a un onglet « Année » (fenêtre
+    // d'âge de la courbe OMS, Épic 12) qui n'a rien à voir avec la vue retirée ici.
+    const calendarTabs = within(screen.getByRole('tablist', { name: 'Vue calendrier' }))
+    expect(calendarTabs.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Jour', 'Semaine', 'Mois', 'Croissance'])
+    expect(calendarTabs.queryByRole('tab', { name: 'Année' })).toBeNull()
   })
 
   it('les tendances se montent en Semaine et en Mois, avec la vue transmise', async () => {

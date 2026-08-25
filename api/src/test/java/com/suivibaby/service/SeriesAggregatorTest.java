@@ -57,25 +57,6 @@ class SeriesAggregatorTest {
             assertEquals(LocalDate.of(2026, 6, 15), buckets.get(0).date());
             assertEquals(LocalDate.of(2026, 6, 21), buckets.get(6).date());
         }
-
-        @Test
-        @DisplayName("Mois : une année → 12 buckets, alignés sur le 1er")
-        void mois_annee() {
-            var buckets = SeriesAggregator.buckets(
-                    LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), SeriesBucket.month, PARIS);
-            assertEquals(12, buckets.size());
-            assertEquals(LocalDate.of(2026, 1, 1), buckets.get(0).date());
-            assertEquals(LocalDate.of(2026, 12, 1), buckets.get(11).date());
-        }
-
-        @Test
-        @DisplayName("Semaine : le from est aligné sur le lundi précédent-ou-égal")
-        void semaine_alignee_lundi() {
-            // 2026-06-17 = mercredi → bucket démarre lundi 2026-06-15.
-            var buckets = SeriesAggregator.buckets(
-                    LocalDate.of(2026, 6, 17), LocalDate.of(2026, 6, 30), SeriesBucket.week, PARIS);
-            assertEquals(LocalDate.of(2026, 6, 15), buckets.get(0).date());
-        }
     }
 
     @Nested
@@ -117,11 +98,14 @@ class SeriesAggregatorTest {
         }
 
         @Test
-        @DisplayName("Sieste à cheval sur 2 mois : clippée à chaque bucket mois")
-        void sieste_clippee_cross_mois() {
+        @DisplayName("Sieste à cheval sur 2 mois : clippée à chaque bucket jour")
+        void sieste_clippee_cross_mois_en_jours() {
+            // En buckets jour, un changement de mois n'est plus qu'un changement de jour : ce cas
+            // documente l'intention (frontière de mois) plus qu'il ne couvre un chemin distinct de
+            // sieste_clippee_cross_minuit.
             var buckets = SeriesAggregator.buckets(
-                    LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), SeriesBucket.month, PARIS);
-            // 31 janv. 23h → 1er févr. 1h : 1h sur janvier, 1h sur février.
+                    LocalDate.of(2026, 1, 31), LocalDate.of(2026, 2, 1), SeriesBucket.day, PARIS);
+            // 31 janv. 23h → 1er févr. 1h : 1h sur le 31 janvier, 1h sur le 1er février.
             List<SeriesPoint> points = SeriesAggregator.aggregate(
                     buckets, List.of(),
                     List.of(nap(paris(2026, 1, 31, 23, 0), paris(2026, 2, 1, 1, 0))),

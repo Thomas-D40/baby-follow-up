@@ -1,6 +1,6 @@
 // Logique pure de la vue « tendances » (calendrier élargi), extraite pour test unitaire (comme
 // calendar.js). Une « vue » (semaine/mois) se traduit en une plage de dates calendaires
-// [from, to] et une granularité de bucket envoyées au serveur, qui les interprète en Europe/Paris.
+// [from, to] envoyée au serveur, qui l'interprète en Europe/Paris et l'agrège par jour.
 //
 // Toute l'arithmétique de dates se fait en UTC pur sur des YYYY-MM-DD (jamais le fuseau du device),
 // pour rester cohérent avec le bucketing serveur (Paris) — même principe que calendar.js (D6-D).
@@ -23,18 +23,19 @@ function mondayOf(ymd) {
 }
 
 /**
- * Plage de dates [from, to] (incluses) et granularité de bucket pour une vue ancrée sur `anchorYmd` :
- * - semaine → lundi→dimanche, buckets jour (7 points) ;
- * - mois → 1er→dernier jour du mois, buckets jour (~28-31 points).
- * Toute autre vue lève : c'est la garde unique du module (cf. `samePeriod`/`formatPeriodLabel`),
- * pour qu'aucune vue ne retombe silencieusement sur une période arbitraire.
+ * Plage de dates [from, to] (incluses) pour une vue ancrée sur `anchorYmd` :
+ * - semaine → lundi→dimanche (7 points) ;
+ * - mois → 1er→dernier jour du mois (~28-31 points).
+ * Toute autre vue lève : c'est la garde dont héritent `samePeriod` et `formatPeriodLabel`, qui
+ * l'appellent en première ligne. `shiftPeriod` porte la sienne — ce n'est pas un doublon.
+ * Aucune vue ne doit retomber silencieusement sur une période arbitraire.
  */
 export function periodRange(view, anchorYmd) {
   if (view === 'week') {
     const from = mondayOf(anchorYmd)
     const end = ymdToUTC(from)
     end.setUTCDate(end.getUTCDate() + 6)
-    return { from, to: utcToYmd(end), bucket: 'day' }
+    return { from, to: utcToYmd(end) }
   }
   if (view === 'month') {
     const dt = ymdToUTC(anchorYmd)
@@ -42,7 +43,7 @@ export function periodRange(view, anchorYmd) {
     const m = dt.getUTCMonth()
     const from = utcToYmd(new Date(Date.UTC(y, m, 1)))
     const to = utcToYmd(new Date(Date.UTC(y, m + 1, 0))) // jour 0 du mois suivant = dernier jour du mois
-    return { from, to, bucket: 'day' }
+    return { from, to }
   }
   throw new Error(`Vue de tendances inconnue : ${view}`)
 }
@@ -83,12 +84,9 @@ export function formatPeriodLabel(view, anchorYmd) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(fromDt)
 }
 
-/** Libellé court d'un point sur l'axe X : jour « 15/06 » (buckets jour/semaine) ou mois « janv. ». */
-export function formatPointLabel(dateYmd, bucket) {
+/** Libellé court d'un point sur l'axe X : « 15/06 » — la série est toujours agrégée par jour. */
+export function formatPointLabel(dateYmd) {
   const dt = ymdToUTC(dateYmd)
-  if (bucket === 'month') {
-    return new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'UTC' }).format(dt)
-  }
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }).format(dt)
 }
 
@@ -106,9 +104,9 @@ export const TREND_METRICS = [
 ]
 
 /** Transforme les points de série en lignes prêtes pour Recharts (libellé X + une clé par courbe). */
-export function toChartRows(points, bucket) {
+export function toChartRows(points) {
   return points.map((p) => {
-    const row = { label: formatPointLabel(p.date, bucket) }
+    const row = { label: formatPointLabel(p.date) }
     for (const m of TREND_METRICS) row[m.key] = m.value(p)
     return row
   })
