@@ -4,8 +4,10 @@ import {
   getDayEvents,
   getDailyTotals,
   updateBottleFeeding,
+  updateMedicalCare,
   updateNap,
   updateStool,
+  updateTemperature,
   updateUrine,
 } from '../api'
 import {
@@ -19,11 +21,14 @@ import {
   parisToday,
   shiftDate,
 } from '../calendar'
+import { formatCelsius } from '../temperature'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { ConfirmDeleteModal } from './DeleteConfirm'
 import BottomSheet from './BottomSheet'
 import BottleFeedingForm from './BottleFeedingForm'
+import MedicalCareForm from './MedicalCareForm'
 import StoolForm from './StoolForm'
+import TemperatureForm from './TemperatureForm'
 import UrineForm from './UrineForm'
 import NapEditForm from './NapEditForm'
 import VitaminSection from './VitaminSection'
@@ -46,6 +51,10 @@ import VitaminSection from './VitaminSection'
  * `NapEditForm` lit `startAt`/`endAt` → pas d'adaptation. L'édition est masquée sur une sieste en
  * cours (`isOngoing`, non éditable). Succès : invalidation **préfixe** `['babies', babyId]` (DA-4).
  * Le 409 sieste (course : rouverte ailleurs) est affiché clairement par `NapEditForm`.
+ *
+ * Épic 15 : la température et les deux soins (`eye_care`/`nose_care`, K1) sont des types de récap
+ * comme les autres — chips, tag, emoji, filtre, suppression et édition keyent tous sur `type`. Le
+ * remap `occurredAt: editing.startAt` vaut aussi pour eux (`TemperatureForm`/`MedicalCareForm`).
  */
 export default function CalendarPanel({ babyId }) {
   const qc = useQueryClient()
@@ -66,7 +75,7 @@ export default function CalendarPanel({ babyId }) {
   }
   const deleteMut = useDeleteEvent(babyId)
 
-  // Trois mutations d'édition calquées sur les panels (retry: 0, invalidation préfixe DA-4). Le
+  // Six mutations d'édition calquées sur les panels (retry: 0, invalidation préfixe DA-4). Le
   // BottomSheet se ferme au succès ; l'échec (dont 409 sieste) est rendu par le form lui-même.
   const editSuccess = () => {
     qc.invalidateQueries({ queryKey: ['babies', babyId] })
@@ -89,6 +98,17 @@ export default function CalendarPanel({ babyId }) {
   })
   const napUpdateMut = useMutation({
     mutationFn: ({ id, patch }) => updateNap(babyId, id, patch),
+    retry: 0,
+    onSuccess: editSuccess,
+  })
+  const temperatureUpdateMut = useMutation({
+    mutationFn: ({ id, patch }) => updateTemperature(babyId, id, patch),
+    retry: 0,
+    onSuccess: editSuccess,
+  })
+  // Une seule mutation pour les DEUX types de soin : deux types de présentation, une ressource (K1).
+  const careUpdateMut = useMutation({
+    mutationFn: ({ id, patch }) => updateMedicalCare(babyId, id, patch),
     retry: 0,
     onSuccess: editSuccess,
   })
@@ -138,6 +158,14 @@ export default function CalendarPanel({ babyId }) {
           <li className="chip chip--sleep">😴 <strong>{formatSleepTotal(totals.totalSleepMinutes)}</strong></li>
           <li className="chip chip--stool">💩 <strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
           <li className="chip chip--urine">💧 <strong>{totals.urineCount}</strong> urine{totals.urineCount > 1 ? 's' : ''}</li>
+          {/* Chip 🌡 = MAXIMUM du jour, jamais un comptage (D15-K). `null` ⇒ AUCUNE mesure ce
+              jour-là : on ne rend rien du tout — ni 0, ni tiret. Le test `!= null` couvre aussi
+              l'`undefined` d'un totaux plus ancien. */}
+          {totals.maxTemperatureCelsiusX10 != null && (
+            <li className="chip chip--temperature">🌡 <strong>{formatCelsius(totals.maxTemperatureCelsiusX10)}</strong></li>
+          )}
+          <li className="chip chip--eye-care">👁 <strong>{totals.eyeCareCount}</strong> soin{totals.eyeCareCount > 1 ? 's' : ''} des yeux</li>
+          <li className="chip chip--nose-care">👃 <strong>{totals.noseCareCount}</strong> soin{totals.noseCareCount > 1 ? 's' : ''} du nez</li>
         </ul>
       )}
 
@@ -232,6 +260,20 @@ export default function CalendarPanel({ babyId }) {
             onSubmit={(patch) => napUpdateMut.mutateAsync({ id: editing.id, patch })}
           />
         )}
+        {editing?.type === 'temperature' && (
+          <TemperatureForm
+            initial={{ ...editing, occurredAt: editing.startAt }}
+            onSubmit={(body) => temperatureUpdateMut.mutateAsync({ id: editing.id, patch: body })}
+          />
+        )}
+        {/* Une condition à DEUX termes, un seul form : les deux types de soin partagent la
+            ressource `medical_care` (K1). Le form dérive le `careType` de `editing.type`. */}
+        {(editing?.type === 'eye_care' || editing?.type === 'nose_care') && (
+          <MedicalCareForm
+            initial={{ ...editing, occurredAt: editing.startAt }}
+            onSubmit={(body) => careUpdateMut.mutateAsync({ id: editing.id, patch: body })}
+          />
+        )}
       </BottomSheet>
 
       {toDelete && (
@@ -247,11 +289,19 @@ export default function CalendarPanel({ babyId }) {
   )
 }
 
-const TAG_CLASS = { bottle_feeding: 'milk', nap: 'sleep', stool: 'stool', urine: 'urine' }
-const EVENT_EMOJI = { bottle_feeding: '🍼', nap: '😴', stool: '💩', urine: '💧' }
+const TAG_CLASS = {
+  bottle_feeding: 'milk', nap: 'sleep', stool: 'stool', urine: 'urine',
+  temperature: 'temperature', eye_care: 'eye-care', nose_care: 'nose-care',
+}
+const EVENT_EMOJI = {
+  bottle_feeding: '🍼', nap: '😴', stool: '💩', urine: '💧',
+  temperature: '🌡', eye_care: '👁', nose_care: '👃',
+}
 
 // US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.
-const FILTER_ORDER = ['bottle_feeding', 'nap', 'stool', 'urine']
+// Un toggle par type de soin (D15-I) : c'est la condition de viabilité du modèle — une journée à
+// ~8 lavages de nez noierait la frise sans un filtre qui masque VRAIMENT ce type-là.
+const FILTER_ORDER = ['bottle_feeding', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
 const DAY_FILTER_KEY = 'calendar.dayFilter'
 
 // État initial du filtre depuis sessionStorage. Rien de stocké → [] (tout affiché, défaut de lecture).

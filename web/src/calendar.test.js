@@ -69,6 +69,17 @@ describe('describeEvent — détail par type (US6.1)', () => {
   it('urine : libellé fixe « Urine » (US13.2 Lot 3)', () => {
     expect(describeEvent({ type: 'urine' })).toBe('Urine')
   })
+
+  it('température : valeur formatée en °C fr-FR (US15.1)', () => {
+    expect(describeEvent({ type: 'temperature', temperatureCelsiusX10: 384 })).toBe('38,4 °C')
+  })
+
+  it('soins : une branche EXPLICITE par type, jamais le repli silencieux (US15.2, K1)', () => {
+    expect(describeEvent({ type: 'eye_care' })).toBe('Soin des yeux')
+    expect(describeEvent({ type: 'nose_care' })).toBe('Soin du nez')
+    // Garde-fou : le repli `return ''` n'est atteint que par un type VRAIMENT inconnu.
+    expect(describeEvent({ type: 'ear_care' })).toBe('')
+  })
 })
 
 describe('isOngoing / isLongNap — états sieste (D6-G)', () => {
@@ -104,7 +115,15 @@ describe('formatSleepTotal — totaux (US6.3)', () => {
 })
 
 describe('EVENT_TYPE_LABEL', () => {
-  it('libellés FR par type (urine ajoutée — US13.2 Lot 3)', () => {
-    expect(EVENT_TYPE_LABEL).toEqual({ bottle_feeding: 'Biberon', nap: 'Sieste', stool: 'Selle', urine: 'Urine' })
+  it('libellés FR par type (température + les deux soins ajoutés — Épic 15, K1)', () => {
+    expect(EVENT_TYPE_LABEL).toEqual({
+      bottle_feeding: 'Biberon',
+      nap: 'Sieste',
+      stool: 'Selle',
+      urine: 'Urine',
+      temperature: 'Température',
+      eye_care: 'Yeux',
+      nose_care: 'Nez',
+    })
   })
 })

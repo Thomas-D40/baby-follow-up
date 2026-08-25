@@ -7,6 +7,7 @@ import BottomSheet from './BottomSheet'
 import BottleFeedingPanel from './BottleFeedingPanel'
 import NapPanel from './NapPanel'
 import DiaperChangePanel from './DiaperChangePanel'
+import MedicalPanel from './MedicalPanel'
 import CalendarPanel from './CalendarPanel'
 import SharePanel from './SharePanel'
 import WeightPanel from './WeightPanel'
@@ -35,7 +36,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [view, setView] = useState('list') // list | add | edit
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
-  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'diaper' | 'weight'
+  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'diaper' | 'weight' | 'medical'
   const [calView, setCalView] = useState('day') // day = liste du jour ; week|month = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
@@ -177,6 +178,10 @@ export default function BabiesScreen({ me, onLogout }) {
             <span className="emoji" aria-hidden="true">⚖️</span>
             <span className="label">Poids</span>
           </button>
+          <button className="quick-btn quick-btn--medical" onClick={() => openSheet('medical')}>
+            <span className="emoji" aria-hidden="true">🩺</span>
+            <span className="label">Médical</span>
+          </button>
         </div>
       )}
 
@@ -242,6 +247,9 @@ export default function BabiesScreen({ me, onLogout }) {
           </BottomSheet>
           <BottomSheet open={sheet === 'weight'} onClose={closeSheet} title={<><span aria-hidden="true">⚖️</span> Poids</>}>
             <WeightPanel babyId={currentBaby.id} />
+          </BottomSheet>
+          <BottomSheet open={sheet === 'medical'} onClose={closeSheet} title={<><span aria-hidden="true">🩺</span> Médical</>}>
+            <MedicalPanel babyId={currentBaby.id} />
           </BottomSheet>
         </>
       )}
