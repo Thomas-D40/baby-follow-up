@@ -126,18 +126,26 @@ class DailyTotalsTest {
         @DisplayName("Scénario : sieste en cours comptée jusqu'à now() (D6-G)")
         void sieste_en_cours_jusqu_a_now() {
             Caregiver c = linkedCaregiver("ongoing");
-            // Démarrée il y a 30 min, jamais terminée → ~30 min clippés à [from, now()].
-            Instant start = Instant.now().minus(30, ChronoUnit.MINUTES);
+            // Démarrée il y a 30 min, jamais terminée → clippée à [début de journée Paris, now()].
+            Instant now = Instant.now();
+            Instant start = now.minus(30, ChronoUnit.MINUTES);
             data.createNap(c.babyId(), c.userId(), start, null);
-            String today = LocalDate.now(PARIS).toString();
+            LocalDate today = LocalDate.now(PARIS);
+            Instant dayStart = today.atStartOfDay(PARIS).toInstant();
 
-            // Tolérance : la durée exacte dépend de l'instant d'exécution (now()).
+            // ⚠️ L'attendu se DÉRIVE de la borne de clipping, il ne peut pas être écrit en dur :
+            // avant 00h30 Paris, la sieste a commencé LA VEILLE, donc le total n'est pas 30 min mais
+            // le temps écoulé depuis minuit. L'attendu fixe « 25..35 » faisait échouer ce test tous
+            // les jours entre 00h00 et 00h25 — vérifié : à 00h24 il rendait exactement 24.
+            long expected = ChronoUnit.MINUTES.between(start.isBefore(dayStart) ? dayStart : start, now);
+
+            // Tolérance vers le haut seulement : le temps continue de passer entre `now` et la réponse.
             given().cookie(AuthFixture.COOKIE, c.cookie())
-                    .queryParam("date", today)
+                    .queryParam("date", today.toString())
                     .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
                     .then().statusCode(200)
-                    .body("totalSleepMinutes", greaterThanOrEqualTo(25))
-                    .body("totalSleepMinutes", lessThanOrEqualTo(35));
+                    .body("totalSleepMinutes", greaterThanOrEqualTo((int) expected))
+                    .body("totalSleepMinutes", lessThanOrEqualTo((int) expected + 5));
         }
     }
 
