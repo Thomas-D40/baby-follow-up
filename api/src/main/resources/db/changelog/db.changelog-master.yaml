@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/009-urine.sql
   - include:
       file: db/changelog/010-temperature.sql
+  - include:
+      file: db/changelog/011-medical-care.sql
