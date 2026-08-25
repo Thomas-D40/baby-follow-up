@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import MedicalCareForm from './MedicalCareForm'
+import { toLocalInputValue } from '../stool'
 
 // `MedicalCareForm` est autonome (prop `onSubmit`), testable sans QueryClient.
 
@@ -67,7 +68,7 @@ describe('MedicalCareForm — création : UN seul acte composite (US15.2, D15-M)
 })
 
 describe('MedicalCareForm — édition : PATCH par RESSOURCE (K1)', () => {
-  it('dérive careType du type de présentation : « eye_care » → « eye »', async () => {
+  it('« eye_care » : libellé dérivé du type, et le PATCH ne porte QUE l’heure', async () => {
     const onSubmit = vi.fn().mockResolvedValue({})
     render(<MedicalCareForm onSubmit={onSubmit} initial={{ id: 'e1', type: 'eye_care', occurredAt: '2020-03-15T08:00:00.000Z' }} />)
 
@@ -78,22 +79,22 @@ describe('MedicalCareForm — édition : PATCH par RESSOURCE (K1)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    const body = onSubmit.mock.calls[0][0]
-    expect(body.careType).toBe('eye')
-    // ⛔ Corps de RESSOURCE : jamais celui de l'acte composite.
-    expect(body.withEye).toBeUndefined()
-    expect(body.withNose).toBeUndefined()
+    // ⛔ On n'envoie QUE le champ édité : `careType` est immuable ici, le réécrire à chaque
+    // correction d'heure n'aurait aucune raison d'être (le service applique ce qu'il reçoit).
+    // ⛔ Et jamais le corps de l'acte composite.
+    expect(onSubmit.mock.calls[0][0]).toEqual({ occurredAt: expect.any(String) })
   })
 
-  it('« nose_care » → « nose », heure préremplie sur l’événement', async () => {
+  it('« nose_care » : libellé Nez, heure préremplie sur l’événement, PATCH réduit à l’heure', async () => {
     const onSubmit = vi.fn().mockResolvedValue({})
     render(<MedicalCareForm onSubmit={onSubmit} initial={{ id: 'n1', type: 'nose_care', occurredAt: '2020-03-15T07:00:00.000Z' }} />)
 
     expect(screen.getByText('Soin : Nez')).toBeInTheDocument()
-    expect(screen.getByLabelText('Quand')).not.toHaveValue('')
+    // Égalité EXACTE : un « pas vide » passerait aussi bien si l'heure était retombée sur maintenant.
+    expect(screen.getByLabelText('Quand')).toHaveValue(toLocalInputValue(new Date('2020-03-15T07:00:00.000Z')))
 
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    expect(onSubmit.mock.calls[0][0].careType).toBe('nose')
+    expect(onSubmit.mock.calls[0][0]).toEqual({ occurredAt: expect.any(String) })
   })
 })

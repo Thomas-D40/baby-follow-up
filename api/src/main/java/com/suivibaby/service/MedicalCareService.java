@@ -42,8 +42,10 @@ public class MedicalCareService {
         MedicalCare event = new MedicalCare();
         event.id = UUID.randomUUID();
         event.babyId = babyId;
-        event.careType = parseType(request.careType());
+        // Time first, then the business value — same order as UrineService and TemperatureService,
+        // so an equally malformed POST answers the same way whatever the resource.
         event.occurredAt = validateOccurredAt(request.occurredAt());
+        event.careType = parseType(request.careType());
         event.authorId = userId;
         event.createdAt = Instant.now();
         medicalCareRepository.persist(event);

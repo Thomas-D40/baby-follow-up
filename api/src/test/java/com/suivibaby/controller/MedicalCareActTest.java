@@ -217,16 +217,16 @@ class MedicalCareActTest {
     }
 
     @Nested
-    @DisplayName("Jalon atomicité / IDOR (rollback : aucune moitié orpheline)")
+    @DisplayName("Jalon IDOR de l'acte composite (isolation héritée, aucune écriture)")
     class AtomicityIdor {
 
-        /**
-         * Test-clé du rollback : un caregiver lié à B1 cible un bébé B2 non lié avec un acte complet
-         * (yeux + nez). L'endpoint répond 404 (jamais 403, anti-énumération) ET la transaction n'a
-         * rien persisté sur B2. L'isolation n'est pas vérifiée par le service composite lui-même
-         * (D15-M) : elle est héritée des délégués, et le @Transactional garantit qu'aucune moitié ne
-         * survit à l'échec de l'autre.
-         */
+        // Un caregiver lié à B1 cible un bébé B2 non lié avec un acte complet (yeux + nez).
+        // L'endpoint répond 404 (jamais 403, anti-énumération) ET rien n'est persisté sur B2.
+        // Ce que le test couvre exactement : l'isolation N'EST PAS vérifiée par le service composite
+        // lui-même (D15-M), elle est HÉRITÉE des délégués — ici le premier `create` échoue, donc rien
+        // n'a jamais été écrit. Ce n'est donc pas une démonstration de rollback partiel : le
+        // @Transactional du service reste la garantie qu'une moitié ne survivrait pas à l'échec de
+        // l'autre, mais D15-M s'en tient au rollback observable et ce scénario-là n'en fabrique pas.
         @Test
         @DisplayName("Scénario : bébé non lié → 404 ET countMedicalCare == 0 sur ce bébé")
         void bebe_non_lie_rien_persiste() {
@@ -239,7 +239,7 @@ class MedicalCareActTest {
                     .when().post("/api/babies/{babyId}/medical-care-acts", b2)
                     .then().statusCode(404);
 
-            // Rollback : aucune moitié orpheline sur le bébé ciblé.
+            // Aucune écriture sur le bébé ciblé, ni globalement ni par type.
             assertEquals(0, data.countMedicalCare(b2));
             assertEquals(0, data.countMedicalCare(b2, CareType.eye));
             assertEquals(0, data.countMedicalCare(b2, CareType.nose));

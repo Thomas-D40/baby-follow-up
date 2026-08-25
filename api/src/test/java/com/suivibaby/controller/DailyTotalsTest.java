@@ -370,8 +370,12 @@ class DailyTotalsTest {
         }
 
         @Test
-        @DisplayName("Scénario : bébé non lié avec température et soins → 404 (maxForDay et countForDay portent requireLinked)")
+        @DisplayName("Scénario : bébé non lié PORTANT température et soins → 404, aucune donnée médicale ne fuit")
         void bebe_non_lie_temperature_et_soins() {
+            // Non-régression de bout en bout : la présence de données médicales ne change rien au 404.
+            // ⚠ Ce test ne PROUVE pas le requireLinked de maxForDay / countForDay : le 404 remonte du
+            // premier délégué appelé (bottleFeedingService). C'est MedicalReadIsolationTest, qui appelle
+            // les services directement, qui verrouille ces gardes-là.
             Caregiver c = linkedCaregiver("iso-med");
             UUID otherUser = data.createActiveParent(data.uniqueEmail("victim-med"), PWD);
             UUID autrui = data.createBaby("AutruiMédical");

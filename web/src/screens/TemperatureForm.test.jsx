@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TemperatureForm from './TemperatureForm'
+import { toLocalInputValue } from '../stool'
 
 // `TemperatureForm` est autonome : il reçoit `onSubmit` en prop (aucun appel `../api`), donc
 // testable sans QueryClient.
@@ -57,6 +58,28 @@ describe('TemperatureForm — saisie de la valeur (US15.1, D15-J)', () => {
 
     await waitFor(() => expect(field).toHaveValue(''))
   })
+
+  it('après un succès en création, l’heure est RÉARMÉE sur « maintenant » (épisode de fièvre)', async () => {
+    const onSubmit = vi.fn().mockResolvedValue({})
+    render(<TemperatureForm onSubmit={onSubmit} />)
+
+    // L'utilisateur corrige l'heure de la 1re mesure, puis enchaîne sur une 2e sans rouvrir la feuille.
+    const when = screen.getByLabelText('Quand')
+    const PASSE = '2020-03-15T09:30'
+    await userEvent.clear(when)
+    await userEvent.type(when, PASSE)
+    expect(when).toHaveValue(PASSE)
+
+    await userEvent.type(screen.getByLabelText('Température (°C)'), '37,2')
+    const avant = toLocalInputValue(new Date())
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    // Sans réarmement, la 2e mesure repartirait avec l'heure figée de la 1re.
+    await waitFor(() => expect(when).not.toHaveValue(PASSE))
+    // Égalité exacte : « maintenant », à la minute qui a pu tourner pendant le clic près.
+    expect([avant, toLocalInputValue(new Date())]).toContain(when.value)
+  })
 })
 
 describe('TemperatureForm — édition (prop initial)', () => {
@@ -64,10 +87,11 @@ describe('TemperatureForm — édition (prop initial)', () => {
     render(<TemperatureForm onSubmit={vi.fn()} initial={{ temperatureCelsiusX10: 384, occurredAt: '2020-03-15T09:30:00.000Z' }} />)
 
     expect(screen.getByLabelText('Température (°C)')).toHaveValue('38,4')
-    expect(screen.getByLabelText('Quand')).not.toHaveValue('')
+    // Égalité EXACTE : un « pas vide » passerait aussi bien si l'heure était retombée sur maintenant.
+    expect(screen.getByLabelText('Quand')).toHaveValue(toLocalInputValue(new Date('2020-03-15T09:30:00.000Z')))
   })
 
-  it('ne vide PAS le champ après succès (le sheet appelant se ferme)', async () => {
+  it('ne vide ni ne réarme rien après succès en édition (le sheet appelant se ferme)', async () => {
     const onSubmit = vi.fn().mockResolvedValue({})
     render(<TemperatureForm onSubmit={onSubmit} initial={{ temperatureCelsiusX10: 384, occurredAt: '2020-03-15T09:30:00.000Z' }} />)
 
@@ -75,6 +99,8 @@ describe('TemperatureForm — édition (prop initial)', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(screen.getByLabelText('Température (°C)')).toHaveValue('38,4')
+    // ⛔ Le réarmement de l'heure est réservé à la création.
+    expect(screen.getByLabelText('Quand')).toHaveValue(toLocalInputValue(new Date('2020-03-15T09:30:00.000Z')))
   })
 })
 

@@ -17,8 +17,9 @@ import { toLocalInputValue, toOccurredAtIso } from '../stool'
 export default function MedicalCareForm({ onSubmit, initial = null }) {
   const isEdit = initial != null
   // ⚠️ Point de traduction du vocabulaire (K1) : la ligne éditée vient du récap ou du panneau et
-  // porte un type de PRÉSENTATION ('eye_care' | 'nose_care'), alors que la ressource attend un
-  // `careType` ('eye' | 'nose'). Le type n'est pas modifiable en édition : on corrige l'heure.
+  // porte un type de PRÉSENTATION ('eye_care' | 'nose_care'), alors que la ressource parle
+  // `careType` ('eye' | 'nose'). Ici il ne sert QU'À AFFICHER le libellé : le type n'est pas
+  // modifiable en édition (on corrige l'heure), donc il ne part pas dans le PATCH.
   const careType = isEdit ? careTypeOfEvent(initial.type) : null
 
   const [withEye, setWithEye] = useState(false)
@@ -45,8 +46,10 @@ export default function MedicalCareForm({ onSubmit, initial = null }) {
     }
     setBusy(true)
     try {
-      // One gesture, ONE request: the act on creation, the resource patch on edit.
-      await onSubmit(isEdit ? { occurredAt: iso, careType } : { occurredAt: iso, withEye, withNose })
+      // One gesture, ONE request: the act on creation, the resource patch on edit. The patch carries
+      // ONLY what is being edited — resending an immutable `careType` would rewrite it on every time
+      // correction, since MedicalCareService.update applies whatever it receives (cf. UrineForm).
+      await onSubmit(isEdit ? { occurredAt: iso } : { occurredAt: iso, withEye, withNose })
       if (!isEdit) {
         setWithEye(false)
         setWithNose(false)

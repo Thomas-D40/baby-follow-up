@@ -7,8 +7,9 @@ import { toLocalInputValue, toOccurredAtIso } from '../stool'
  * client API, `onSubmit` renvoie une promesse et le bouton reste désactivé jusqu'au *settled* de la
  * mutation → anti double-saisie (D3-G/D15-J), en miroir de `UrineForm`/`BottleFeedingForm`.
  *
- * Mode **création** (défaut) : heure préremplie sur « maintenant », valeur vidée après succès pour
- * enchaîner. Mode **édition** (`initial`) : valeur et heure pré-remplies, le sheet appelant se ferme.
+ * Mode **création** (défaut) : heure préremplie sur « maintenant », valeur vidée **et heure réarmée
+ * sur « maintenant »** après succès pour enchaîner. Mode **édition** (`initial`) : valeur et heure
+ * pré-remplies, rien n'est réarmé — le sheet appelant se ferme.
  */
 export default function TemperatureForm({ onSubmit, initial = null }) {
   const isEdit = initial != null
@@ -38,7 +39,12 @@ export default function TemperatureForm({ onSubmit, initial = null }) {
     setBusy(true)
     try {
       await onSubmit({ occurredAt: iso, temperatureCelsiusX10: t.value })
-      if (!isEdit) setValue('') // ready for a next reading (the form stays mounted)
+      if (!isEdit) {
+        setValue('') // ready for a next reading (the form stays mounted)
+        // Rearm the time too, NEVER on edit. The form stays mounted across a whole fever episode:
+        // without this, two readings taken hours apart would both be stamped at the MOUNT time.
+        setOccurredAt(toLocalInputValue(new Date()))
+      }
       setBusy(false)
     } catch (err) {
       setError(err?.status === 400 ? 'Données invalides.' : "Échec de l'enregistrement.")

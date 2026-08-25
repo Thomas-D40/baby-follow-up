@@ -45,10 +45,11 @@ import VitaminSection from './VitaminSection'
  * `['babies', babyId]` (D7-C) rafraîchit en un appel la liste **et** les totaux du jour (R1).
  *
  * US11.2 : **édition en place** depuis le récap. Un bouton ✏️ par ligne rouvre le MÊME form que les
- * panels (`BottleFeedingForm`/`StoolForm`/`NapEditForm`) dans un `BottomSheet`. Le DTO calendrier
- * expose un champ unifié `startAt` : biberon/selle lisant `initial.occurredAt`, on mappe
- * `occurredAt: editing.startAt` pour ces deux types (sinon l'heure retomberait sur « maintenant ») ;
- * `NapEditForm` lit `startAt`/`endAt` → pas d'adaptation. L'édition est masquée sur une sieste en
+ * panels — ils sont **six** depuis l'Épic 15 (`BottleFeedingForm`, `StoolForm`, `UrineForm`,
+ * `TemperatureForm`, `MedicalCareForm`, `NapEditForm`) — dans un `BottomSheet`. Le DTO calendrier
+ * expose un champ unifié `startAt` : les **cinq** forms qui lisent `initial.occurredAt` (biberon,
+ * selle, urine, température, soin) reçoivent le remap `occurredAt: editing.startAt` (sinon l'heure
+ * retomberait sur « maintenant ») ; `NapEditForm` lit `startAt`/`endAt` → pas d'adaptation. L'édition est masquée sur une sieste en
  * cours (`isOngoing`, non éditable). Succès : invalidation **préfixe** `['babies', babyId]` (DA-4).
  * Le 409 sieste (course : rouverte ailleurs) est affiché clairement par `NapEditForm`.
  *
@@ -267,7 +268,8 @@ export default function CalendarPanel({ babyId }) {
           />
         )}
         {/* Une condition à DEUX termes, un seul form : les deux types de soin partagent la
-            ressource `medical_care` (K1). Le form dérive le `careType` de `editing.type`. */}
+            ressource `medical_care` (K1). Le form dérive de `editing.type` le libellé affiché ; le
+            type lui-même n'est pas modifiable ici, donc il ne part pas dans le PATCH. */}
         {(editing?.type === 'eye_care' || editing?.type === 'nose_care') && (
           <MedicalCareForm
             initial={{ ...editing, occurredAt: editing.startAt }}

@@ -76,11 +76,6 @@ public class TemperatureService {
         return temperatureMapper.toResponses(temperatureRepository.listForDay(babyId, from, to));
     }
 
-    public long countForDay(UUID userId, UUID babyId, Instant from, Instant to) {
-        requireLinked(userId, babyId);
-        return temperatureRepository.countForDay(babyId, from, to);
-    }
-
     // Null when the day holds no reading (D15-K): the caller renders no chip at all, never a 0.
     public Integer maxForDay(UUID userId, UUID babyId, Instant from, Instant to) {
         requireLinked(userId, babyId);
