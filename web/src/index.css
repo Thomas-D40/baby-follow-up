@@ -285,7 +285,7 @@ button { font-family: inherit; }
 .error-text { color: var(--danger-deep); font-size: 0.85rem; font-weight: 700; margin: 0; }
 
 /* ── Récap : totaux (chips) ─────────────────────────────────────────────── */
-.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.6rem; list-style: none; padding: 0; margin: 0; }
 .chip {
   display: inline-flex; align-items: center; gap: 0.35rem;
   padding: 0.4rem 0.75rem;
@@ -303,30 +303,30 @@ button { font-family: inherit; }
 .chip--eye-care { background: var(--care-bg); color: var(--care-ink); }
 .chip--nose-care { background: var(--care-bg); color: var(--care-ink); }
 
-/* ── Récap : filtre par type de la liste du jour (US13.3) ───────────────── */
-/* N'agit que sur la liste chronologique ; les chips totaux ci-dessus sont intouchés. */
-.day-filter { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.25rem 0 0.6rem; }
-.filter-chip {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.4rem 0.75rem;
+/* Toggle flavour of a totals chip (Épic 16, D16-S): the chip IS the type filter of the day list.
+   Modifier on the <button>, never `button.chip` — the bare `.chip` stays a decorative badge
+   elsewhere (SharePanel). MUST stay declared AFTER `.chip` and the `.chip--*` tints: same
+   specificity, so declaration order is what makes the padding below win. */
+.chip--toggle {
+  padding: 0.6rem 0.75rem; /* touch target (D16-L); min-height below makes it deterministic */
+  min-height: 44px;
   border: 1.5px solid var(--border);
-  border-radius: var(--radius-pill);
   font-family: inherit;
-  font-size: 0.85rem; font-weight: 700;
-  color: var(--muted);
-  background: var(--surface-2);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.filter-chip:focus-visible { outline: none; box-shadow: var(--ring); }
-.filter-chip[aria-pressed="false"] { opacity: 0.45; }
-.filter-chip--milk[aria-pressed="true"] { background: var(--milk-bg); color: var(--milk-ink); border-color: var(--milk); }
-.filter-chip--sleep[aria-pressed="true"] { background: var(--sleep-bg); color: var(--sleep-ink); border-color: var(--sleep); }
-.filter-chip--stool[aria-pressed="true"] { background: var(--stool-bg); color: var(--stool-ink); border-color: var(--stool); }
-.filter-chip--urine[aria-pressed="true"] { background: var(--urine-bg); color: var(--urine-ink); border-color: var(--urine); }
-.filter-chip--temperature[aria-pressed="true"] { background: var(--temp-bg); color: var(--temp-ink); border-color: var(--temp); }
-.filter-chip--eye-care[aria-pressed="true"],
-.filter-chip--nose-care[aria-pressed="true"] { background: var(--care-bg); color: var(--care-ink); border-color: var(--care); }
+.chip--toggle:focus-visible { outline: none; box-shadow: var(--ring); }
+/* Off state (D16-M): the chip is never faded out — the value must stay readable once the type is
+   hidden. The state is carried by the background and the border only. */
+.chip--toggle[aria-pressed="false"] { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+/* On state: the tint already comes from `.chip--*` above; only the tinted border is added here. */
+.chip--toggle[aria-pressed="true"].chip--milk { border-color: var(--milk); }
+.chip--toggle[aria-pressed="true"].chip--sleep { border-color: var(--sleep); }
+.chip--toggle[aria-pressed="true"].chip--stool { border-color: var(--stool); }
+.chip--toggle[aria-pressed="true"].chip--urine { border-color: var(--urine); }
+.chip--toggle[aria-pressed="true"].chip--temperature { border-color: var(--temp); }
+.chip--toggle[aria-pressed="true"].chip--eye-care,
+.chip--toggle[aria-pressed="true"].chip--nose-care { border-color: var(--care); }
 
 /* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
 .vitamins { margin-top: 0.75rem; }
