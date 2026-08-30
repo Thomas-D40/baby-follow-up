@@ -54,8 +54,14 @@ import VitaminSection from './VitaminSection'
  * Le 409 sieste (course : rouverte ailleurs) est affiché clairement par `NapEditForm`.
  *
  * Épic 15 : la température et les deux soins (`eye_care`/`nose_care`, K1) sont des types de récap
- * comme les autres — chips, tag, emoji, filtre, suppression et édition keyent tous sur `type`. Le
+ * comme les autres — pastille de récap, tag, emoji, suppression et édition keyent tous sur `type`. Le
  * remap `occurredAt: editing.startAt` vaut aussi pour eux (`TemperatureForm`/`MedicalCareForm`).
+ *
+ * Épic 16 (D16-A) : les totaux et le filtre par type ne font plus qu'**une seule rangée** — la
+ * pastille de total EST le contrôle de filtre de son type (`aria-pressed`). La rangée est rendue
+ * **indépendamment** des totaux (D16-J) : journée vide, totaux en chargement ou en erreur, le filtre
+ * reste opérant ; les pastilles n'affichent alors que leur emoji (D16-P). Le repli « sans valeur » se
+ * décide **par champ** (D16-Q), jamais sur l'objet `totals` entier.
  */
 export default function CalendarPanel({ babyId }) {
   const qc = useQueryClient()
@@ -65,7 +71,8 @@ export default function CalendarPanel({ babyId }) {
   const [editing, setEditing] = useState(null) // l'event en cours d'édition, ou null
   // US13.3 (D13-H) : filtre d'affichage par type sur la SEULE liste chronologique. Multi-sélection,
   // défaut = tout affiché (impératif de lecture). Persistance sessionStorage (PAS localStorage : l'état
-  // ne doit pas survivre à la fermeture de l'onglet). N'affecte ni les chips totaux ni les requêtes.
+  // ne doit pas survivre à la fermeture de l'onglet). Épic 16 : le contrôle vit désormais DANS la
+  // rangée de totaux, mais n'affecte toujours ni les valeurs des totaux ni les requêtes.
   const [hidden, setHidden] = useState(loadHiddenTypes) // types masqués (array), [] = tout affiché
   const toggleType = (type) => {
     setHidden((prev) => {
@@ -153,22 +160,38 @@ export default function CalendarPanel({ babyId }) {
         </button>
       )}
 
-      {totals && (
-        <ul className="chips">
-          <li className="chip chip--milk">🍼 <strong>{totals.totalMilkMl}</strong> ml</li>
-          <li className="chip chip--sleep">😴 <strong>{formatSleepTotal(totals.totalSleepMinutes)}</strong></li>
-          <li className="chip chip--stool">💩 <strong>{totals.stoolCount}</strong> selle{totals.stoolCount > 1 ? 's' : ''}</li>
-          <li className="chip chip--urine">💧 <strong>{totals.urineCount}</strong> urine{totals.urineCount > 1 ? 's' : ''}</li>
-          {/* Chip 🌡 = MAXIMUM du jour, jamais un comptage (D15-K). `null` ⇒ AUCUNE mesure ce
-              jour-là : on ne rend rien du tout — ni 0, ni tiret. Le test `!= null` couvre aussi
-              l'`undefined` d'un totaux plus ancien. */}
-          {totals.maxTemperatureCelsiusX10 != null && (
-            <li className="chip chip--temperature">🌡 <strong>{formatCelsius(totals.maxTemperatureCelsiusX10)}</strong></li>
-          )}
-          <li className="chip chip--eye-care">👁 <strong>{totals.eyeCareCount}</strong> soin{totals.eyeCareCount > 1 ? 's' : ''} des yeux</li>
-          <li className="chip chip--nose-care">👃 <strong>{totals.noseCareCount}</strong> soin{totals.noseCareCount > 1 ? 's' : ''} du nez</li>
-        </ul>
-      )}
+      {/* Rangée unique (D16-A) : un total par type, cliquable, qui éteint son type dans la liste
+          ci-dessous. Volontairement HORS de tout gating sur `totals` (D16-J) : une panne de
+          `daily-totals` ne doit pas emporter le filtre avec elle.
+          Pastille 🌡 = MAXIMUM du jour, jamais un comptage (D15-K) : totaux chargés et
+          `maxTemperatureCelsiusX10` à `null` ⇒ AUCUNE mesure ce jour-là ⇒ pas de pastille du tout
+          (ni 0, ni tiret). Totaux pas encore là ⇒ on la rend, sans valeur (D16-P). */}
+      <ul className="chips" aria-label="Totaux du jour — filtrer la liste">
+        {FILTER_ORDER
+          .filter((type) => type !== 'temperature' || totals == null || totals.maxTemperatureCelsiusX10 != null)
+          .map((type) => {
+            const value = totals ? CHIP_VALUE[type](totals) : null
+            // L'état (allumé/éteint) est porté par `aria-pressed` SEUL : le répéter ici le ferait
+            // annoncer deux fois par un lecteur d'écran (D16-K).
+            const label = value
+              ? `${EVENT_TYPE_LABEL[type]} · ${value.strong}${value.suffix}`
+              : EVENT_TYPE_LABEL[type]
+            return (
+              <li key={type}>
+                <button
+                  type="button"
+                  className={`chip chip--${TAG_CLASS[type]} chip--toggle`}
+                  onClick={() => toggleType(type)}
+                  aria-pressed={!hidden.includes(type)}
+                  aria-label={label}
+                >
+                  {EVENT_EMOJI[type]}
+                  {value && <>{' '}<strong>{value.strong}</strong>{value.suffix}</>}
+                </button>
+              </li>
+            )
+          })}
+      </ul>
 
       <VitaminSection babyId={babyId} date={date} />
 
@@ -176,29 +199,11 @@ export default function CalendarPanel({ babyId }) {
         <p className="empty">…</p>
       ) : events.length === 0 ? (
         <p className="empty">Aucun événement ce jour-là.</p>
+      ) : visibleEvents.length === 0 ? (
+        <p className="empty">Aucun événement pour les types affichés.</p>
       ) : (
-        <>
-          <div className="day-filter" role="group" aria-label="Filtrer la liste par type">
-            {FILTER_ORDER.map((type) => {
-              const on = !hidden.includes(type)
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => toggleType(type)}
-                  aria-pressed={on}
-                  className={`filter-chip filter-chip--${TAG_CLASS[type]}`}
-                >
-                  {EVENT_EMOJI[type]} {EVENT_TYPE_LABEL[type]}
-                </button>
-              )
-            })}
-          </div>
-          {visibleEvents.length === 0 ? (
-            <p className="empty">Aucun événement pour les types affichés.</p>
-          ) : (
-            <ul className="event-list">
-              {visibleEvents.map((e) => (
+        <ul className="event-list">
+          {visibleEvents.map((e) => (
             <li key={`${e.type}-${e.id}`} className="event-row">
               <span className="event-time">{formatParisTime(e.startAt)}</span>
               <span className={`event-tag event-tag--${TAG_CLASS[e.type]}`}>{EVENT_EMOJI[e.type]} {EVENT_TYPE_LABEL[e.type]}</span>
@@ -226,10 +231,8 @@ export default function CalendarPanel({ babyId }) {
                 🗑
               </button>
             </li>
-              ))}
-            </ul>
-          )}
-        </>
+          ))}
+        </ul>
       )}
 
       <BottomSheet
@@ -298,6 +301,23 @@ const TAG_CLASS = {
 const EVENT_EMOJI = {
   bottle_feeding: '🍼', nap: '😴', stool: '💩', urine: '💧',
   temperature: '🌡', eye_care: '👁', nose_care: '👃',
+}
+
+// How each chip renders its total (Épic 16, D16-U): `{ strong, suffix }`, where `strong` is the only
+// part wrapped in <strong> (that is the node `.chip strong` styles, and the one that carries the
+// contrast of the off state, D16-R). Presentation mapping, deliberately kept next to TAG_CLASS and
+// EVENT_EMOJI rather than extracted into a pure module.
+// D16-Q: the fallback is decided PER FIELD, never on the `totals` object — an older payload missing
+// one field must yield an emoji-only chip, not « Urine · undefined urine » nor « NaN min ».
+// The guard is `!= null`, never falsy: 0 ml, 0 stool and 0.0 °C are transmitted values that show up.
+const CHIP_VALUE = {
+  bottle_feeding: (t) => (t.totalMilkMl != null ? { strong: t.totalMilkMl, suffix: ' ml' } : null),
+  nap: (t) => (t.totalSleepMinutes != null ? { strong: formatSleepTotal(t.totalSleepMinutes), suffix: '' } : null),
+  stool: (t) => (t.stoolCount != null ? { strong: t.stoolCount, suffix: ` selle${t.stoolCount > 1 ? 's' : ''}` } : null),
+  urine: (t) => (t.urineCount != null ? { strong: t.urineCount, suffix: ` urine${t.urineCount > 1 ? 's' : ''}` } : null),
+  temperature: (t) => (t.maxTemperatureCelsiusX10 != null ? { strong: formatCelsius(t.maxTemperatureCelsiusX10), suffix: '' } : null),
+  eye_care: (t) => (t.eyeCareCount != null ? { strong: t.eyeCareCount, suffix: ` soin${t.eyeCareCount > 1 ? 's' : ''} des yeux` } : null),
+  nose_care: (t) => (t.noseCareCount != null ? { strong: t.noseCareCount, suffix: ` soin${t.noseCareCount > 1 ? 's' : ''} du nez` } : null),
 }
 
 // US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.

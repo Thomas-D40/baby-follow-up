@@ -45,8 +45,15 @@ describe('SharePanel — visibilité owner-only (D8-J)', () => {
   it('affiche le badge owner et marque « vous »', async () => {
     listCaregivers.mockResolvedValue([OWNER, GUEST])
     renderPanel()
-    expect(await screen.findByText('owner')).toBeInTheDocument()
+    const badge = await screen.findByText('owner')
+    expect(badge).toBeInTheDocument()
     expect(screen.getByText(/\(vous\)/)).toBeInTheDocument()
+
+    // Garde-fou D16-G (Épic 16) : `.chip` est partagé avec la rangée de totaux du récap, devenue
+    // interactive. Le badge « owner », lui, reste décoratif — ni bouton, ni état pressé.
+    expect(badge.tagName).toBe('SPAN')
+    expect(badge).not.toHaveAttribute('aria-pressed')
+    expect(screen.queryByRole('button', { name: 'owner' })).not.toBeInTheDocument()
   })
 })
 
