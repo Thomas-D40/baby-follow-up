@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { parseQuantity, toOccurredAtIso, toLocalInputValue } from './bottleFeeding'
+import { MILK_TYPE_LABEL, parseQuantity, toOccurredAtIso, toLocalInputValue } from './bottleFeeding'
+
+describe('MILK_TYPE_LABEL (Épic 18, D18-T)', () => {
+  it('« Lait maternel » remplace « Maternel » ; la valeur stockée reste breast', () => {
+    expect(MILK_TYPE_LABEL).toEqual({ breast: 'Lait maternel', formula: 'Artificiel' })
+  })
+})
 
 describe('parseQuantity (miroir client des bornes D3-E)', () => {
   it('refuse une quantité vide', () => {

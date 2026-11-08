@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test'
 
 // Nominal end-to-end deletion flow (Épic 7, US7.1) : login → enregistre un biberon → le supprime
-// avec confirmation depuis la fiche bébé ET depuis le calendrier → il disparaît.
+// avec confirmation depuis le calendrier → il disparaît. (La suppression depuis la fiche bébé a disparu
+// avec la liste de la feuille, Épic 18 D18-J.)
 // Requires a live stack with a seeded, activated parent + a selected baby. Credentials come from the
 // env so the spec stays secret-free (run: E2E_EMAIL=… E2E_PASSWORD=… npm run e2e).
 const EMAIL = process.env.E2E_EMAIL
@@ -22,29 +23,14 @@ async function login(page) {
   }
 }
 
-// Saisie d'un biberon : la barre d'actions ouvre la feuille « Biberon », on y saisit la quantité.
+// Saisie d'un biberon : la barre d'actions ouvre la feuille « Repas » (mode Biberon par défaut), on y
+// saisit la quantité. Le bouton est cherché dans le groupe « Actions rapides » : la pastille « Biberon »
+// du récap porte aussi ce nom.
 async function addBottle(page, ml) {
-  await page.getByRole('button', { name: 'Biberon' }).click() // action rapide → feuille
+  await page.getByRole('group', { name: 'Actions rapides' }).getByRole('button', { name: 'Repas' }).click()
   await page.getByLabel(/Quantité/i).fill(String(ml))
   await page.getByRole('button', { name: /Enregistrer/i }).click()
 }
-
-test('supprime un biberon avec confirmation depuis la fiche bébé', async ({ page }) => {
-  await login(page)
-
-  // Enregistre un biberon repérable (quantité improbable) — la feuille reste ouverte.
-  const ml = 137
-  await addBottle(page, ml)
-
-  const row = page.getByRole('listitem').filter({ hasText: `${ml} ml` }).first()
-  await expect(row).toBeVisible()
-
-  // 1er clic = confirmation (pas de suppression directe) ; « Oui, supprimer » confirme.
-  await row.getByRole('button', { name: new RegExp(`Supprimer le biberon de ${ml} ml`) }).click()
-  await page.getByRole('button', { name: 'Oui, supprimer' }).click()
-
-  await expect(page.getByText(`${ml} ml`)).toHaveCount(0)
-})
 
 test('supprime un événement depuis le calendrier (modale)', async ({ page }) => {
   await login(page)

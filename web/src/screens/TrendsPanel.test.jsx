@@ -40,7 +40,7 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
     getTotalsSeries.mockResolvedValue(SERIES)
     renderPanel('week')
 
-    expect(await screen.findByRole('heading', { name: /Lait/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Lait (biberons)' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Sommeil/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Selles/ })).toBeInTheDocument()
   })
@@ -83,7 +83,7 @@ describe('TrendsPanel — vue tendances (courbes)', () => {
   it('la navigation période change la plage demandée', async () => {
     getTotalsSeries.mockResolvedValue(SERIES)
     renderPanel('week')
-    await screen.findByRole('heading', { name: /Lait/ })
+    await screen.findByRole('heading', { name: 'Lait (biberons)' })
 
     await userEvent.click(screen.getByRole('button', { name: 'Période précédente' }))
 

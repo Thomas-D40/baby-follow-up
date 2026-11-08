@@ -88,4 +88,11 @@ describe('toChartRows — points de série → lignes Recharts', () => {
   it('expose exactement les 3 courbes attendues', () => {
     expect(TREND_METRICS.map((m) => m.key)).toEqual(['totalMilkMl', 'sleepHours', 'stoolCount'])
   })
+
+  it('la courbe de lait est renommée « Lait (biberons) », sa clé et sa valeur sont inchangées (Épic 18, D18-T)', () => {
+    const milk = TREND_METRICS[0]
+    expect(milk.label).toBe('Lait (biberons)')
+    expect(milk.key).toBe('totalMilkMl')
+    expect(milk.value({ totalMilkMl: 360 })).toBe(360)
+  })
 })
