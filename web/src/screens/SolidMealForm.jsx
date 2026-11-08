@@ -21,6 +21,11 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
 
   // Pressing the pressed portion releases it: back to "unspecified" (D18-O).
   const togglePortion = (value) => setPortion((current) => (current === value ? null : value))
+  // Consent to share is given for one label: any new label shows the box unchecked again (D18-Y).
+  const changeDish = (value) => {
+    setDish(value)
+    setAddChecked(false)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -64,18 +69,18 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
         <input
           type="text"
           value={dish}
-          onChange={(e) => setDish(e.target.value)}
+          onChange={(e) => changeDish(e.target.value)}
           className="input"
         />
       </label>
       <div className="toggle-row toggle-row--wrap" role="group" aria-label="Propositions de plats">
         {FIXED_DISHES.map((label) => (
-          <button key={label} type="button" className="toggle-chip" onClick={() => setDish(label)}>
+          <button key={label} type="button" className="toggle-chip" onClick={() => changeDish(label)}>
             {label}
           </button>
         ))}
         {suggestions.map((s) => (
-          <button key={s.id} type="button" className="toggle-chip" onClick={() => setDish(s.label)}>
+          <button key={s.id} type="button" className="toggle-chip" onClick={() => changeDish(s.label)}>
             {s.label}
           </button>
         ))}
