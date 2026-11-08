@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toLocalInputValue, toOccurredAtIso } from '../bottleFeeding'
 import { FIXED_DISHES, parseDishLabel } from '../dish'
+import { useDishSearch } from '../services/dishes'
 import { PORTIONS, PORTION_LABEL } from '../solidMeal'
 
 export default function SolidMealForm({ onSubmit, initial = null, time, onTimeChange }) {
@@ -13,8 +14,10 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
   const setOccurredAt = onTimeChange ?? setOwnOccurredAt
   const [dish, setDish] = useState(() => initial?.dish ?? '')
   const [portion, setPortion] = useState(() => initial?.portion ?? null)
+  const [addChecked, setAddChecked] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const { suggestions, canAddToDishes } = useDishSearch(dish)
 
   // Pressing the pressed portion releases it: back to "unspecified" (D18-O).
   const togglePortion = (value) => setPortion((current) => (current === value ? null : value))
@@ -34,15 +37,17 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
     }
     setBusy(true)
     try {
-      // Every field is always sent: a null portion clears it on the server (D18-AC).
+      // Every field is always sent: a null portion clears it on the server (D18-AC). The dish list
+      // only grows at creation, and a hidden box never sends true (D18-AG).
       await onSubmit(
         isEdit
           ? { occurredAt: iso, dish: d.value, portion }
-          : { occurredAt: iso, dish: d.value, portion, addToDishes: false },
+          : { occurredAt: iso, dish: d.value, portion, addToDishes: canAddToDishes && addChecked },
       )
       if (!isEdit) {
         setDish('')
         setPortion(null)
+        setAddChecked(false)
       }
       setBusy(false)
     } catch (err) {
@@ -69,7 +74,25 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
             {label}
           </button>
         ))}
+        {suggestions.map((s) => (
+          <button key={s.id} type="button" className="toggle-chip" onClick={() => setDish(s.label)}>
+            {s.label}
+          </button>
+        ))}
       </div>
+      {!isEdit && canAddToDishes && (
+        <div className="field">
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={addChecked}
+              onChange={(e) => setAddChecked(e.target.checked)}
+            />
+            <span className="field-label">Ajouter à mes plats</span>
+          </label>
+          <span className="field-hint">Ce plat sera proposé à tous les utilisateurs</span>
+        </div>
+      )}
       <div className="toggle-row" role="group" aria-label="Portion">
         {PORTIONS.map((p) => (
           <button

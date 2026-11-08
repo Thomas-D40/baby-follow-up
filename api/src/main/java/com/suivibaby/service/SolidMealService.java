@@ -35,6 +35,9 @@ public class SolidMealService {
     @Inject
     SolidMealMapper solidMealMapper;
 
+    @Inject
+    DishService dishService;
+
     @Transactional
     public SolidMealResponse create(UUID userId, UUID babyId, CreateSolidMealRequest request) {
         requireLinked(userId, babyId);
@@ -48,6 +51,10 @@ public class SolidMealService {
         event.authorId = userId;
         event.createdAt = Instant.now();
         solidMealRepository.persist(event);
+        // Same transaction, after every validation: a refused meal adds no dish (D18-AF).
+        if (request.addToDishes()) {
+            dishService.addIfAbsent(userId, event.dish);
+        }
         return solidMealMapper.toResponse(event);
     }
 

@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/012-breastfeeding.sql
   - include:
       file: db/changelog/013-solid-meal.sql
+  - include:
+      file: db/changelog/014-dish.sql
