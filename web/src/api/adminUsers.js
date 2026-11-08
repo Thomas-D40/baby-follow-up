@@ -13,3 +13,9 @@ export function listAccounts() {
 export function createAccount({ email, firstName }) {
   return apiSend('/admin/users', 'POST', { email, firstName })
 }
+
+// Issue a new activation link for a pending account and mail it (no body).
+// → 200 { userId, activationLink, mailSent }. 404 unknown account, 409 account already activated.
+export function resendActivationLink(userId) {
+  return apiSend(`/admin/users/${userId}/activation-link`, 'POST')
+}

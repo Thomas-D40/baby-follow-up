@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAccounts, useCreateAccount } from '../services/adminUsers'
+import { useAccounts, useCreateAccount, useResendActivationLink } from '../services/adminUsers'
 import { ACCOUNT_ROLE_LABEL, ACCOUNT_STATUS_LABEL, formatAccountDate } from '../adminUsers'
 
 const CREATE_ERROR = {
@@ -11,10 +11,12 @@ const CREATE_ERROR = {
 export default function AdminUsersScreen({ onBack }) {
   const { accounts, isLoading, isError } = useAccounts()
   const createMut = useCreateAccount()
+  const resendMut = useResendActivationLink()
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [formError, setFormError] = useState(null)
-  const [result, setResult] = useState(null) // last creation: { message, mailSent, link }
+  const [resendError, setResendError] = useState(null)
+  const [result, setResult] = useState(null) // last creation or resend: { message, mailSent, link }
   const [copied, setCopied] = useState(false)
 
   function handleCreate(e) {
@@ -27,13 +29,28 @@ export default function AdminUsersScreen({ onBack }) {
     const typedEmail = email.trim()
     createMut.mutate({ email: typedEmail, firstName: firstName.trim() }, {
       onSuccess: (res) => {
-        setResult({ message: `Compte créé, email envoyé à ${typedEmail}`, mailSent: res.mailSent, link: res.activationLink })
-        setCopied(false)
+        showResult(res, `Compte créé, email envoyé à ${typedEmail}`)
         setEmail('')
         setFirstName('')
       },
       onError: (err) => setFormError(CREATE_ERROR[err?.status] ?? 'Échec de la création. Réessayez.'),
     })
+  }
+
+  function handleResend(account) {
+    setResendError(null)
+    resendMut.mutate(account.id, {
+      onSuccess: (res) => showResult(res, `Lien renvoyé à ${account.email}`),
+      onError: (err) => setResendError(
+        err?.status === 409 ? 'Ce compte est déjà activé.' : 'Échec du renvoi du lien. Réessayez.'
+      ),
+    })
+  }
+
+  // One result block for the last action (creation or resend): the message only shows when the mail left.
+  function showResult(res, message) {
+    setResult({ message, mailSent: res.mailSent, link: res.activationLink })
+    setCopied(false)
   }
 
   async function copyLink() {
@@ -92,6 +109,7 @@ export default function AdminUsersScreen({ onBack }) {
         <h2 className="card-title">Comptes</h2>
         {isLoading && <p className="empty">…</p>}
         {isError && <p role="alert" className="error-text">Impossible de charger les comptes.</p>}
+        {resendError && <p role="alert" className="error-text">{resendError}</p>}
         {!isLoading && !isError && (
           <ul className="event-list" aria-label="Comptes">
             {accounts.map((account) => (
@@ -107,6 +125,15 @@ export default function AdminUsersScreen({ onBack }) {
                     <span>Créé le {formatAccountDate(account.createdAt)}</span>
                   </div>
                 </div>
+                {account.status === 'pending' && (
+                  <button
+                    onClick={() => handleResend(account)}
+                    disabled={resendMut.isPending}
+                    className="btn btn--ghost btn--sm"
+                  >
+                    Renvoyer le lien
+                  </button>
+                )}
               </li>
             ))}
           </ul>

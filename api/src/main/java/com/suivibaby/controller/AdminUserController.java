@@ -54,6 +54,10 @@ public class AdminUserController {
     @Path("/{id}/activation-link")
     @Produces(MediaType.APPLICATION_JSON)
     public CreateUserResponse regenerateLink(@PathParam("id") UUID id) {
-        return accountService.regenerateActivationLink(id);
+        AppUser currentUser = currentUserResolver.require();
+        CreateUserResponse regenerated = accountService.regenerateActivationLink(id);
+        boolean mailSent = accountService.sendActivationMail(
+                regenerated.userId(), regenerated.activationLink(), currentUser.firstName);
+        return regenerated.withMailSent(mailSent);
     }
 }

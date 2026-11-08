@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createAccount, listAccounts } from '../api'
+import { createAccount, listAccounts, resendActivationLink } from '../api'
 
 const ACCOUNTS_KEY = ['admin', 'users']
 
@@ -17,6 +17,16 @@ export function useCreateAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ email, firstName }) => createAccount({ email, firstName }),
+    retry: 0,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  })
+}
+
+// retry: 0 (a replay would mail twice); same invalidation as the creation.
+export function useResendActivationLink() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId) => resendActivationLink(userId),
     retry: 0,
     onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
   })
