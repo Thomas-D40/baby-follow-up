@@ -1,6 +1,7 @@
 package com.suivibaby.controller;
 
 import com.suivibaby.model.BreastSide;
+import com.suivibaby.model.MealPortion;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.test.AuthFixture;
 import com.suivibaby.test.TestDataFactory;
@@ -101,15 +102,16 @@ class TotalsSeriesTest {
     }
 
     @Nested
-    @DisplayName("Tétées (Épic 18)")
+    @DisplayName("Tétées et repas (Épic 18)")
     class Breastfeedings {
 
         @Test
-        @DisplayName("Scénario : une tétée n'altère pas totalMilkMl du point (D18-C)")
+        @DisplayName("Scénario : une tétée et un repas n'altèrent pas totalMilkMl du point (D18-C)")
         void pas_d_effet_sur_le_lait() {
             Caregiver c = linkedCaregiver("series-feeds");
             data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 6, 15, 9, 0), 120, MilkType.formula);
             data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 6, 15, 10, 0), BreastSide.left, 30);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 6, 15, 12, 0), "Purée", MealPortion.all);
 
             given().cookie(AuthFixture.COOKIE, c.cookie())
                     .queryParam("from", "2026-06-15")

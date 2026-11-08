@@ -2,6 +2,7 @@ package com.suivibaby.controller;
 
 import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
+import com.suivibaby.model.MealPortion;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.test.AuthFixture;
@@ -502,6 +503,71 @@ class CalendarEventsTest {
                     .body("[2].side", nullValue())
                     .body("[2].dish", nullValue())
                     .body("[2].portion", nullValue());
+        }
+    }
+
+    @Nested
+    @DisplayName("Repas de diversification (US18.3)")
+    class SolidMeals {
+
+        @Test
+        @DisplayName("Scénario : un repas du jour apparaît avec plat et portion, tous les autres détails à null")
+        void repas_dans_la_frise() {
+            Caregiver c = linkedCaregiver("meal-solo");
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Purée de carottes", MealPortion.half);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("solid_meal"))
+                    .body("[0].startAt", is(paris(2026, 7, 15, 12, 0).toString()))
+                    .body("[0].endAt", nullValue())
+                    .body("[0].dish", is("Purée de carottes"))
+                    .body("[0].portion", is("half"))
+                    .body("[0].quantityMl", nullValue())
+                    .body("[0].milkType", nullValue())
+                    .body("[0].consistency", nullValue())
+                    .body("[0].temperatureCelsiusX10", nullValue())
+                    .body("[0].side", nullValue())
+                    .body("[0].durationMinutes", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : un repas sans portion remonte avec portion null et son plat")
+        void repas_sans_portion() {
+            Caregiver c = linkedCaregiver("meal-bare");
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Compote", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("[0].type", is("solid_meal"))
+                    .body("[0].dish", is("Compote"))
+                    .body("[0].portion", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : biberon, tétée et repas cohabitent, triés DESC, sans se polluer")
+        void repas_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("meal-mixed");
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.formula);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), BreastSide.left, 20);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 11, 0), "Purée", MealPortion.all);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("type", contains("solid_meal", "breastfeeding", "bottle_feeding"))
+                    .body("[0].dish", is("Purée"))
+                    .body("[1].dish", nullValue())
+                    .body("[1].portion", nullValue())
+                    .body("[2].dish", nullValue())
+                    .body("[2].portion", nullValue())
+                    .body("[2].quantityMl", is(150));
         }
     }
 
