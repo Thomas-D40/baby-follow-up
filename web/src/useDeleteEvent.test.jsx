@@ -11,8 +11,18 @@ vi.mock('./api', () => ({
   deleteUrine: vi.fn(),
   deleteTemperature: vi.fn(),
   deleteMedicalCare: vi.fn(),
+  deleteBreastfeeding: vi.fn(),
+  deleteSolidMeal: vi.fn(),
 }))
-import { deleteBottleFeeding, deleteNap, deleteStool, deleteTemperature, deleteMedicalCare } from './api'
+import {
+  deleteBottleFeeding,
+  deleteBreastfeeding,
+  deleteNap,
+  deleteSolidMeal,
+  deleteStool,
+  deleteTemperature,
+  deleteMedicalCare,
+} from './api'
 
 function setup() {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
@@ -54,6 +64,18 @@ describe('useDeleteEvent (Épic 7, D7-B/D7-C)', () => {
     expect(deleteMedicalCare.mock.calls[0]).toEqual(['b1', 'e1'])
     expect(deleteMedicalCare.mock.calls[1]).toEqual(['b1', 'n1'])
     expect(deleteTemperature.mock.calls[0]).toEqual(['b1', 't1'])
+  })
+
+  it('la tétée et le repas routent vers leur client avec (babyId, id) (Épic 18)', async () => {
+    deleteBreastfeeding.mockResolvedValue(null)
+    deleteSolidMeal.mockResolvedValue(null)
+    const { result } = setup()
+
+    await act(() => result.current.mutateAsync({ type: 'breastfeeding', id: 'br1' }))
+    await act(() => result.current.mutateAsync({ type: 'solid_meal', id: 'sm1' }))
+
+    expect(deleteBreastfeeding.mock.calls[0]).toEqual(['b1', 'br1'])
+    expect(deleteSolidMeal.mock.calls[0]).toEqual(['b1', 'sm1'])
   })
 
   it('invalide PAR PRÉFIXE [babies, babyId] au succès (cohérence inter-vues, D7-C/R1)', async () => {

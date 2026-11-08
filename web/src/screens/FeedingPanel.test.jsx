@@ -254,3 +254,101 @@ describe('FeedingPanel — aucune liste sous le formulaire (US18.1, D18-J)', () 
     expect(within(container).queryByText(/Derniers biberons/)).toBeNull()
   })
 })
+
+describe('FeedingPanel — noter une tétée (US18.2)', () => {
+  beforeEach(() => {
+    localStorage.setItem(MODE_KEY, 'breast')
+  })
+
+  it('tétée complète : Gauche + 12 → createBreastfeeding, « Tétée enregistrée. », champs vidés', async () => {
+    renderPanel()
+    const side = screen.getByRole('group', { name: 'Côté' })
+    await userEvent.click(within(side).getByRole('button', { name: 'Gauche' }))
+    await userEvent.type(screen.getByLabelText('Durée (min)'), '12')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createBreastfeeding).toHaveBeenCalledTimes(1))
+    expect(createBreastfeeding.mock.calls[0]).toEqual(
+      ['b1', { occurredAt: expect.any(String), side: 'left', durationMinutes: 12 }],
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Tétée enregistrée.')
+    expect(screen.getByLabelText('Durée (min)')).toHaveValue('')
+    expect(within(side).getByRole('button', { name: 'Gauche' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('sans côté ni durée : payload { occurredAt, side: null, durationMinutes: null }', async () => {
+    renderPanel()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createBreastfeeding).toHaveBeenCalledTimes(1))
+    expect(createBreastfeeding.mock.calls[0][1]).toEqual({ occurredAt: expect.any(String), side: null, durationMinutes: null })
+  })
+
+  it('une création réussie invalide le préfixe [babies, b1] une seule fois', async () => {
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy.mock.calls[0][0]).toEqual({ queryKey: ['babies', 'b1'] })
+  })
+})
+
+describe('FeedingPanel — rappel de la dernière tétée (US18.2, D18-W/D18-AM)', () => {
+  beforeEach(() => {
+    localStorage.setItem(MODE_KEY, 'breast')
+  })
+
+  it('avec côté : « Dernière tétée : gauche… », une seule requête limit 1 au montage', async () => {
+    listBreastfeedings.mockResolvedValue({
+      items: [{ id: 'br1', occurredAt: new Date().toISOString(), side: 'left', durationMinutes: 10 }],
+      nextCursor: null,
+    })
+    renderPanel()
+
+    expect(await screen.findByText(/Dernière tétée : gauche/)).toBeInTheDocument()
+    expect(listBreastfeedings).toHaveBeenCalledTimes(1)
+    expect(listBreastfeedings.mock.calls[0]).toEqual(['b1', { limit: 1 }])
+  })
+
+  it('sans côté : « Dernière tétée : côté non précisé… »', async () => {
+    listBreastfeedings.mockResolvedValue({
+      items: [{ id: 'br1', occurredAt: new Date().toISOString(), side: null, durationMinutes: null }],
+      nextCursor: null,
+    })
+    renderPanel()
+
+    expect(await screen.findByText(/Dernière tétée : côté non précisé/)).toBeInTheDocument()
+  })
+
+  it('aucune tétée : aucun rappel affiché', async () => {
+    renderPanel()
+    await waitFor(() => expect(listBreastfeedings).toHaveBeenCalledTimes(1))
+
+    expect(screen.queryByText(/Dernière tétée/)).not.toBeInTheDocument()
+  })
+
+  it('le rappel suit les saisies : après une création, deuxième requête et nouveau texte', async () => {
+    listBreastfeedings
+      .mockResolvedValueOnce({
+        items: [{ id: 'br1', occurredAt: new Date().toISOString(), side: 'left', durationMinutes: null }],
+        nextCursor: null,
+      })
+      .mockResolvedValue({
+        items: [{ id: 'br2', occurredAt: new Date().toISOString(), side: 'right', durationMinutes: null }],
+        nextCursor: null,
+      })
+    renderPanel()
+    expect(await screen.findByText(/Dernière tétée : gauche/)).toBeInTheDocument()
+
+    const side = screen.getByRole('group', { name: 'Côté' })
+    await userEvent.click(within(side).getByRole('button', { name: 'Droit' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByText(/Dernière tétée : droit/)).toBeInTheDocument()
+    expect(listBreastfeedings).toHaveBeenCalledTimes(2)
+  })
+})

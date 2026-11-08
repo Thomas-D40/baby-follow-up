@@ -6,6 +6,7 @@ import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
 import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
+import com.suivibaby.entity.Breastfeeding;
 import com.suivibaby.entity.MedicalCare;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.Stool;
@@ -13,6 +14,7 @@ import com.suivibaby.entity.Temperature;
 import com.suivibaby.entity.Urine;
 import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.entity.Weight;
+import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
@@ -23,6 +25,7 @@ import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyInvitationRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
+import com.suivibaby.repository.BreastfeedingRepository;
 import com.suivibaby.repository.MedicalCareRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.StoolRepository;
@@ -84,6 +87,9 @@ public class TestDataFactory {
 
     @Inject
     MedicalCareRepository medicalCareRepository;
+
+    @Inject
+    BreastfeedingRepository breastfeedingRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -290,6 +296,27 @@ public class TestDataFactory {
     @Transactional
     public long countMedicalCare(UUID babyId, CareType careType) {
         return medicalCareRepository.count("babyId = ?1 and careType = ?2", babyId, careType);
+    }
+
+    // Direct seed of a breastfeeding (Épic 18) — side and duration are optional (null = not specified).
+    @Transactional
+    public UUID createBreastfeeding(UUID babyId, UUID authorId, Instant occurredAt, BreastSide side,
+                                    Integer durationMinutes) {
+        Breastfeeding event = new Breastfeeding();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.side = side;
+        event.durationMinutes = durationMinutes;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        breastfeedingRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countBreastfeeding(UUID babyId) {
+        return breastfeedingRepository.count("babyId", babyId);
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */

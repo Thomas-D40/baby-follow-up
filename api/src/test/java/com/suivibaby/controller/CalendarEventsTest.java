@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
@@ -425,6 +426,82 @@ class CalendarEventsTest {
                     .body("[1].temperatureCelsiusX10", is(380))
                     // Un soin ne porte aucune valeur de température.
                     .body("[0].temperatureCelsiusX10", nullValue());
+        }
+    }
+
+    @Nested
+    @DisplayName("Tétées (US18.2)")
+    class Breastfeedings {
+
+        @Test
+        @DisplayName("Scénario : une tétée du jour apparaît avec côté et durée, tous les autres détails à null")
+        void tetee_dans_la_frise() {
+            Caregiver c = linkedCaregiver("breast-solo");
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 14, 5), BreastSide.left, 12);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("breastfeeding"))
+                    .body("[0].startAt", is(paris(2026, 7, 15, 14, 5).toString()))
+                    .body("[0].endAt", nullValue())
+                    .body("[0].side", is("left"))
+                    .body("[0].durationMinutes", is(12))
+                    // quantityMl, durationMinutes and temperatureCelsiusX10 are three neighbouring
+                    // Integers: a swapped argument compiles, so every other detail is asserted null.
+                    .body("[0].quantityMl", nullValue())
+                    .body("[0].milkType", nullValue())
+                    .body("[0].consistency", nullValue())
+                    .body("[0].temperatureCelsiusX10", nullValue())
+                    .body("[0].dish", nullValue())
+                    .body("[0].portion", nullValue());
+
+            // Not on the next day (bounds [from,to) Paris).
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-16")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200).body("", hasSize(0));
+        }
+
+        @Test
+        @DisplayName("Scénario : une tétée sans côté ni durée remonte avec side et durationMinutes null")
+        void tetee_sans_cote_ni_duree() {
+            Caregiver c = linkedCaregiver("breast-bare");
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), null, null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(1))
+                    .body("[0].type", is("breastfeeding"))
+                    .body("[0].side", nullValue())
+                    .body("[0].durationMinutes", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : la tétée s'insère au bon rang DESC, sans polluer les autres types")
+        void tetee_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("breast-mixed");
+            // 09:00 bottle, 10:00 breastfeeding, 11:00 stool → DESC: stool, breastfeeding, bottle.
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 150, MilkType.breast);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), BreastSide.right, 20);
+            data.createStool(c.babyId(), c.userId(), paris(2026, 7, 15, 11, 0), StoolConsistency.liquid);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("type", contains("stool", "breastfeeding", "bottle_feeding"))
+                    .body("[1].durationMinutes", is(20))
+                    // The bottle is not polluted: quantityMl stays millilitres, the new fields stay null.
+                    .body("[2].quantityMl", is(150))
+                    .body("[2].durationMinutes", nullValue())
+                    .body("[2].side", nullValue())
+                    .body("[2].dish", nullValue())
+                    .body("[2].portion", nullValue());
         }
     }
 
