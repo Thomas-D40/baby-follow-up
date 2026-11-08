@@ -73,3 +73,22 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_ed25519 deploy@${{ secrets.VPS_HOST }} \
             "cd /opt/suivi-baby && docker compose pull && docker compose up -d"
+      - name: Vérifier que l'API a démarré
+        run: |
+          ssh -i ~/.ssh/id_ed25519 deploy@${{ secrets.VPS_HOST }} 'bash -s' <<'SCRIPT'
+          set -u
+          cd /opt/suivi-baby
+          # The api service publishes no port: probe it from the caddy container
+          # (busybox wget) over the compose network. wget fails on non-2xx.
+          for i in $(seq 1 18); do
+            if docker compose exec -T caddy wget -q -O /dev/null -T 5 http://api:8080/q/health/ready </dev/null; then
+              echo "API ready after ~$((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::API not ready after 90s"
+          docker compose ps api
+          docker compose logs --tail=80 api
+          exit 1
+          SCRIPT
