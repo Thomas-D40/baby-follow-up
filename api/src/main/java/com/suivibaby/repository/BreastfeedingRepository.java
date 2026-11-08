@@ -11,13 +11,17 @@ import java.util.UUID;
 @ApplicationScoped
 public class BreastfeedingRepository implements PanacheRepositoryBase<Breastfeeding, UUID> {
 
-    public List<Breastfeeding> page(UUID babyId, Instant beforeTime, UUID beforeId, int limit) {
+    // At equal start time the last entered comes first (US18.2: the reminder shows the last side noted),
+    // so createdAt joins the keyset before id.
+    public List<Breastfeeding> page(UUID babyId, Instant beforeTime, Instant beforeCreatedAt, UUID beforeId,
+                                    int limit) {
         if (beforeTime == null) {
-            return find("babyId = ?1 order by occurredAt desc, id desc", babyId)
+            return find("babyId = ?1 order by occurredAt desc, createdAt desc, id desc", babyId)
                     .page(0, limit).list();
         }
-        return find("babyId = ?1 and (occurredAt < ?2 or (occurredAt = ?2 and id < ?3)) "
-                + "order by occurredAt desc, id desc", babyId, beforeTime, beforeId)
+        return find("babyId = ?1 and (occurredAt < ?2 or (occurredAt = ?2 and (createdAt < ?3 "
+                + "or (createdAt = ?3 and id < ?4)))) order by occurredAt desc, createdAt desc, id desc",
+                babyId, beforeTime, beforeCreatedAt, beforeId)
                 .page(0, limit).list();
     }
 
