@@ -113,8 +113,13 @@ public class TestDataFactory {
         return prefix + "-" + UUID.randomUUID() + "@test.local";
     }
 
-    @Transactional
     public UUID createUser(String email, String firstName, String role, String plainPassword) {
+        return createUser(email, firstName, role, plainPassword, Instant.now());
+    }
+
+    // Variant with a chosen creation date, to test the "newest first" ordering of the accounts list.
+    @Transactional
+    public UUID createUser(String email, String firstName, String role, String plainPassword, Instant createdAt) {
         AppUser user = new AppUser();
         user.id = UUID.randomUUID();
         user.email = email;
@@ -123,7 +128,7 @@ public class TestDataFactory {
         user.passwordHash = plainPassword == null
                 ? PasswordUtil.unusablePlaceholder() // pending activation: not loginnable (as in prod)
                 : PasswordUtil.hash(plainPassword);
-        user.createdAt = Instant.now();
+        user.createdAt = createdAt;
         // Accounts with a password are activated, as in prod; a pending account has no activation date.
         user.activatedAt = plainPassword == null ? null : user.createdAt;
         appUserRepository.persist(user);
@@ -591,6 +596,12 @@ public class TestDataFactory {
     @Transactional
     public long countActivationTokens(UUID userId) {
         return activationTokenRepository.count("appUserId", userId);
+    }
+
+    // Activation tokens still usable (not consumed): a regenerated link must leave exactly one (Épic 20).
+    @Transactional
+    public long countActiveActivationTokens(UUID userId) {
+        return activationTokenRepository.count("appUserId = ?1 and usedAt is null", userId);
     }
 
     @Transactional
