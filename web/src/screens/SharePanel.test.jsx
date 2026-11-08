@@ -199,6 +199,33 @@ describe("SharePanel — formulaire d'invitation (US17.1)", () => {
   })
 })
 
+describe('SharePanel — envoi du mail (US17.3)', () => {
+  it('mailSent: true → « Invitation envoyée par email à {email}. », lien toujours affiché', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockResolvedValue(CREATED)
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Invitation envoyée par email à jeanne@exemple.fr.')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Lien d'invitation")).toHaveValue('http://x/invite?token=t')
+  })
+
+  it('mailSent: false → avertissement, aucun message de succès, lien de secours affiché', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockResolvedValue({ ...CREATED, mailSent: false })
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+
+    expect(await screen.findByRole('alert'))
+      .toHaveTextContent("L'email n'a pas pu être envoyé : transmettez le lien vous-même.")
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Lien d'invitation")).toHaveValue('http://x/invite?token=t')
+  })
+})
+
 describe('SharePanel — promotion (D8-I)', () => {
   it('appelle promoteCaregiver(babyId, userId) et notifie', async () => {
     listCaregivers.mockResolvedValue([OWNER, GUEST])
