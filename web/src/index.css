@@ -21,6 +21,8 @@
   --stool: #d99a63;  --stool-ink: #a86c33;  --stool-bg: #fbefe1;
   --urine: #6cc5d9;  --urine-ink: #2f8ba3;  --urine-bg: #e4f5f9;
   --weight: #7bbf9e; --weight-ink: #3f8f6b; --weight-bg: #e6f5ee;
+  /* Alimentation (Épic 18) : le biberon garde --milk ; la tétée a sa teinte rose poudré. */
+  --breast: #e59ab0; --breast-ink: #a94a6c; --breast-bg: #fbeaf0;
   /* Médical (Épic 15) : DEUX familles, pas trois. La température a la sienne (elle porte une
      valeur, pas un comptage) ; les deux soins PARTAGENT --care et se distinguent par l'emoji
      👁 / 👃. Trois teintes de plus sur une barre qui en compte déjà quatre la rendraient illisible. */
@@ -258,6 +260,8 @@ button { font-family: inherit; }
 .toggle-chip--on { background: var(--stool-bg); color: var(--stool-ink); border-color: var(--stool); }
 /* Même toggle, teinte « soin » pour la feuille Médical (Épic 15). */
 .toggle-chip--care-on { background: var(--care-bg); color: var(--care-ink); border-color: var(--care); }
+/* Same toggle, « tétée » tint for the side of the Repas sheet (Épic 18). */
+.toggle-chip--breast-on { background: var(--breast-bg); color: var(--breast-ink); border-color: var(--breast); }
 
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field-label { font-size: 0.82rem; font-weight: 800; color: var(--text); }
@@ -302,6 +306,7 @@ button { font-family: inherit; }
 /* 👁 et 👃 partagent la teinte « soin » : c'est l'emoji qui les distingue (Épic 15). */
 .chip--eye-care { background: var(--care-bg); color: var(--care-ink); }
 .chip--nose-care { background: var(--care-bg); color: var(--care-ink); }
+.chip--breast { background: var(--breast-bg); color: var(--breast-ink); }
 
 /* Toggle flavour of a totals chip (Épic 16, D16-S): the chip IS the type filter of the day list.
    Modifier on the <button>, never `button.chip` — the bare `.chip` stays a decorative badge
@@ -327,6 +332,7 @@ button { font-family: inherit; }
 .chip--toggle[aria-pressed="true"].chip--temperature { border-color: var(--temp); }
 .chip--toggle[aria-pressed="true"].chip--eye-care,
 .chip--toggle[aria-pressed="true"].chip--nose-care { border-color: var(--care); }
+.chip--toggle[aria-pressed="true"].chip--breast { border-color: var(--breast); }
 
 /* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
 .vitamins { margin-top: 0.75rem; }
@@ -369,6 +375,7 @@ button { font-family: inherit; }
 .event-tag--temperature { background: var(--temp-bg); color: var(--temp-ink); }
 .event-tag--eye-care { background: var(--care-bg); color: var(--care-ink); }
 .event-tag--nose-care { background: var(--care-bg); color: var(--care-ink); }
+.event-tag--breast { background: var(--breast-bg); color: var(--breast-ink); }
 .event-detail { color: var(--text); }
 .event-detail strong { color: var(--text-strong); }
 .flag { color: var(--stool-ink); font-weight: 700; }

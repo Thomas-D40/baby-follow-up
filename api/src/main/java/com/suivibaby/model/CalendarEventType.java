@@ -10,6 +10,7 @@ package com.suivibaby.model;
 // point).
 public enum CalendarEventType {
     bottle_feeding,
+    breastfeeding,
     nap,
     stool,
     urine,

@@ -9,7 +9,11 @@ import java.util.UUID;
 // label SILENTLY. Hence a dedicated `temperatureCelsiusX10`, null for every other event type.
 // No `careType` field: medical cares are two distinct calendar types (eye_care / nose_care), so
 // nothing reads it here. MedicalCareResponse keeps its own `careType` — that is the resource DTO.
+// Same rule for the breastfeeding detail: `side` and `durationMinutes` are their own fields. Beware
+// that `quantityMl`, `temperatureCelsiusX10` and `durationMinutes` are three Integers
+// (positional calls compile when swapped): CalendarMapper must stay the only constructor caller.
 public record CalendarEventResponse(CalendarEventType type, UUID id, Instant startAt, Instant endAt,
                                     UUID authorId, Integer quantityMl, MilkType milkType,
-                                    StoolConsistency consistency, Integer temperatureCelsiusX10) {
+                                    StoolConsistency consistency, Integer temperatureCelsiusX10,
+                                    BreastSide side, Integer durationMinutes) {
 }
