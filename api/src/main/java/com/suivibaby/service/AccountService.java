@@ -31,6 +31,9 @@ public class AccountService {
     ActivationService activationService;
 
     @Inject
+    MailService mailService;
+
+    @Inject
     UserMapper userMapper;
 
     public List<AccountResponse> getAllAccounts() {
@@ -46,7 +49,7 @@ public class AccountService {
         appUserRepository.persist(user);
 
         UUID token = activationService.issueToken(user.id);
-        return new CreateUserResponse(user.id, buildLink(token));
+        return new CreateUserResponse(user.id, buildLink(token), false);
     }
 
     // Existing account is returned untouched (name included); a new one is pending and has no
@@ -68,7 +71,14 @@ public class AccountService {
             throw new NotFoundException("Utilisateur introuvable.");
         }
         UUID token = activationService.issueToken(userId);
-        return new CreateUserResponse(userId, buildLink(token));
+        return new CreateUserResponse(userId, buildLink(token), false);
+    }
+
+    // Not transactional on purpose: called once createParent / regenerateActivationLink has committed
+    // (D17-Y). Never throws on a mail failure, the result is the mailSent flag of the response.
+    public boolean sendActivationMail(UUID userId, String activationLink, String adminFirstName) {
+        AppUser user = appUserRepository.findById(userId);
+        return mailService.sendActivation(user.email, user.firstName, adminFirstName, activationLink);
     }
 
     private AppUser newPendingParent(String email, String firstName) {

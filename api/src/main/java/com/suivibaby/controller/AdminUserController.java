@@ -1,8 +1,10 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.entity.AppUser;
 import com.suivibaby.model.AccountResponse;
 import com.suivibaby.model.CreateUserRequest;
 import com.suivibaby.model.CreateUserResponse;
+import com.suivibaby.security.CurrentUser;
 import com.suivibaby.service.AccountService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -24,6 +26,9 @@ import java.util.UUID;
 public class AdminUserController {
 
     @Inject
+    CurrentUser currentUserResolver;
+
+    @Inject
     AccountService accountService;
 
     @GET
@@ -36,8 +41,13 @@ public class AdminUserController {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response create(@Valid CreateUserRequest request) {
+        AppUser currentUser = currentUserResolver.require();
         CreateUserResponse created = accountService.createParent(request.email(), request.firstName());
-        return Response.status(Response.Status.CREATED).entity(created).build();
+        // Sent here, after createParent() has returned: the transaction is committed, so a refused request
+        // never mails and a mail failure cannot undo the account (D20-C, D17-Y).
+        boolean mailSent = accountService.sendActivationMail(
+                created.userId(), created.activationLink(), currentUser.firstName);
+        return Response.status(Response.Status.CREATED).entity(created.withMailSent(mailSent)).build();
     }
 
     @POST
