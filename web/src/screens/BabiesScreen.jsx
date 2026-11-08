@@ -2,6 +2,7 @@ import { Suspense, lazy, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useBabies, useCurrentBaby } from '../useBabies'
 import { createBaby, updateBaby, deleteBaby, getCurrentNap } from '../api'
+import AdminUsersScreen from './AdminUsersScreen'
 import BabyForm from './BabyForm'
 import BottomSheet from './BottomSheet'
 import FeedingPanel from './FeedingPanel'
@@ -33,7 +34,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const qc = useQueryClient()
   const { data: babies = [], isLoading } = useBabies()
   const { currentBaby, currentBabyId, selectBaby } = useCurrentBaby(babies)
-  const [view, setView] = useState('list') // list | add | edit
+  const [view, setView] = useState('list') // list | add | edit | users
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null) // null | 'feeding' | 'nap' | 'diaper' | 'weight' | 'medical'
@@ -86,6 +87,10 @@ export default function BabiesScreen({ me, onLogout }) {
     )
   }
 
+  if (view === 'users') {
+    return <AdminUsersScreen onBack={() => setView('list')} />
+  }
+
   const openSheet = (name) => { setNotice(null); setSheet(name) }
   const closeSheet = () => setSheet(null)
 
@@ -95,6 +100,12 @@ export default function BabiesScreen({ me, onLogout }) {
         <h1 className="app-title"><span className="logo">🍼</span>Suivi Baby</h1>
         <span className="app-user">
           {me.firstName || me.email}<br />
+          {me.role === 'admin' && (
+            <>
+              <button onClick={() => { setNotice(null); setView('users') }} className="linkbtn linkbtn--muted">Utilisateurs</button>
+              {' · '}
+            </>
+          )}
           <button onClick={onLogout} className="linkbtn linkbtn--muted">se déconnecter</button>
         </span>
       </header>
