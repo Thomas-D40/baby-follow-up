@@ -30,10 +30,12 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
-      # Transactional mail (Epic 17/20): off until the SMTP relay is provisioned
+      # Transactional mail (Epic 17/20): off until the SMTP relay is provisioned.
+      # SMTP_HOST must never be empty: quarkus.mailer.host is required and an empty env var does not
+      # fall back to the application.properties default, so Quarkus refuses to start.
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       MAIL_FROM: ${MAIL_FROM:-}
-      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
