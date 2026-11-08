@@ -58,6 +58,7 @@ public class ActivationService {
         }
 
         user.passwordHash = PasswordUtil.hash(password);
+        user.activatedAt = Instant.now();
         token.usedAt = Instant.now();
         // persisted via dirty checking (entities managed within the transaction)
     }

@@ -29,3 +29,5 @@ databaseChangeLog:
       file: db/changelog/014-dish.sql
   - include:
       file: db/changelog/015-medication.sql
+  - include:
+      file: db/changelog/016-invitation-invitee.sql

@@ -62,6 +62,7 @@ public class AdminBootstrap {
         admin.role = "admin";
         admin.passwordHash = hash;
         admin.createdAt = Instant.now();
+        admin.activatedAt = admin.createdAt;
         appUserRepository.persist(admin);
         Log.infof("Admin bootstrap '%s' created.", adminEmail);
         return true;

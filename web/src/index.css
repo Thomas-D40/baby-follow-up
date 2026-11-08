@@ -534,6 +534,12 @@ button { font-family: inherit; }
 .modal p { margin: 0; }
 .modal-row { display: flex; gap: 0.6rem; justify-content: flex-end; }
 
+/* Card of the public screens (invitation, Épic 17): full width up to a phone-sized column. */
+.auth-card { width: 100%; max-width: 340px; }
+.auth-card--center { text-align: center; }
+/* A button that must not stretch inside a column flex container. */
+.btn--start { align-self: flex-start; }
+
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes pop-in { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
