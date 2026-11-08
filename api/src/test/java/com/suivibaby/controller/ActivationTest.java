@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -126,6 +127,33 @@ class ActivationTest {
 
             postActivation(token, VALID_PASSWORD).then().statusCode(204);
             assertNotNull(data.activatedAt(userId));
+        }
+    }
+
+    @Nested
+    @DisplayName("Scénario : un lien d'activation n'active qu'un compte en attente (D20-AA)")
+    class CompteDejaActive {
+        @Test
+        void le_pre_controle_et_l_activation_renvoient_410_sans_toucher_au_mot_de_passe() {
+            String email = data.uniqueEmail("active");
+            UUID userId = data.createActiveParent(email, VALID_PASSWORD);
+            UUID token = activeToken(userId);
+            String hashBefore = data.passwordHash(userId);
+
+            given().when().get("/api/activation/{token}", token).then().statusCode(410);
+            postActivation(token, "autre-mot-de-passe-12").then().statusCode(410);
+
+            assertEquals(hashBefore, data.passwordHash(userId));
+            assertFalse(data.tokenConsumed(token), "un refus ne consomme pas le jeton");
+            AuthFixture.loginCookie(email, VALID_PASSWORD);
+        }
+
+        @Test
+        void un_compte_en_attente_garde_un_pre_controle_204() {
+            UUID userId = data.createPendingParent(data.uniqueEmail("pending"));
+            UUID token = activeToken(userId);
+
+            given().when().get("/api/activation/{token}", token).then().statusCode(204);
         }
     }
 
