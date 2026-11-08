@@ -18,6 +18,9 @@ describe('parseQuantity (miroir client des bornes D3-E)', () => {
   it('refuse un non-entier', () => {
     expect(parseQuantity('12.5').ok).toBe(false)
   })
+  it('refuse 12,5 (virgule décimale) avec le message du formulaire (US18.1, règles inchangées)', () => {
+    expect(parseQuantity('12,5')).toEqual({ ok: false, error: 'Quantité invalide (ml entier > 0).' })
+  })
   it('refuse au-delà de 2000', () => {
     expect(parseQuantity('2001').ok).toBe(false)
   })
