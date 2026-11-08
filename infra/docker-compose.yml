@@ -30,17 +30,34 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
-      # Transactional mail (Epic 17/20): off until the SMTP relay is provisioned.
+      # Transactional mail (Epic 17/20): sent through the local "mail" service (Postfix + DKIM).
+      # Off until DNS (SPF/DKIM/DMARC/PTR) is in place, then set MAIL_ENABLED=true.
       # SMTP_HOST must never be empty: quarkus.mailer.host is required and an empty env var does not
       # fall back to the application.properties default, so Quarkus refuses to start.
+      # STARTTLS is disabled by default: traffic to "mail" stays on the internal compose network.
+      # For an external relay instead, set SMTP_HOST/USERNAME/PASSWORD and SMTP_START_TLS=REQUIRED.
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
-      MAIL_FROM: ${MAIL_FROM:-}
-      SMTP_HOST: ${SMTP_HOST:-localhost}
+      MAIL_FROM: ${MAIL_FROM:-Suivi Baby <no-reply@${DOMAIN}>}
+      SMTP_HOST: ${SMTP_HOST:-mail}
       SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_START_TLS: ${SMTP_START_TLS:-DISABLED}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     depends_on:
       - db
+      - mail
+
+  # Outbound-only MTA: accepts mail from the compose network on 587 (no port published),
+  # signs it with DKIM and delivers it directly to recipients over port 25.
+  mail:
+    image: boky/postfix:v5.2.1-alpine
+    restart: unless-stopped
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${DOMAIN}
+      POSTFIX_myhostname: ${DOMAIN}
+      DKIM_AUTOGENERATE: "true"
+    volumes:
+      - dkim_keys:/var/lib/rspamd/dkim   # keep the DKIM key (rspamd backend): it must match the DNS record
 
   db:
     image: postgres:16
@@ -56,3 +73,4 @@ volumes:
   caddy_data:
   caddy_config:
   pgdata:
+  dkim_keys:
