@@ -55,17 +55,19 @@ public class BreastfeedingService {
     public BreastfeedingPage list(UUID userId, UUID babyId, int limit, String before) {
         requireLinked(userId, babyId);
         int pageSize = resolveLimit(limit);
-        Cursor cursor = before == null ? null : Cursor.decode(before);
+        Cursor cursor = before == null ? null : decodeCursor(before);
         Instant beforeTime = cursor == null ? null : cursor.occurredAt();
+        Instant beforeCreatedAt = cursor == null ? null : cursor.createdAt();
         UUID beforeId = cursor == null ? null : cursor.id();
 
         // limit + 1 tells whether a next page exists (otherwise nextCursor = null).
-        List<Breastfeeding> rows = breastfeedingRepository.page(babyId, beforeTime, beforeId, pageSize + 1);
+        List<Breastfeeding> rows = breastfeedingRepository.page(babyId, beforeTime, beforeCreatedAt, beforeId,
+                pageSize + 1);
         String nextCursor = null;
         if (rows.size() > pageSize) {
             rows = rows.subList(0, pageSize);
             Breastfeeding last = rows.get(rows.size() - 1);
-            nextCursor = new Cursor(last.occurredAt, last.id).encode();
+            nextCursor = new Cursor(last.occurredAt, last.createdAt, last.id).encode();
         }
         return new BreastfeedingPage(breastfeedingMapper.toResponses(rows), nextCursor);
     }
@@ -116,6 +118,15 @@ public class BreastfeedingService {
             throw new NotFoundException();
         }
         return event;
+    }
+
+    // This keyset needs the entry time: a two-part token (another list's) cannot position a page here.
+    private Cursor decodeCursor(String token) {
+        Cursor cursor = Cursor.decode(token);
+        if (cursor.createdAt() == null) {
+            throw new BadRequestException("Curseur invalide.");
+        }
+        return cursor;
     }
 
     private int resolveLimit(int limit) {

@@ -326,6 +326,20 @@ public class TestDataFactory {
         return event.id;
     }
 
+    // Seed with a chosen id and entry time, to test the tie-break at equal start time (US18.2).
+    @Transactional
+    public void createBreastfeeding(UUID id, UUID babyId, UUID authorId, Instant occurredAt, BreastSide side,
+                                    Instant createdAt) {
+        Breastfeeding event = new Breastfeeding();
+        event.id = id;
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.side = side;
+        event.authorId = authorId;
+        event.createdAt = createdAt;
+        breastfeedingRepository.persist(event);
+    }
+
     @Transactional
     public long countBreastfeeding(UUID babyId) {
         return breastfeedingRepository.count("babyId", babyId);

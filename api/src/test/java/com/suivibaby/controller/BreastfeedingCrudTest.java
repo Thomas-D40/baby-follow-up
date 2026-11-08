@@ -10,8 +10,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 // Épic 18, US18.2 — breastfeeding CRUD under the membership filter, cloned from UrineCrudTest.
 // Specific rules: optional side / duration (1..120), PATCH where a null optional field is CLEARED
 // (D18-AC) while a null occurredAt is left unchanged, and the "last feed" lookup (limit=1) ordered by
-// start time, not by entry time (D18-AM).
+// start time, not by entry time, which only breaks ties at equal start time (D18-AM, US18.2).
 @QuarkusTest
 class BreastfeedingCrudTest {
 
@@ -189,7 +191,7 @@ class BreastfeedingCrudTest {
     class List {
 
         @Test
-        @DisplayName("Scénario : 1ʳᵉ page triée occurredAt DESC, id DESC, tout sur une page")
+        @DisplayName("Scénario : 1ʳᵉ page triée occurredAt DESC, createdAt DESC, id DESC, tout sur une page")
         void premiere_page_triee() {
             Caregiver c = linkedCaregiver("lister");
             UUID ancien = data.createBreastfeeding(c.babyId(), c.userId(), ago(5), null, null);
@@ -287,6 +289,74 @@ class BreastfeedingCrudTest {
                     .body("items", hasSize(1))
                     .body("items[0].id", is(recentId))
                     .body("items[0].side", is("left"));
+        }
+
+        // Two ids where the FIRST entered sorts higher in Postgres (byte order = lowercase hex order):
+        // a tie broken on id would then wrongly return it.
+        private UUID[] idsDescending() {
+            UUID a = UUID.randomUUID();
+            UUID b = UUID.randomUUID();
+            return a.toString().compareTo(b.toString()) > 0 ? new UUID[] {a, b} : new UUID[] {b, a};
+        }
+
+        @Test
+        @DisplayName("Scénario : à heure égale, la dernière créée — gauche puis droite à la même heure, limit=1 renvoie droite")
+        void heure_egale_derniere_creee() {
+            Caregiver c = linkedCaregiver("rappel-heure-egale");
+            Instant start = ago(2);
+            Instant entered = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            UUID[] ids = idsDescending();
+            data.createBreastfeeding(ids[0], c.babyId(), c.userId(), start, BreastSide.left, entered.minusSeconds(30));
+            data.createBreastfeeding(ids[1], c.babyId(), c.userId(), start, BreastSide.right, entered);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("limit", 1)
+                    .when().get(PATH, c.babyId())
+                    .then().statusCode(200)
+                    .body("items", hasSize(1))
+                    .body("items[0].id", is(ids[1].toString()))
+                    .body("items[0].side", is("right"));
+        }
+
+        @Test
+        @DisplayName("Scénario : à heure égale, la page suivante reprend sans saut ni doublon")
+        void heure_egale_page_suivante() {
+            Caregiver c = linkedCaregiver("lister-heure-egale");
+            Instant start = ago(2);
+            Instant entered = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            UUID[] ids = idsDescending();
+            data.createBreastfeeding(ids[0], c.babyId(), c.userId(), start, BreastSide.left, entered.minusSeconds(30));
+            data.createBreastfeeding(ids[1], c.babyId(), c.userId(), start, BreastSide.right, entered);
+
+            String nextCursor = given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("limit", 1)
+                    .when().get(PATH, c.babyId())
+                    .then().statusCode(200)
+                    .body("items[0].id", is(ids[1].toString()))
+                    .body("nextCursor", notNullValue())
+                    .extract().path("nextCursor");
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("limit", 1)
+                    .queryParam("before", nextCursor)
+                    .when().get(PATH, c.babyId())
+                    .then().statusCode(200)
+                    .body("items", hasSize(1))
+                    .body("items[0].id", is(ids[0].toString()))
+                    .body("nextCursor", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : un curseur sans heure de saisie (celui d'une autre liste) → 400")
+        void curseur_sans_heure_de_saisie() {
+            Caregiver c = linkedCaregiver("lister-curseur");
+            String twoPartToken = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString((ago(2) + "|" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("before", twoPartToken)
+                    .when().get(PATH, c.babyId())
+                    .then().statusCode(400);
         }
     }
 
