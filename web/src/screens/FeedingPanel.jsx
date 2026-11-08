@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import { toLocalInputValue } from '../bottleFeeding'
 import { FEEDING_MODES, FEEDING_MODE_LABEL, loadFeedingMode } from '../feedingMode'
-import { useCreateBottleFeeding } from '../services/feeding'
+import {
+  useCreateBottleFeeding,
+  useCreateBreastfeeding,
+  useLastBreastfeedingReminder,
+} from '../services/feeding'
 import BottleFeedingForm from './BottleFeedingForm'
+import BreastfeedingForm from './BreastfeedingForm'
+
+// Mounted in the breast branch only, so no request leaves in the other modes.
+function BreastfeedingReminder({ babyId }) {
+  const text = useLastBreastfeedingReminder(babyId)
+  return text ? <p className="field-hint">{text}</p> : null
+}
 
 export default function FeedingPanel({ babyId }) {
   const [mode, setMode] = useState(loadFeedingMode)
@@ -10,16 +21,17 @@ export default function FeedingPanel({ babyId }) {
   const [time, setTime] = useState(() => toLocalInputValue(new Date()))
   const [notice, setNotice] = useState(null)
   const createBottle = useCreateBottleFeeding(babyId)
+  const createBreast = useCreateBreastfeeding(babyId)
 
   const selectMode = (next) => {
     setMode(next)
     setNotice(null)
   }
 
-  async function saveBottle(body) {
+  async function save(mutation, body, message) {
     setNotice(null)
-    await createBottle.mutateAsync(body)
-    setNotice('Biberon enregistré.')
+    await mutation.mutateAsync(body)
+    setNotice(message)
   }
 
   return (
@@ -39,9 +51,25 @@ export default function FeedingPanel({ babyId }) {
       </div>
 
       {mode === 'bottle' && (
-        <BottleFeedingForm key="bottle" time={time} onTimeChange={setTime} onSubmit={saveBottle} />
+        <BottleFeedingForm
+          key="bottle"
+          time={time}
+          onTimeChange={setTime}
+          onSubmit={(body) => save(createBottle, body, 'Biberon enregistré.')}
+        />
       )}
-      {mode !== 'bottle' && <p className="empty">Bientôt disponible.</p>}
+      {mode === 'breast' && (
+        <>
+          <BreastfeedingReminder babyId={babyId} />
+          <BreastfeedingForm
+            key="breast"
+            time={time}
+            onTimeChange={setTime}
+            onSubmit={(body) => save(createBreast, body, 'Tétée enregistrée.')}
+          />
+        </>
+      )}
+      {mode === 'solid' && <p className="empty">Bientôt disponible.</p>}
 
       {notice && <p role="status" className="notice notice--success">{notice}</p>}
     </>

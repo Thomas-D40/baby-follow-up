@@ -3,6 +3,7 @@
 // JAMAIS le fuseau du device : le bucketing serveur (Paris) et le rendu front doivent coïncider (R5).
 
 import { MILK_TYPE_LABEL } from './bottleFeeding'
+import { describeBreastfeeding } from './breastfeeding'
 import { formatCelsius } from './temperature'
 
 const PARIS = 'Europe/Paris'
@@ -11,6 +12,7 @@ const LONG_NAP_MINUTES = 10 * 60 // signalement « sieste longue » (D6-G), pur 
 // Les soins médicaux sont DEUX types de calendrier (K1/D15-F′), keyés comme tous les autres.
 export const EVENT_TYPE_LABEL = {
   bottle_feeding: 'Biberon',
+  breastfeeding: 'Tétée',
   nap: 'Sieste',
   stool: 'Selle',
   urine: 'Urine',
@@ -92,6 +94,9 @@ export function describeEvent(event, now = new Date()) {
   // n'échoue pas, il affiche du vide) — donc jamais de repli pour un type qu'on supporte (Épic 15).
   if (event.type === 'temperature') {
     return formatCelsius(event.temperatureCelsiusX10)
+  }
+  if (event.type === 'breastfeeding') {
+    return describeBreastfeeding(event)
   }
   if (event.type === 'eye_care') {
     return 'Soin des yeux'

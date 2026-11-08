@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   deleteBottleFeeding,
+  deleteBreastfeeding,
   deleteMedicalCare,
   deleteNap,
   deleteStool,
@@ -8,13 +9,14 @@ import {
   deleteUrine,
 } from './api'
 
-// Routage type d'événement → client de suppression (Épic 7, D7-B). Les 6 clients partagent le contrat
+// Routage type d'événement → client de suppression (Épic 7, D7-B). Les 7 clients partagent le contrat
 // `delete(babyId, id)`. Le calendrier mêle les types sur une même liste, d'où le routage par appel
 // plutôt que par construction du hook.
-// 7 types de présentation pour 6 clients : `eye_care` et `nose_care` sont deux types de calendrier
+// 8 types de présentation pour 7 clients : `eye_care` et `nose_care` sont deux types de calendrier
 // (K1) d'une SEULE ressource `medical_care`, donc un seul `deleteMedicalCare`.
 const DELETE_CLIENT = {
   bottle_feeding: deleteBottleFeeding,
+  breastfeeding: deleteBreastfeeding,
   nap: deleteNap,
   stool: deleteStool,
   urine: deleteUrine,

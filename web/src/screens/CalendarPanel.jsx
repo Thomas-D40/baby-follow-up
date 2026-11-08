@@ -1,15 +1,6 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  getDayEvents,
-  getDailyTotals,
-  updateBottleFeeding,
-  updateMedicalCare,
-  updateNap,
-  updateStool,
-  updateTemperature,
-  updateUrine,
-} from '../api'
+import { useQuery } from '@tanstack/react-query'
+import { getDayEvents, getDailyTotals } from '../api'
 import {
   EVENT_TYPE_LABEL,
   describeEvent,
@@ -24,13 +15,7 @@ import {
 import { formatCelsius } from '../temperature'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { ConfirmDeleteModal } from './DeleteConfirm'
-import BottomSheet from './BottomSheet'
-import BottleFeedingForm from './BottleFeedingForm'
-import MedicalCareForm from './MedicalCareForm'
-import StoolForm from './StoolForm'
-import TemperatureForm from './TemperatureForm'
-import UrineForm from './UrineForm'
-import NapEditForm from './NapEditForm'
+import CalendarEditSheet from './CalendarEditSheet'
 import VitaminSection from './VitaminSection'
 
 /**
@@ -46,7 +31,7 @@ import VitaminSection from './VitaminSection'
  *
  * US11.2 : **édition en place** depuis le récap. Un bouton ✏️ par ligne rouvre le MÊME form que les
  * panels — ils sont **six** depuis l'Épic 15 (`BottleFeedingForm`, `StoolForm`, `UrineForm`,
- * `TemperatureForm`, `MedicalCareForm`, `NapEditForm`) — dans un `BottomSheet`. Le DTO calendrier
+ * `TemperatureForm`, `MedicalCareForm`, `NapEditForm`) — dans un `BottomSheet` (vue `CalendarEditSheet`). Le DTO calendrier
  * expose un champ unifié `startAt` : les **cinq** forms qui lisent `initial.occurredAt` (biberon,
  * selle, urine, température, soin) reçoivent le remap `occurredAt: editing.startAt` (sinon l'heure
  * retomberait sur « maintenant ») ; `NapEditForm` lit `startAt`/`endAt` → pas d'adaptation. L'édition est masquée sur une sieste en
@@ -64,7 +49,6 @@ import VitaminSection from './VitaminSection'
  * décide **par champ** (D16-Q), jamais sur l'objet `totals` entier.
  */
 export default function CalendarPanel({ babyId }) {
-  const qc = useQueryClient()
   const [date, setDate] = useState(() => parisToday())
   const [toDelete, setToDelete] = useState(null) // { type, id } en attente de confirmation
   const [deleteError, setDeleteError] = useState(false)
@@ -82,44 +66,6 @@ export default function CalendarPanel({ babyId }) {
     })
   }
   const deleteMut = useDeleteEvent(babyId)
-
-  // Six mutations d'édition calquées sur les panels (retry: 0, invalidation préfixe DA-4). Le
-  // BottomSheet se ferme au succès ; l'échec (dont 409 sieste) est rendu par le form lui-même.
-  const editSuccess = () => {
-    qc.invalidateQueries({ queryKey: ['babies', babyId] })
-    setEditing(null)
-  }
-  const bottleUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateBottleFeeding(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
-  const stoolUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateStool(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
-  const urineUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateUrine(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
-  const napUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateNap(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
-  const temperatureUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateTemperature(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
-  // Une seule mutation pour les DEUX types de soin : deux types de présentation, une ressource (K1).
-  const careUpdateMut = useMutation({
-    mutationFn: ({ id, patch }) => updateMedicalCare(babyId, id, patch),
-    retry: 0,
-    onSuccess: editSuccess,
-  })
 
   const eventsQuery = useQuery({
     queryKey: ['babies', babyId, 'events', date],
@@ -235,51 +181,7 @@ export default function CalendarPanel({ babyId }) {
         </ul>
       )}
 
-      <BottomSheet
-        open={editing != null}
-        title={editing ? <>✏️ Modifier {EVENT_TYPE_LABEL[editing.type].toLowerCase()}</> : null}
-        onClose={() => setEditing(null)}
-      >
-        {editing?.type === 'bottle_feeding' && (
-          <BottleFeedingForm
-            initial={{ ...editing, occurredAt: editing.startAt }}
-            onSubmit={(body) => bottleUpdateMut.mutateAsync({ id: editing.id, patch: body })}
-          />
-        )}
-        {editing?.type === 'stool' && (
-          <StoolForm
-            initial={{ ...editing, occurredAt: editing.startAt }}
-            onSubmit={(body) => stoolUpdateMut.mutateAsync({ id: editing.id, patch: body })}
-          />
-        )}
-        {editing?.type === 'urine' && (
-          <UrineForm
-            initial={{ ...editing, occurredAt: editing.startAt }}
-            onSubmit={(body) => urineUpdateMut.mutateAsync({ id: editing.id, patch: body })}
-          />
-        )}
-        {editing?.type === 'nap' && (
-          <NapEditForm
-            initial={editing}
-            onSubmit={(patch) => napUpdateMut.mutateAsync({ id: editing.id, patch })}
-          />
-        )}
-        {editing?.type === 'temperature' && (
-          <TemperatureForm
-            initial={{ ...editing, occurredAt: editing.startAt }}
-            onSubmit={(body) => temperatureUpdateMut.mutateAsync({ id: editing.id, patch: body })}
-          />
-        )}
-        {/* Une condition à DEUX termes, un seul form : les deux types de soin partagent la
-            ressource `medical_care` (K1). Le form dérive de `editing.type` le libellé affiché ; le
-            type lui-même n'est pas modifiable ici, donc il ne part pas dans le PATCH. */}
-        {(editing?.type === 'eye_care' || editing?.type === 'nose_care') && (
-          <MedicalCareForm
-            initial={{ ...editing, occurredAt: editing.startAt }}
-            onSubmit={(body) => careUpdateMut.mutateAsync({ id: editing.id, patch: body })}
-          />
-        )}
-      </BottomSheet>
+      <CalendarEditSheet babyId={babyId} editing={editing} onClose={() => setEditing(null)} />
 
       {toDelete && (
         <ConfirmDeleteModal
@@ -295,11 +197,11 @@ export default function CalendarPanel({ babyId }) {
 }
 
 const TAG_CLASS = {
-  bottle_feeding: 'milk', nap: 'sleep', stool: 'stool', urine: 'urine',
+  bottle_feeding: 'milk', breastfeeding: 'breast', nap: 'sleep', stool: 'stool', urine: 'urine',
   temperature: 'temperature', eye_care: 'eye-care', nose_care: 'nose-care',
 }
 const EVENT_EMOJI = {
-  bottle_feeding: '🍼', nap: '😴', stool: '💩', urine: '💧',
+  bottle_feeding: '🍼', breastfeeding: '🤱', nap: '😴', stool: '💩', urine: '💧',
   temperature: '🌡', eye_care: '👁', nose_care: '👃',
 }
 
@@ -312,6 +214,7 @@ const EVENT_EMOJI = {
 // The guard is `!= null`, never falsy: 0 ml, 0 stool and 0.0 °C are transmitted values that show up.
 const CHIP_VALUE = {
   bottle_feeding: (t) => (t.totalMilkMl != null ? { strong: t.totalMilkMl, suffix: ' ml' } : null),
+  breastfeeding: (t) => (t.breastfeedingCount != null ? { strong: t.breastfeedingCount, suffix: ` tétée${t.breastfeedingCount > 1 ? 's' : ''}` } : null),
   nap: (t) => (t.totalSleepMinutes != null ? { strong: formatSleepTotal(t.totalSleepMinutes), suffix: '' } : null),
   stool: (t) => (t.stoolCount != null ? { strong: t.stoolCount, suffix: ` selle${t.stoolCount > 1 ? 's' : ''}` } : null),
   urine: (t) => (t.urineCount != null ? { strong: t.urineCount, suffix: ` urine${t.urineCount > 1 ? 's' : ''}` } : null),
@@ -323,7 +226,7 @@ const CHIP_VALUE = {
 // US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.
 // Un toggle par type de soin (D15-I) : c'est la condition de viabilité du modèle — une journée à
 // ~8 lavages de nez noierait la frise sans un filtre qui masque VRAIMENT ce type-là.
-const FILTER_ORDER = ['bottle_feeding', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
+const FILTER_ORDER = ['bottle_feeding', 'breastfeeding', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
 const DAY_FILTER_KEY = 'calendar.dayFilter'
 
 // État initial du filtre depuis sessionStorage. Rien de stocké → [] (tout affiché, défaut de lecture).

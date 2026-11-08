@@ -10,5 +10,6 @@ import java.time.LocalDate;
 public record DailyTotalsResponse(LocalDate date, int totalMilkMl, long totalSleepMinutes,
                                   long stoolCount, long urineCount,
                                   Integer maxTemperatureCelsiusX10,
-                                  long eyeCareCount, long noseCareCount) {
+                                  long eyeCareCount, long noseCareCount,
+                                  long breastfeedingCount) {
 }
