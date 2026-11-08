@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useAccounts } from './adminUsers'
+import { useAccounts, useCreateAccount } from './adminUsers'
 
 // ⚠️ This file lives in web/src/services/: the mocked module is '../api'.
 vi.mock('../api', () => ({
@@ -9,7 +9,7 @@ vi.mock('../api', () => ({
   createAccount: vi.fn(),
   resendActivationLink: vi.fn(),
 }))
-import { listAccounts } from '../api'
+import { createAccount, listAccounts } from '../api'
 
 // The client retries by default (twice, no delay): a hook that does not opt out itself would call the
 // API three times, so "one call" below really proves the hook's own `retry: 0`.
@@ -47,5 +47,42 @@ describe('useAccounts — liste des comptes (Épic 20, US20.1)', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.accounts).toEqual([])
+  })
+})
+
+describe('useCreateAccount (Épic 20, US20.2)', () => {
+  const BODY = { email: 'lisa@exemple.fr', firstName: 'Lisa' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    createAccount.mockResolvedValue({ userId: 'u9', activationLink: 'http://x/activate?token=abc', mailSent: true })
+  })
+
+  it('mutateAsync({ email, firstName }) appelle createAccount({ email, firstName })', async () => {
+    const { result } = setupHook(() => useCreateAccount())
+
+    await act(() => result.current.mutateAsync(BODY))
+
+    expect(createAccount).toHaveBeenCalledTimes(1)
+    expect(createAccount.mock.calls[0]).toEqual([BODY])
+  })
+
+  it('au succès : UNE invalidation de la liste [admin, users]', async () => {
+    const { result, invalidate } = setupHook(() => useCreateAccount())
+
+    await act(() => result.current.mutateAsync(BODY))
+
+    expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'users'] })
+  })
+
+  it('une erreur remonte : un seul appel (retry: 0), aucune invalidation', async () => {
+    createAccount.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
+    const { result, invalidate } = setupHook(() => useCreateAccount())
+
+    await expect(act(() => result.current.mutateAsync(BODY))).rejects.toMatchObject({ status: 409 })
+
+    expect(createAccount).toHaveBeenCalledTimes(1)
+    expect(invalidate).not.toHaveBeenCalled()
   })
 })

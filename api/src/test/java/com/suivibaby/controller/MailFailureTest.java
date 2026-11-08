@@ -110,4 +110,40 @@ class MailFailureTest {
             assertEquals(1, data.countActiveInvitations(owner.baby()));
         }
     }
+
+    private String adminCookie() {
+        String email = data.uniqueEmail("admin");
+        data.createUser(email, "Thomas", "admin", PWD);
+        return AuthFixture.loginCookie(email, PWD);
+    }
+
+    private static String tokenOf(String activationLink) {
+        return activationLink.substring(activationLink.indexOf("token=") + "token=".length());
+    }
+
+    private Response activate(String activationLink) {
+        return given().contentType(ContentType.JSON)
+                .body(Map.of("token", tokenOf(activationLink), "password", INVITATION_PWD))
+                .when().post("/api/activation");
+    }
+
+    @Nested
+    @DisplayName("Scénario : l'envoi du lien d'activation échoue à la création par l'admin")
+    class EchecCreationAdmin {
+
+        @Test
+        void repond_201_mail_non_envoye_et_le_lien_active_le_compte() {
+            String email = data.uniqueEmail("lisa");
+
+            Response response = given().cookie(AuthFixture.COOKIE, adminCookie())
+                    .contentType(ContentType.JSON)
+                    .body(Map.of("email", email, "firstName", "Lisa"))
+                    .when().post("/api/admin/users");
+
+            response.then().statusCode(201);
+            assertFalse(response.jsonPath().getBoolean("mailSent"));
+            assertNotNull(data.userIdByEmail(email), "le compte reste créé");
+            activate(response.jsonPath().getString("activationLink")).then().statusCode(204);
+        }
+    }
 }
