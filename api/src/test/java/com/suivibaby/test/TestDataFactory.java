@@ -6,6 +6,7 @@ import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyCaregiver;
 import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.entity.BottleFeeding;
+import com.suivibaby.entity.Dish;
 import com.suivibaby.entity.Breastfeeding;
 import com.suivibaby.entity.MedicalCare;
 import com.suivibaby.entity.Nap;
@@ -28,6 +29,7 @@ import com.suivibaby.repository.BabyInvitationRepository;
 import com.suivibaby.repository.BabyRepository;
 import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.BreastfeedingRepository;
+import com.suivibaby.repository.DishRepository;
 import com.suivibaby.repository.MedicalCareRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.SolidMealRepository;
@@ -37,6 +39,7 @@ import com.suivibaby.repository.UrineRepository;
 import com.suivibaby.repository.VitaminIntakeRepository;
 import com.suivibaby.repository.WeightRepository;
 import com.suivibaby.security.PasswordUtil;
+import com.suivibaby.service.DishLabels;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -96,6 +99,9 @@ public class TestDataFactory {
 
     @Inject
     SolidMealRepository solidMealRepository;
+
+    @Inject
+    DishRepository dishRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -351,6 +357,39 @@ public class TestDataFactory {
     public String solidMealDish(UUID mealId) {
         SolidMeal meal = solidMealRepository.findById(mealId);
         return meal == null ? null : meal.dish;
+    }
+
+    // Direct seed of a shared dish (Épic 18). The label is stored as given; the normalized form
+    // (uniqueness + search column) comes from the same function production uses.
+    @Transactional
+    public UUID createDish(UUID authorId, String label) {
+        Dish dish = new Dish();
+        dish.id = UUID.randomUUID();
+        dish.label = label;
+        dish.normalizedLabel = DishLabels.normalize(label);
+        dish.authorId = authorId;
+        dish.createdAt = Instant.now();
+        dishRepository.persist(dish);
+        return dish.id;
+    }
+
+    // Stored label of a dish, null once it has been deleted.
+    @Transactional
+    public String dishLabel(UUID dishId) {
+        Dish dish = dishRepository.findById(dishId);
+        return dish == null ? null : dish.label;
+    }
+
+    // Number of dishes whose normalized label equals the normalization of `label` (0 or 1: UNIQUE).
+    @Transactional
+    public long countDishesNormalized(String label) {
+        return dishRepository.count("normalizedLabel", DishLabels.normalize(label));
+    }
+
+    @Transactional
+    public UUID dishAuthor(UUID dishId) {
+        Dish dish = dishRepository.findById(dishId);
+        return dish == null ? null : dish.authorId;
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */
