@@ -7,6 +7,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.util.Objects;
+
 // One public method per mail. Sending never throws: a mail is a courtesy next to the on-screen link,
 // so a failure (or a disabled relay) is reported as `false` and the caller carries on (D17-N, D17-Z).
 @ApplicationScoped
@@ -25,6 +27,8 @@ public class MailService {
     Mailer mailer;
 
     public boolean sendInvitation(String to, String inviterFirstName, String babyFirstName, String link) {
+        // app_user.first_name is nullable: a missing name must not fail the mail outside deliver() (D17-Z).
+        inviterFirstName = Objects.requireNonNullElse(inviterFirstName, "");
         String subject = inviterFirstName + " vous invite à suivre " + babyFirstName + " sur Suivi Baby";
         String text = """
                 Bonjour,
@@ -47,6 +51,9 @@ public class MailService {
     }
 
     public boolean sendActivation(String to, String inviteeFirstName, String adminFirstName, String link) {
+        // Both names come from the nullable app_user.first_name (see sendInvitation).
+        inviteeFirstName = Objects.requireNonNullElse(inviteeFirstName, "");
+        adminFirstName = Objects.requireNonNullElse(adminFirstName, "");
         String subject = adminFirstName + " vous a créé un compte sur Suivi Baby";
         String text = """
                 Bonjour %s,
