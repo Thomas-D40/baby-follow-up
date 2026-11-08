@@ -2,6 +2,7 @@
 // Tout l'affichage des heures et le découpage du jour sont pinnés sur Europe/Paris (D6-D),
 // JAMAIS le fuseau du device : le bucketing serveur (Paris) et le rendu front doivent coïncider (R5).
 
+import { MILK_TYPE_LABEL } from './bottleFeeding'
 import { formatCelsius } from './temperature'
 
 const PARIS = 'Europe/Paris'
@@ -65,13 +66,13 @@ export function isLongNap(event, now = new Date()) {
 
 /**
  * Texte court décrivant un événement pour la liste du jour (US6.1). Heure Paris + détail par type :
- * biberon → « 120 ml [· Maternel] » ; sieste → durée (« 1 h 23 » / « en cours · 12 min ») ;
+ * biberon → « 120 ml [· Lait maternel] » ; sieste → durée (« 1 h 23 » / « en cours · 12 min ») ;
  * selle → consistance éventuelle. `now` injectable pour le test de la sieste en cours.
  */
 export function describeEvent(event, now = new Date()) {
   if (event.type === 'bottle_feeding') {
-    const milk = event.milkType === 'breast' ? ' · Maternel' : event.milkType === 'formula' ? ' · Artificiel' : ''
-    return `${event.quantityMl} ml${milk}`
+    const milk = MILK_TYPE_LABEL[event.milkType]
+    return milk ? `${event.quantityMl} ml · ${milk}` : `${event.quantityMl} ml`
   }
   if (event.type === 'nap') {
     const mins = Math.round(napMinutes(event, now))

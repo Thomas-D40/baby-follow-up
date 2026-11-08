@@ -4,7 +4,7 @@ import { useBabies, useCurrentBaby } from '../useBabies'
 import { createBaby, updateBaby, deleteBaby, getCurrentNap } from '../api'
 import BabyForm from './BabyForm'
 import BottomSheet from './BottomSheet'
-import BottleFeedingPanel from './BottleFeedingPanel'
+import FeedingPanel from './FeedingPanel'
 import NapPanel from './NapPanel'
 import DiaperChangePanel from './DiaperChangePanel'
 import MedicalPanel from './MedicalPanel'
@@ -36,7 +36,7 @@ export default function BabiesScreen({ me, onLogout }) {
   const [view, setView] = useState('list') // list | add | edit
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [notice, setNotice] = useState(null)
-  const [sheet, setSheet] = useState(null) // null | 'bottle' | 'nap' | 'diaper' | 'weight' | 'medical'
+  const [sheet, setSheet] = useState(null) // null | 'feeding' | 'nap' | 'diaper' | 'weight' | 'medical'
   const [calView, setCalView] = useState('day') // day = liste du jour ; week|month = tendances
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies'] })
@@ -160,10 +160,10 @@ export default function BabiesScreen({ me, onLogout }) {
       )}
 
       {currentBaby && (
-        <div className="quick-bar">
-          <button className="quick-btn quick-btn--milk" onClick={() => openSheet('bottle')}>
+        <div className="quick-bar" role="group" aria-label="Actions rapides">
+          <button className="quick-btn quick-btn--milk" onClick={() => openSheet('feeding')}>
             <span className="emoji" aria-hidden="true">🍼</span>
-            <span className="label">Biberon</span>
+            <span className="label">Repas</span>
           </button>
           <button className="quick-btn quick-btn--sleep" onClick={() => openSheet('nap')}>
             {currentNap && <span className="quick-badge"><span className="dot" />en cours</span>}
@@ -236,8 +236,8 @@ export default function BabiesScreen({ me, onLogout }) {
 
       {currentBaby && (
         <>
-          <BottomSheet open={sheet === 'bottle'} onClose={closeSheet} title={<><span aria-hidden="true">🍼</span> Biberon</>}>
-            <BottleFeedingPanel babyId={currentBaby.id} />
+          <BottomSheet open={sheet === 'feeding'} onClose={closeSheet} title={<><span aria-hidden="true">🍼</span> Repas</>}>
+            <FeedingPanel babyId={currentBaby.id} />
           </BottomSheet>
           <BottomSheet open={sheet === 'nap'} onClose={closeSheet} title={<><span aria-hidden="true">😴</span> Sieste</>}>
             <NapPanel babyId={currentBaby.id} />

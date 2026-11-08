@@ -14,11 +14,14 @@ import { parseQuantity, toLocalInputValue, toOccurredAtIso } from '../bottleFeed
  * `onSubmit` renvoie une promesse ; le bouton est désactivé jusqu'au *settled* de la mutation → anti
  * double-saisie (D3-G/DA-4). Échec apparent → message clair + resoumission manuelle.
  */
-export default function BottleFeedingForm({ onSubmit, initial = null }) {
+export default function BottleFeedingForm({ onSubmit, initial = null, time, onTimeChange }) {
   const isEdit = initial != null
-  const [occurredAt, setOccurredAt] = useState(() =>
+  const [ownOccurredAt, setOwnOccurredAt] = useState(() =>
     toLocalInputValue(initial?.occurredAt ? new Date(initial.occurredAt) : new Date()),
   )
+  // The meal sheet owns the time when it passes one (D18-AL); alone (edit from the recap) the form keeps its own.
+  const occurredAt = time ?? ownOccurredAt
+  const setOccurredAt = onTimeChange ?? setOwnOccurredAt
   const [quantity, setQuantity] = useState(() => (initial?.quantityMl != null ? String(initial.quantityMl) : ''))
   const [milkType, setMilkType] = useState(() => initial?.milkType ?? '')
   const [error, setError] = useState(null)
@@ -71,7 +74,7 @@ export default function BottleFeedingForm({ onSubmit, initial = null }) {
         <span className="field-label">Type de lait</span>
         <select value={milkType} onChange={(e) => setMilkType(e.target.value)} className="select">
           <option value="">—</option>
-          <option value="breast">Maternel</option>
+          <option value="breast">Lait maternel</option>
           <option value="formula">Artificiel</option>
         </select>
       </label>

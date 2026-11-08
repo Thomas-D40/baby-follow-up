@@ -1,6 +1,6 @@
 // Logique pure du suivi biberon (Épic 3), extraite pour test unitaire (cf. reconcileSelection D2).
 
-export const MILK_TYPE_LABEL = { breast: 'Maternel', formula: 'Artificiel' }
+export const MILK_TYPE_LABEL = { breast: 'Lait maternel', formula: 'Artificiel' }
 
 /**
  * Formate une Date en valeur d'input `datetime-local` (heure LOCALE, "YYYY-MM-DDThh:mm").
