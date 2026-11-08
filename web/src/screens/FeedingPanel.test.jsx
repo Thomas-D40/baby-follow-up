@@ -467,3 +467,38 @@ describe('FeedingPanel — ajouter un plat au référentiel (US18.4)', () => {
     expect(createSolidMeal.mock.calls[0][1].addToDishes).toBe(false)
   })
 })
+
+describe('FeedingPanel — accès à « Mes plats » (US18.5, D18-AI)', () => {
+  it.each(['Biberon', 'Sein'])('mode %s : pas de bouton « Gérer mes plats »', async (mode) => {
+    renderPanel()
+    await userEvent.click(tab(mode))
+
+    expect(screen.queryByRole('button', { name: 'Gérer mes plats' })).toBeNull()
+  })
+
+  it('mode Diversification : le bouton existe et ouvre la feuille « Mes plats »', async () => {
+    listManageableDishes.mockResolvedValue([{ id: 'd1', label: 'Purée de carrotes' }])
+    renderPanel()
+    await userEvent.click(tab('Diversification'))
+    expect(listManageableDishes).not.toHaveBeenCalled() // nothing is fetched before the sheet opens
+
+    await userEvent.click(screen.getByRole('button', { name: 'Gérer mes plats' }))
+
+    const sheet = await screen.findByRole('dialog')
+    expect(within(sheet).getByRole('heading', { name: 'Mes plats' })).toBeInTheDocument()
+    expect(await within(sheet).findByRole('list', { name: 'Mes plats' })).toBeInTheDocument()
+    expect(listManageableDishes).toHaveBeenCalled()
+  })
+
+  it('la feuille « Mes plats » se ferme par × et laisse le formulaire du repas', async () => {
+    renderPanel()
+    await userEvent.click(tab('Diversification'))
+    await userEvent.click(screen.getByRole('button', { name: 'Gérer mes plats' }))
+    await screen.findByRole('dialog')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Fermer' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByLabelText('Plat')).toBeInTheDocument()
+  })
+})
