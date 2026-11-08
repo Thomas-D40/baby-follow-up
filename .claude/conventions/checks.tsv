@@ -1,0 +1,12 @@
+# Règles vérifiées par diff-checks.sh sur les lignes ajoutées par la branche (fichiers committés ou indexés).
+# kind	path_regex	pattern_or_limit	severity	message
+added	\.(java|js|jsx)$	^[[:space:]]*/\*\*	blocking	Pas de javadoc/JSDoc : commentaires // en anglais
+added	\.(js|jsx)$	console\.(log|debug)	blocking	console.log oublié
+added	\.java$	System\.(out|err)\.print|printStackTrace	blocking	Sortie console oubliée
+added	(Test\.java|\.test\.jsx?)$	@Disabled|(it|test|describe)\.(skip|only)\(	blocking	Test désactivé ou isolé
+added	^web/src/screens/[^.]*\.jsx$	style=\{\{	blocking	Style inline interdit : classes de index.css
+newfile	^web/src/screens/[^.]*\.jsx$	useQuery|useMutation|useQueryClient|from .\.\./api	blocking	Vue neuve : accès aux données via un hook de web/src/services/
+added	.*	(TODO|FIXME)	signal	TODO/FIXME : à résoudre ou à justifier
+maxlines	^web/src/screens/[^.]*\.jsx$	340	blocking	Écran au-delà du plafond
+maxlines	^web/src/[^.]*\.jsx?$	300	signal	Module front au-delà du seuil indicatif
+maxlines	^api/src/main/.*\.java$	250	signal	Classe Java au-delà du seuil indicatif
