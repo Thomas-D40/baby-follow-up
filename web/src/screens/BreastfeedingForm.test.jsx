@@ -121,15 +121,18 @@ describe('BreastfeedingForm — saisie d’une tétée (US18.2)', () => {
     const onSubmit = vi.fn(() => new Promise((r) => { resolve = r }))
     render(<BreastfeedingForm onSubmit={onSubmit} />)
 
-    await userEvent.click(save())
+    // Keep the element: while busy its label turns to « … », like every other form.
+    const btn = save()
+    await userEvent.click(btn)
     expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(save()).toBeDisabled()
+    expect(btn).toBeDisabled()
 
-    await userEvent.click(save())
+    await userEvent.click(btn)
     expect(onSubmit).toHaveBeenCalledTimes(1)
 
     resolve()
-    await waitFor(() => expect(save()).not.toBeDisabled())
+    await waitFor(() => expect(btn).not.toBeDisabled())
+    expect(btn).toHaveAccessibleName('Enregistrer')
   })
 
   it('erreur serveur 400 → « Données invalides. » ; autre erreur → « Échec de l’enregistrement. »', async () => {
