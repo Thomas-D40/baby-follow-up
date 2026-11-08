@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  createInvitation, acceptInvitation, previewInvitation, listCaregivers, removeCaregiver, promoteCaregiver,
+  createInvitation, acceptInvitation, previewInvitation, listPendingInvitations, revokeInvitation,
+  listCaregivers, removeCaregiver, promoteCaregiver,
 } from './api'
 
 // On teste que chaque client tape la bonne route/méthode (calque des tests api existants).
@@ -56,6 +57,27 @@ describe('api/caregivers — routes & méthodes (Épic 8)', () => {
   it('acceptInvitation propage le status sur erreur (410/409)', async () => {
     global.fetch = mockFetch({ status: 410 })
     await expect(acceptInvitation('tok')).rejects.toMatchObject({ status: 410 })
+  })
+
+  it('listPendingInvitations → GET /api/babies/{id}/invitations', async () => {
+    global.fetch = mockFetch({ status: 200, json: [{ token: 'tok', inviteeEmail: 'a@b.fr' }] })
+    const res = await listPendingInvitations('b1')
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/babies/b1/invitations')
+    expect(global.fetch.mock.calls[0][1]?.method ?? 'GET').toBe('GET')
+    expect(res[0].token).toBe('tok')
+  })
+
+  it('revokeInvitation → DELETE /api/babies/{id}/invitations/{token} (204 → null)', async () => {
+    global.fetch = mockFetch({ status: 204 })
+    const res = await revokeInvitation('b1', 'tok')
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/babies/b1/invitations/tok')
+    expect(global.fetch.mock.calls[0][1].method).toBe('DELETE')
+    expect(res).toBe(null)
+  })
+
+  it('revokeInvitation propage le status sur erreur (404)', async () => {
+    global.fetch = mockFetch({ status: 404 })
+    await expect(revokeInvitation('b1', 'tok')).rejects.toMatchObject({ status: 404 })
   })
 
   it('listCaregivers → GET /api/babies/{id}/caregivers', async () => {

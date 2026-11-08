@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useAcceptInvitation, useCreateInvitation, useInvitationPreview } from './invitations'
+import {
+  useAcceptInvitation, useCreateInvitation, useInvitationPreview, usePendingInvitations, useRevokeInvitation,
+} from './invitations'
 
 // ⚠️ This file lives in web/src/services/: the mocked module is '../api'.
 vi.mock('../api', () => ({
   createInvitation: vi.fn(),
   previewInvitation: vi.fn(),
   acceptInvitation: vi.fn(),
+  listPendingInvitations: vi.fn(),
+  revokeInvitation: vi.fn(),
 }))
-import { acceptInvitation, createInvitation, previewInvitation } from '../api'
+import {
+  acceptInvitation, createInvitation, listPendingInvitations, previewInvitation, revokeInvitation,
+} from '../api'
 
 // The client retries by default (twice, no delay): a hook that does not opt out itself would call the
 // API three times, so "one call" below really proves the hook's own `retry: 0`.
@@ -121,5 +127,73 @@ describe('useAcceptInvitation (Épic 17, US17.2)', () => {
     await expect(act(() => result.current.mutateAsync(null))).rejects.toMatchObject({ status: 500 })
 
     expect(acceptInvitation).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('usePendingInvitations (Épic 17, US17.4)', () => {
+  const ITEMS = [{ token: 'tok', inviteeEmail: 'jeanne@exemple.fr', inviteeFirstName: 'Jeanne', expiresAt: '2026-11-11T13:05:00Z' }]
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('owner : vide pendant le chargement, puis les invitations sous la clé [babies, babyId, invitations]', async () => {
+    listPendingInvitations.mockResolvedValue(ITEMS)
+    const { qc, result } = setupHook(() => usePendingInvitations('b1', true))
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.invitations).toEqual([])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.invitations).toEqual(ITEMS)
+    expect(listPendingInvitations.mock.calls[0]).toEqual(['b1'])
+    expect(qc.getQueryData(['babies', 'b1', 'invitations'])).toEqual(ITEMS)
+  })
+
+  it('non-owner : le client n’est jamais appelé', () => {
+    const { result } = setupHook(() => usePendingInvitations('b1', false))
+
+    expect(listPendingInvitations).not.toHaveBeenCalled()
+    expect(result.current.invitations).toEqual([])
+  })
+
+  it('sans bébé : le client n’est jamais appelé', () => {
+    setupHook(() => usePendingInvitations(null, true))
+
+    expect(listPendingInvitations).not.toHaveBeenCalled()
+  })
+})
+
+describe('useRevokeInvitation (Épic 17, US17.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    revokeInvitation.mockResolvedValue(null)
+  })
+
+  it('mutateAsync(token) appelle revokeInvitation(babyId, token) puis invalide [babies, babyId]', async () => {
+    const { result, invalidate } = setupHook(() => useRevokeInvitation('b1'))
+
+    await act(() => result.current.mutateAsync('tok'))
+
+    expect(revokeInvitation.mock.calls[0]).toEqual(['b1', 'tok'])
+    expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['babies', 'b1'] })
+  })
+
+  it('404 (acceptée entre-temps) : succès idempotent, la liste est invalidée', async () => {
+    revokeInvitation.mockRejectedValue(Object.assign(new Error('-> 404'), { status: 404 }))
+    const { result, invalidate } = setupHook(() => useRevokeInvitation('b1'))
+
+    await act(() => result.current.mutateAsync('tok'))
+
+    expect(revokeInvitation).toHaveBeenCalledTimes(1)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['babies', 'b1'] })
+  })
+
+  it('500 : l’erreur remonte, un seul appel (retry: 0), aucune invalidation', async () => {
+    revokeInvitation.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
+    const { result, invalidate } = setupHook(() => useRevokeInvitation('b1'))
+
+    await expect(act(() => result.current.mutateAsync('tok'))).rejects.toMatchObject({ status: 500 })
+
+    expect(revokeInvitation).toHaveBeenCalledTimes(1)
+    expect(invalidate).not.toHaveBeenCalled()
   })
 })
