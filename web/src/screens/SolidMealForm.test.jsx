@@ -419,6 +419,23 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
     expect(onSubmit.mock.calls[0][0].addToDishes).toBe(false)
   })
 
+  it('cochée puis plat modifié vers un autre plat libre : la case réapparaît décochée (D18-Y)', async () => {
+    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    const { onSubmit } = renderForm()
+    await userEvent.type(dish(), 'Yaourt')
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
+    expect(addBox()).toBeChecked()
+
+    await userEvent.type(dish(), ' vanille')
+    await waitFor(() => expect(searchDishes.mock.calls.at(-1)[0]).toBe('Yaourt vanille'))
+
+    expect(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })).not.toBeChecked()
+    await userEvent.click(save())
+    expect(onSubmit.mock.calls[0][0]).toEqual({
+      occurredAt: expect.any(String), dish: 'Yaourt vanille', portion: null, addToDishes: false,
+    })
+  })
+
   it('après un enregistrement réussi, la case revient décochée pour le plat suivant', async () => {
     searchDishes.mockResolvedValue({ items: [], exactMatch: false })
     renderForm()
