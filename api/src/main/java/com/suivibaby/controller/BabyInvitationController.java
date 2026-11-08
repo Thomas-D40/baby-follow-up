@@ -38,6 +38,9 @@ public class BabyInvitationController {
         AppUser currentUser = currentUserResolver.require();
         CreateInvitationResponse created = invitationService.create(
                 currentUser.id, babyId, request.email(), request.firstName());
-        return Response.status(Response.Status.CREATED).entity(created).build(); // 201
+        // Sent here, after create() has returned: the transaction is committed, so a refused request never
+        // mails and a mail failure cannot undo the invitation (D17-N, D17-Y).
+        boolean mailSent = invitationService.sendInvitationMail(created.token());
+        return Response.status(Response.Status.CREATED).entity(created.withMailSent(mailSent)).build(); // 201
     }
 }

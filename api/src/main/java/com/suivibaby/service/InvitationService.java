@@ -53,6 +53,9 @@ public class InvitationService {
     AccountService accountService;
 
     @Inject
+    MailService mailService;
+
+    @Inject
     InvitationMapper invitationMapper;
 
     // Owner-only. Unknown baby or not a member -> 404 (no existence leak), member but not owner -> 403.
@@ -82,6 +85,16 @@ public class InvitationService {
         babyInvitationRepository.persist(invitation);
 
         return invitationMapper.toCreateResponse(invitation, buildLink(invitation.token), email);
+    }
+
+    // Not transactional on purpose: called once create() has committed (D17-Y). Never throws on a mail
+    // failure, the result is the mailSent flag of the response.
+    public boolean sendInvitationMail(UUID token) {
+        BabyInvitation invitation = babyInvitationRepository.findById(token);
+        AppUser invitee = appUserRepository.findById(invitation.inviteeUserId);
+        AppUser inviter = appUserRepository.findById(invitation.createdBy);
+        Baby baby = babyRepository.findById(invitation.babyId);
+        return mailService.sendInvitation(invitee.email, inviter.firstName, baby.firstName, buildLink(token));
     }
 
     // Public pre-flight: tells the screen whether a password must be defined. 410 for any dead link.

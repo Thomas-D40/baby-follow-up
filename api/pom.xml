@@ -71,6 +71,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-validator</artifactId>
         </dependency>
+        <!-- Transactional email (invitation, account activation) via an SMTP relay -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mailer</artifactId>
+        </dependency>
         <!-- Observabilité -->
         <dependency>
             <groupId>io.quarkus</groupId>

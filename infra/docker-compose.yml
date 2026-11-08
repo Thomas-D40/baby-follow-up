@@ -30,6 +30,13 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      # Transactional mail (Epic 17/20): off until the SMTP relay is provisioned
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     depends_on:
       - db
 
