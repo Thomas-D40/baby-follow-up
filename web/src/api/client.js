@@ -4,7 +4,11 @@ export const BASE = '/api'
 
 export async function apiGet(path) {
   const res = await fetch(`${BASE}${path}`, { credentials: 'include' })
-  if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(`GET ${path} -> ${res.status}`)
+    err.status = res.status
+    throw err
+  }
   return res.json()
 }
 

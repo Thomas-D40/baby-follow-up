@@ -1,16 +1,24 @@
 package com.suivibaby.service;
 
+import com.suivibaby.entity.AppUser;
+import com.suivibaby.entity.Baby;
 import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.mapper.InvitationMapper;
 import com.suivibaby.model.CreateInvitationResponse;
+import com.suivibaby.model.InvitationPreviewResponse;
+import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyInvitationRepository;
+import com.suivibaby.repository.BabyRepository;
+import com.suivibaby.security.PasswordUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -34,6 +42,12 @@ public class InvitationService {
 
     @Inject
     BabyCaregiverRepository babyCaregiverRepository;
+
+    @Inject
+    AppUserRepository appUserRepository;
+
+    @Inject
+    BabyRepository babyRepository;
 
     @Inject
     AccountService accountService;
@@ -70,26 +84,45 @@ public class InvitationService {
         return invitationMapper.toCreateResponse(invitation, buildLink(invitation.token), email);
     }
 
-    /**
-     * Accepte une invitation : lie l'utilisateur courant au bébé en NON-OWNER explicite (D8-F/R5).
-     * Refuse token inexistant/expiré/déjà utilisé → 410. Auto-invitation (déjà lié) → 409 explicite,
-     * sans consommer le token (il reste utilisable par le destinataire réel).
-     */
-    @Transactional
-    public void accept(UUID currentUserId, String rawToken) {
+    // Public pre-flight: tells the screen whether a password must be defined. 410 for any dead link.
+    public InvitationPreviewResponse preview(String rawToken) {
         BabyInvitation invitation = loadValidInvitation(rawToken);
+        AppUser invitee = appUserRepository.findById(invitation.inviteeUserId);
+        AppUser inviter = appUserRepository.findById(invitation.createdBy);
+        Baby baby = babyRepository.findById(invitation.babyId);
+        return invitationMapper.toPreviewResponse(invitation, invitee, inviter, baby);
+    }
 
-        if (babyCaregiverRepository.isLinked(currentUserId, invitation.babyId)) {
-            // Auto-invitation / membre déjà présent : pas d'effet de bord trompeur, token non consommé.
+    // Only the recipient can accept. The checks run in a fixed order and none of them consumes the
+    // token or touches the account (D17-AB): 410, rights (400/401/403), already member (409), then
+    // all the mutations in this single transaction (D17-E).
+    @Transactional
+    public void accept(UUID currentUserIdOrNull, String rawToken, String passwordOrNull) {
+        BabyInvitation invitation = loadValidInvitation(rawToken);
+        AppUser invitee = appUserRepository.findById(invitation.inviteeUserId);
+        boolean definesPassword = invitee.activatedAt == null;
+
+        if (definesPassword) {
+            requireValidPassword(passwordOrNull);
+        } else {
+            requireRecipientSession(invitee.id, currentUserIdOrNull, passwordOrNull);
+        }
+        if (babyCaregiverRepository.isLinked(invitee.id, invitation.babyId)) {
+            // Token left unconsumed: nothing misleading happens.
             throw new ClientErrorException(
                     "Vous faites déjà partie du cercle de ce bébé.", Response.Status.CONFLICT);
         }
 
-        // is_owner = false EXPLICITE : un lien fuité ne donne jamais qu'un caregiver (D8-F/R5).
-        babyCaregiverRepository.linkIdempotent(currentUserId, invitation.babyId, false);
-        invitation.usedAt = Instant.now();
-        invitation.acceptedBy = currentUserId;
-        // persisté via dirty checking (entité managée dans la transaction)
+        Instant now = Instant.now();
+        if (definesPassword) {
+            invitee.passwordHash = PasswordUtil.hash(passwordOrNull);
+            invitee.activatedAt = now;
+        }
+        // Explicit is_owner = false: a leaked link only ever grants a caregiver (D8-F/R5).
+        babyCaregiverRepository.linkIdempotent(invitee.id, invitation.babyId, false);
+        invitation.usedAt = now;
+        invitation.acceptedBy = invitee.id;
+        // persisted via dirty checking (entities managed within the transaction)
     }
 
     /**
@@ -108,6 +141,27 @@ public class InvitationService {
         }
         if (!babyCaregiverRepository.isOwner(currentUserId, babyId)) {
             throw new ForbiddenException("Seul un owner peut partager ce bébé."); // 403: role
+        }
+    }
+
+    // Pending account: the invitation carries the password definition, like ActivationService.activate.
+    private void requireValidPassword(String password) {
+        if (!PasswordUtil.meetsPolicy(password)) {
+            throw new BadRequestException("Le mot de passe doit comporter au moins "
+                    + PasswordUtil.MIN_LENGTH + " caractères.");
+        }
+    }
+
+    // Activated account: only its own session may accept, and it never resets its password here.
+    private void requireRecipientSession(UUID inviteeId, UUID currentUserIdOrNull, String passwordOrNull) {
+        if (currentUserIdOrNull == null) {
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        }
+        if (!currentUserIdOrNull.equals(inviteeId)) {
+            throw new ForbiddenException("Cette invitation est adressée à quelqu'un d'autre.");
+        }
+        if (passwordOrNull != null) {
+            throw new BadRequestException("Ce compte est déjà activé : aucun mot de passe à définir.");
         }
     }
 

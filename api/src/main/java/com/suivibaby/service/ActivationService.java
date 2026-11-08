@@ -78,6 +78,12 @@ public class ActivationService {
         if (token == null || token.isConsumed() || token.isExpired(Instant.now())) {
             throw gone();
         }
+        // An activation link only activates a pending account: once the owner's invitation has set the
+        // password, a link issued earlier must not be able to overwrite it (D20-AA).
+        AppUser user = appUserRepository.findById(token.appUserId);
+        if (user != null && user.activatedAt != null) {
+            throw gone();
+        }
         return token;
     }
 
