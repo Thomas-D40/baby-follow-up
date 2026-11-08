@@ -4,6 +4,7 @@
 
 import { MILK_TYPE_LABEL } from './bottleFeeding'
 import { describeBreastfeeding } from './breastfeeding'
+import { describeSolidMeal } from './solidMeal'
 import { formatCelsius } from './temperature'
 
 const PARIS = 'Europe/Paris'
@@ -13,6 +14,7 @@ const LONG_NAP_MINUTES = 10 * 60 // signalement « sieste longue » (D6-G), pur 
 export const EVENT_TYPE_LABEL = {
   bottle_feeding: 'Biberon',
   breastfeeding: 'Tétée',
+  solid_meal: 'Diversification',
   nap: 'Sieste',
   stool: 'Selle',
   urine: 'Urine',
@@ -97,6 +99,9 @@ export function describeEvent(event, now = new Date()) {
   }
   if (event.type === 'breastfeeding') {
     return describeBreastfeeding(event)
+  }
+  if (event.type === 'solid_meal') {
+    return describeSolidMeal(event)
   }
   if (event.type === 'eye_care') {
     return 'Soin des yeux'

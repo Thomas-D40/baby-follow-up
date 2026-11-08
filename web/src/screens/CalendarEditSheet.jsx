@@ -4,6 +4,7 @@ import BottomSheet from './BottomSheet'
 import BottleFeedingForm from './BottleFeedingForm'
 import BreastfeedingForm from './BreastfeedingForm'
 import MedicalCareForm from './MedicalCareForm'
+import SolidMealForm from './SolidMealForm'
 import StoolForm from './StoolForm'
 import TemperatureForm from './TemperatureForm'
 import UrineForm from './UrineForm'
@@ -29,6 +30,12 @@ export default function CalendarEditSheet({ babyId, editing, onClose }) {
       )}
       {editing?.type === 'breastfeeding' && (
         <BreastfeedingForm
+          initial={{ ...editing, occurredAt: editing.startAt }}
+          onSubmit={submit}
+        />
+      )}
+      {editing?.type === 'solid_meal' && (
+        <SolidMealForm
           initial={{ ...editing, occurredAt: editing.startAt }}
           onSubmit={submit}
         />

@@ -197,11 +197,11 @@ export default function CalendarPanel({ babyId }) {
 }
 
 const TAG_CLASS = {
-  bottle_feeding: 'milk', breastfeeding: 'breast', nap: 'sleep', stool: 'stool', urine: 'urine',
+  bottle_feeding: 'milk', breastfeeding: 'breast', solid_meal: 'meal', nap: 'sleep', stool: 'stool', urine: 'urine',
   temperature: 'temperature', eye_care: 'eye-care', nose_care: 'nose-care',
 }
 const EVENT_EMOJI = {
-  bottle_feeding: '🍼', breastfeeding: '🤱', nap: '😴', stool: '💩', urine: '💧',
+  bottle_feeding: '🍼', breastfeeding: '🤱', solid_meal: '🥄', nap: '😴', stool: '💩', urine: '💧',
   temperature: '🌡', eye_care: '👁', nose_care: '👃',
 }
 
@@ -215,6 +215,7 @@ const EVENT_EMOJI = {
 const CHIP_VALUE = {
   bottle_feeding: (t) => (t.totalMilkMl != null ? { strong: t.totalMilkMl, suffix: ' ml' } : null),
   breastfeeding: (t) => (t.breastfeedingCount != null ? { strong: t.breastfeedingCount, suffix: ` tétée${t.breastfeedingCount > 1 ? 's' : ''}` } : null),
+  solid_meal: (t) => (t.solidMealCount != null ? { strong: t.solidMealCount, suffix: ' repas' } : null),
   nap: (t) => (t.totalSleepMinutes != null ? { strong: formatSleepTotal(t.totalSleepMinutes), suffix: '' } : null),
   stool: (t) => (t.stoolCount != null ? { strong: t.stoolCount, suffix: ` selle${t.stoolCount > 1 ? 's' : ''}` } : null),
   urine: (t) => (t.urineCount != null ? { strong: t.urineCount, suffix: ` urine${t.urineCount > 1 ? 's' : ''}` } : null),
@@ -226,7 +227,7 @@ const CHIP_VALUE = {
 // US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.
 // Un toggle par type de soin (D15-I) : c'est la condition de viabilité du modèle — une journée à
 // ~8 lavages de nez noierait la frise sans un filtre qui masque VRAIMENT ce type-là.
-const FILTER_ORDER = ['bottle_feeding', 'breastfeeding', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
+const FILTER_ORDER = ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
 const DAY_FILTER_KEY = 'calendar.dayFilter'
 
 // État initial du filtre depuis sessionStorage. Rien de stocké → [] (tout affiché, défaut de lecture).

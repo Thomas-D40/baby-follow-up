@@ -47,6 +47,9 @@ public class CalendarService {
     BreastfeedingService breastfeedingService;
 
     @Inject
+    SolidMealService solidMealService;
+
+    @Inject
     MedicalCareService medicalCareService;
 
     @Inject
@@ -60,6 +63,7 @@ public class CalendarService {
         List<CalendarEventResponse> events = new ArrayList<>();
         bottleFeedingService.listForDay(userId, babyId, from, to).forEach(b -> events.add(calendarMapper.fromBottle(b)));
         breastfeedingService.listForDay(userId, babyId, from, to).forEach(b -> events.add(calendarMapper.fromBreastfeeding(b)));
+        solidMealService.listForDay(userId, babyId, from, to).forEach(m -> events.add(calendarMapper.fromSolidMeal(m)));
         napService.listForDay(userId, babyId, from, to).forEach(n -> events.add(calendarMapper.fromNap(n)));
         stoolService.listForDay(userId, babyId, from, to).forEach(s -> events.add(calendarMapper.fromStool(s)));
         urineService.listForDay(userId, babyId, from, to).forEach(u -> events.add(calendarMapper.fromUrine(u)));
@@ -89,8 +93,9 @@ public class CalendarService {
         long eyeCareCount = medicalCareService.countForDay(userId, babyId, CareType.eye, from, to);
         long noseCareCount = medicalCareService.countForDay(userId, babyId, CareType.nose, from, to);
         long breastfeedingCount = breastfeedingService.countForDay(userId, babyId, from, to);
+        long solidMealCount = solidMealService.countForDay(userId, babyId, from, to);
         return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount,
-                maxTemperatureCelsiusX10, eyeCareCount, noseCareCount, breastfeedingCount);
+                maxTemperatureCelsiusX10, eyeCareCount, noseCareCount, breastfeedingCount, solidMealCount);
     }
 
     /** Plafond de buckets retournés : garde-fou contre une plage arbitrairement large. */

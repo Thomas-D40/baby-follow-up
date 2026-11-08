@@ -4,10 +4,12 @@ import { FEEDING_MODES, FEEDING_MODE_LABEL, loadFeedingMode } from '../feedingMo
 import {
   useCreateBottleFeeding,
   useCreateBreastfeeding,
+  useCreateSolidMeal,
   useLastBreastfeedingReminder,
 } from '../services/feeding'
 import BottleFeedingForm from './BottleFeedingForm'
 import BreastfeedingForm from './BreastfeedingForm'
+import SolidMealForm from './SolidMealForm'
 
 // Mounted in the breast branch only, so no request leaves in the other modes.
 function BreastfeedingReminder({ babyId }) {
@@ -22,6 +24,7 @@ export default function FeedingPanel({ babyId }) {
   const [notice, setNotice] = useState(null)
   const createBottle = useCreateBottleFeeding(babyId)
   const createBreast = useCreateBreastfeeding(babyId)
+  const createSolid = useCreateSolidMeal(babyId)
 
   const selectMode = (next) => {
     setMode(next)
@@ -69,7 +72,14 @@ export default function FeedingPanel({ babyId }) {
           />
         </>
       )}
-      {mode === 'solid' && <p className="empty">Bientôt disponible.</p>}
+      {mode === 'solid' && (
+        <SolidMealForm
+          key="solid"
+          time={time}
+          onTimeChange={setTime}
+          onSubmit={(body) => save(createSolid, body, 'Repas enregistré.')}
+        />
+      )}
 
       {notice && <p role="status" className="notice notice--success">{notice}</p>}
     </>

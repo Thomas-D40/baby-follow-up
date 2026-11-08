@@ -4,19 +4,21 @@ import {
   deleteBreastfeeding,
   deleteMedicalCare,
   deleteNap,
+  deleteSolidMeal,
   deleteStool,
   deleteTemperature,
   deleteUrine,
 } from './api'
 
-// Routage type d'événement → client de suppression (Épic 7, D7-B). Les 7 clients partagent le contrat
+// Routage type d'événement → client de suppression (Épic 7, D7-B). Les 8 clients partagent le contrat
 // `delete(babyId, id)`. Le calendrier mêle les types sur une même liste, d'où le routage par appel
 // plutôt que par construction du hook.
-// 8 types de présentation pour 7 clients : `eye_care` et `nose_care` sont deux types de calendrier
+// 9 types de présentation pour 8 clients : `eye_care` et `nose_care` sont deux types de calendrier
 // (K1) d'une SEULE ressource `medical_care`, donc un seul `deleteMedicalCare`.
 const DELETE_CLIENT = {
   bottle_feeding: deleteBottleFeeding,
   breastfeeding: deleteBreastfeeding,
+  solid_meal: deleteSolidMeal,
   nap: deleteNap,
   stool: deleteStool,
   urine: deleteUrine,
