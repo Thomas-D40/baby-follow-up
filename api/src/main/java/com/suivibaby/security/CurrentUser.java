@@ -8,6 +8,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 
+import java.util.Optional;
+
 @RequestScoped
 public class CurrentUser {
 
@@ -17,14 +19,15 @@ public class CurrentUser {
     @Inject
     AppUserRepository appUserRepository;
 
-    public AppUser require() {
+    // Empty for an anonymous request or an unknown principal; for the routes that tolerate no session.
+    public Optional<AppUser> find() {
         if (identity == null || identity.isAnonymous()) {
-            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+            return Optional.empty();
         }
-        AppUser user = appUserRepository.findByEmail(identity.getPrincipal().getName());
-        if (user == null) {
-            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        }
-        return user;
+        return Optional.ofNullable(appUserRepository.findByEmail(identity.getPrincipal().getName()));
+    }
+
+    public AppUser require() {
+        return find().orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 }

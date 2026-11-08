@@ -9,10 +9,18 @@ export function createInvitation(babyId, body) {
   return apiSend(`/babies/${babyId}/invitations`, 'POST', body)
 }
 
-// Accepter une invitation (authentifié, D8-D). Lie l'utilisateur courant en non-owner (D8-F).
-// → 204. 410 token invalide/expiré/déjà utilisé ; 409 déjà membre (auto-invitation, token non consommé).
-export function acceptInvitation(token) {
-  return apiSend(`/invitations/${token}/accept`, 'POST')
+// Accept an invitation (public route, the service decides who may). Links the recipient as non-owner.
+// The body is always { password } (null when the recipient already has an activated account).
+// → 204. 410 dead link; 400 missing/short password (pending account) or password sent to an activated one;
+// 401 activated account without session; 403 another session; 409 already a member (token not consumed).
+export function acceptInvitation(token, password = null) {
+  return apiSend(`/invitations/${token}/accept`, 'POST', { password })
+}
+
+// Public pre-flight of an invitation → 200 { needsPassword, inviteeEmail, inviterFirstName,
+// babyFirstName, expiresAt }. 410 when the link is dead.
+export function previewInvitation(token) {
+  return apiGet(`/invitations/${token}`)
 }
 
 // Lister le cercle de CE bébé (caregiver lié, D8-N) → [{ userId, firstName, email, isOwner }].
