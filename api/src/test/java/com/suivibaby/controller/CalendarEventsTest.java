@@ -572,6 +572,71 @@ class CalendarEventsTest {
     }
 
     @Nested
+    @DisplayName("Prises de médicament (US19.1)")
+    class Medications {
+
+        @Test
+        @DisplayName("Scénario : Doliprane 08:10 et Ventoline 14:00 → type medication, ordre 14:00 puis 08:10, posologie, tous les autres détails à null")
+        void prises_dans_la_frise() {
+            Caregiver c = linkedCaregiver("med-recap");
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 10), "Doliprane", "1 dose 6 kg");
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 14, 0), "Ventoline", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("", hasSize(2))
+                    .body("type", contains("medication", "medication"))
+                    .body("[0].startAt", is(paris(2026, 7, 15, 14, 0).toString()))
+                    .body("[0].endAt", nullValue())
+                    .body("[0].medicationName", is("Ventoline"))
+                    .body("[0].dosage", nullValue())
+                    .body("[1].startAt", is(paris(2026, 7, 15, 8, 10).toString()))
+                    .body("[1].endAt", nullValue())
+                    .body("[1].medicationName", is("Doliprane"))
+                    .body("[1].dosage", is("1 dose 6 kg"))
+                    .body("[0].quantityMl", nullValue())
+                    .body("[0].milkType", nullValue())
+                    .body("[0].consistency", nullValue())
+                    .body("[0].temperatureCelsiusX10", nullValue())
+                    .body("[0].side", nullValue())
+                    .body("[0].durationMinutes", nullValue())
+                    .body("[0].dish", nullValue())
+                    .body("[0].portion", nullValue())
+                    .body("[1].quantityMl", nullValue())
+                    .body("[1].temperatureCelsiusX10", nullValue())
+                    .body("[1].durationMinutes", nullValue())
+                    .body("[1].dish", nullValue())
+                    .body("[1].portion", nullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : la prise s'insère au bon rang DESC et les autres types gardent medicationName et dosage à null")
+        void prise_dans_liste_mixte() {
+            Caregiver c = linkedCaregiver("med-mixed");
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), "Purée", MealPortion.all);
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), "Smecta", "1 sachet");
+            data.createTemperature(c.babyId(), c.userId(), paris(2026, 7, 15, 11, 0), 384);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/events", c.babyId())
+                    .then().statusCode(200)
+                    .body("type", contains("temperature", "medication", "solid_meal"))
+                    .body("[0].medicationName", nullValue())
+                    .body("[0].dosage", nullValue())
+                    .body("[0].temperatureCelsiusX10", is(384))
+                    .body("[1].medicationName", is("Smecta"))
+                    .body("[1].dosage", is("1 sachet"))
+                    .body("[1].dish", nullValue())
+                    .body("[2].medicationName", nullValue())
+                    .body("[2].dosage", nullValue())
+                    .body("[2].dish", is("Purée"));
+        }
+    }
+
+    @Nested
     @DisplayName("Isolation (US1.5 / D6-E)")
     class Isolation {
 

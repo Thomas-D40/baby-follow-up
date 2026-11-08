@@ -9,6 +9,7 @@ import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Dish;
 import com.suivibaby.entity.Breastfeeding;
 import com.suivibaby.entity.MedicalCare;
+import com.suivibaby.entity.Medication;
 import com.suivibaby.entity.Nap;
 import com.suivibaby.entity.SolidMeal;
 import com.suivibaby.entity.Stool;
@@ -31,6 +32,7 @@ import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.BreastfeedingRepository;
 import com.suivibaby.repository.DishRepository;
 import com.suivibaby.repository.MedicalCareRepository;
+import com.suivibaby.repository.MedicationRepository;
 import com.suivibaby.repository.NapRepository;
 import com.suivibaby.repository.SolidMealRepository;
 import com.suivibaby.repository.StoolRepository;
@@ -102,6 +104,9 @@ public class TestDataFactory {
 
     @Inject
     DishRepository dishRepository;
+
+    @Inject
+    MedicationRepository medicationRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -371,6 +376,41 @@ public class TestDataFactory {
     public String solidMealDish(UUID mealId) {
         SolidMeal meal = solidMealRepository.findById(mealId);
         return meal == null ? null : meal.dish;
+    }
+
+    // Direct seed of a medication intake (Épic 19) — name and dosage are stored as given (free text).
+    @Transactional
+    public UUID createMedication(UUID babyId, UUID authorId, Instant occurredAt, String medicationName,
+                                 String dosage) {
+        Medication event = new Medication();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.medicationName = medicationName;
+        event.dosage = dosage;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        medicationRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countMedication(UUID babyId) {
+        return medicationRepository.count("babyId", babyId);
+    }
+
+    // Stored name of an intake, to check what the service actually persisted (null once deleted).
+    @Transactional
+    public String medicationName(UUID id) {
+        Medication event = medicationRepository.findById(id);
+        return event == null ? null : event.medicationName;
+    }
+
+    // Stored dosage of an intake (null when no dosage, or when the intake is gone).
+    @Transactional
+    public String medicationDosage(UUID id) {
+        Medication event = medicationRepository.findById(id);
+        return event == null ? null : event.dosage;
     }
 
     // Direct seed of a shared dish (Épic 18). The label is stored as given; the normalized form

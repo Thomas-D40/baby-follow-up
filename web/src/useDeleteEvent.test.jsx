@@ -13,10 +13,12 @@ vi.mock('./api', () => ({
   deleteMedicalCare: vi.fn(),
   deleteBreastfeeding: vi.fn(),
   deleteSolidMeal: vi.fn(),
+  deleteMedication: vi.fn(),
 }))
 import {
   deleteBottleFeeding,
   deleteBreastfeeding,
+  deleteMedication,
   deleteNap,
   deleteSolidMeal,
   deleteStool,
@@ -76,6 +78,16 @@ describe('useDeleteEvent (Épic 7, D7-B/D7-C)', () => {
 
     expect(deleteBreastfeeding.mock.calls[0]).toEqual(['b1', 'br1'])
     expect(deleteSolidMeal.mock.calls[0]).toEqual(['b1', 'sm1'])
+  })
+
+  it('la prise de médicament route vers deleteMedication avec (babyId, id) (Épic 19)', async () => {
+    deleteMedication.mockResolvedValue(null)
+    const { result } = setup()
+
+    await act(() => result.current.mutateAsync({ type: 'medication', id: 'm1' }))
+
+    expect(deleteMedication).toHaveBeenCalledTimes(1)
+    expect(deleteMedication.mock.calls[0]).toEqual(['b1', 'm1'])
   })
 
   it('invalide PAR PRÉFIXE [babies, babyId] au succès (cohérence inter-vues, D7-C/R1)', async () => {

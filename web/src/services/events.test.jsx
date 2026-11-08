@@ -14,11 +14,13 @@ vi.mock('../api', () => ({
   updateMedicalCare: vi.fn(),
   updateBreastfeeding: vi.fn(),
   updateSolidMeal: vi.fn(),
+  updateMedication: vi.fn(),
 }))
 import {
   updateBottleFeeding,
   updateBreastfeeding,
   updateMedicalCare,
+  updateMedication,
   updateNap,
   updateSolidMeal,
   updateStool,
@@ -40,7 +42,7 @@ describe('useUpdateEvent — routage d’édition par type (Épic 18, D18-AO)', 
   beforeEach(() => {
     vi.clearAllMocks()
     ;[updateBottleFeeding, updateNap, updateStool, updateUrine, updateTemperature, updateMedicalCare,
-      updateBreastfeeding, updateSolidMeal].forEach((client) => client.mockResolvedValue({}))
+      updateBreastfeeding, updateSolidMeal, updateMedication].forEach((client) => client.mockResolvedValue({}))
   })
 
   it.each([
@@ -51,6 +53,7 @@ describe('useUpdateEvent — routage d’édition par type (Épic 18, D18-AO)', 
     ['temperature', () => updateTemperature],
     ['breastfeeding', () => updateBreastfeeding],
     ['solid_meal', () => updateSolidMeal],
+    ['medication', () => updateMedication],
   ])('« %s » est routé vers son client avec (babyId, id, patch)', async (type, client) => {
     const { result } = setup()
 
