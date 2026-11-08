@@ -49,7 +49,7 @@ describe('BreastfeedingForm — saisie d’une tétée (US18.2)', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<BreastfeedingForm onSubmit={onSubmit} />)
 
-    expect(screen.getByLabelText('Quand')).toHaveValue(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/))
+    expect(screen.getByLabelText('Quand').value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
     await userEvent.click(save())
 
     expect(new Date(onSubmit.mock.calls[0][0].occurredAt).toISOString()).toBe(onSubmit.mock.calls[0][0].occurredAt)
