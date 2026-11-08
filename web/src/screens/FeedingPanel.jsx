@@ -8,7 +8,9 @@ import {
   useLastBreastfeedingReminder,
 } from '../services/feeding'
 import BottleFeedingForm from './BottleFeedingForm'
+import BottomSheet from './BottomSheet'
 import BreastfeedingForm from './BreastfeedingForm'
+import DishesPanel from './DishesPanel'
 import SolidMealForm from './SolidMealForm'
 
 // Mounted in the breast branch only, so no request leaves in the other modes.
@@ -22,6 +24,7 @@ export default function FeedingPanel({ babyId }) {
   // The time belongs to the sheet, not to a mode form: switching mode keeps it (D18-AL).
   const [time, setTime] = useState(() => toLocalInputValue(new Date()))
   const [notice, setNotice] = useState(null)
+  const [showDishes, setShowDishes] = useState(false) // nested "My dishes" sheet
   const createBottle = useCreateBottleFeeding(babyId)
   const createBreast = useCreateBreastfeeding(babyId)
   const createSolid = useCreateSolidMeal(babyId)
@@ -73,12 +76,24 @@ export default function FeedingPanel({ babyId }) {
         </>
       )}
       {mode === 'solid' && (
-        <SolidMealForm
-          key="solid"
-          time={time}
-          onTimeChange={setTime}
-          onSubmit={(body) => save(createSolid, body, 'Repas enregistré.')}
-        />
+        <>
+          <SolidMealForm
+            key="solid"
+            time={time}
+            onTimeChange={setTime}
+            onSubmit={(body) => save(createSolid, body, 'Repas enregistré.')}
+          />
+          <button type="button" className="linkbtn linkbtn--center" onClick={() => setShowDishes(true)}>
+            Gérer mes plats
+          </button>
+          <BottomSheet
+            open={showDishes}
+            onClose={() => setShowDishes(false)}
+            title={<><span aria-hidden="true">🥄</span> Mes plats</>}
+          >
+            <DishesPanel />
+          </BottomSheet>
+        </>
       )}
 
       {notice && <p role="status" className="notice notice--success">{notice}</p>}
