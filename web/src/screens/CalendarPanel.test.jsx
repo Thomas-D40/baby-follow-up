@@ -1043,3 +1043,138 @@ describe('CalendarPanel — tétées au récap (Épic 18, US18.2)', () => {
     expect(deleteBreastfeeding.mock.calls[0]).toEqual(['b1', 'br1'])
   })
 })
+
+describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3)', () => {
+  const VITAMINS = { date: '2026-06-21', items: [
+    { vitaminType: 'd', given: false, authorId: null },
+    { vitaminType: 'k', given: false, authorId: null },
+  ] }
+  const totalsWith = (solidMealCount) => ({
+    date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
+    maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
+    breastfeedingCount: 0, solidMealCount,
+  })
+  // 11:00Z / 08:00Z on a March day = 12:00 / 09:00 in Paris (CET).
+  const MEAL_PORTION = { type: 'solid_meal', id: 'sm1', startAt: '2020-03-15T11:00:00.000Z', endAt: null, dish: 'Purée de carrotes', portion: 'all' }
+  const MEAL_BARE = { type: 'solid_meal', id: 'sm2', startAt: '2020-03-15T08:00:00.000Z', endAt: null, dish: 'Compote', portion: null }
+  const rowOf = (name) => screen.getByRole('button', { name }).closest('li')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+    getVitamins.mockResolvedValue(VITAMINS)
+    getDayEvents.mockResolvedValue([])
+    getDailyTotals.mockResolvedValue(totalsWith(0))
+    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+  })
+
+  it('pastille Diversification : « Diversification · 2 repas » ; sans repas « · 0 repas » (singulier)', async () => {
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    const { unmount } = renderPanel()
+    await waitFor(() => expect(chip('solid_meal')).toHaveAttribute('aria-label', 'Diversification · 2 repas'))
+    unmount()
+
+    getDailyTotals.mockResolvedValue(totalsWith(0))
+    renderPanel()
+    await waitFor(() => expect(chip('solid_meal')).toHaveAttribute('aria-label', 'Diversification · 0 repas'))
+  })
+
+  it('lignes du récap : tag 🥄 Diversification et détail « Compote », « Purée de carrotes · Tout »', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION, MEAL_BARE])
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    renderPanel()
+
+    const withPortion = rowOf(await screen.findByRole('button', { name: 'Supprimer diversification de 12:00' }))
+    expect(withPortion).toHaveTextContent('🥄')
+    expect(withPortion).toHaveTextContent('Diversification')
+    expect(withPortion).toHaveTextContent('Purée de carrotes · Tout')
+    expect(rowOf('Supprimer diversification de 09:00')).toHaveTextContent('Compote')
+    expect(rowOf('Supprimer diversification de 09:00')).not.toHaveTextContent('·')
+  })
+
+  it('filtrer : la pastille Diversification masque ses lignes et garde son nom « Diversification · 2 repas »', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION, MEAL_BARE])
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    renderPanel()
+    await screen.findAllByRole('button', { name: /Supprimer diversification/ })
+    await waitFor(() => expect(chip('solid_meal')).toHaveAttribute('aria-label', 'Diversification · 2 repas'))
+
+    await userEvent.click(chip('solid_meal'))
+
+    expect(screen.queryByRole('button', { name: /Supprimer diversification/ })).not.toBeInTheDocument()
+    expect(chip('solid_meal')).toHaveAttribute('aria-pressed', 'false')
+    expect(chip('solid_meal')).toHaveAttribute('aria-label', 'Diversification · 2 repas')
+  })
+
+  it('modifier : formulaire prérempli (plat, portion enfoncée, heure de l’événement), sans mode, côté, rappel ni case', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION])
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier diversification de 12:00' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier diversification')
+    expect(within(dialog).getByLabelText('Plat')).toHaveValue('Purée de carrotes')
+    expect(within(within(dialog).getByRole('group', { name: 'Portion' })).getByRole('button', { name: 'Tout' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    const when = within(dialog).getByLabelText('Quand')
+    expect(when).toHaveValue(toLocalInputValue(new Date(MEAL_PORTION.startAt)))
+    expect(when.value).not.toBe(toLocalInputValue(new Date()))
+    expect(within(dialog).queryByRole('tablist')).toBeNull()
+    expect(within(dialog).queryByLabelText('Quantité (ml)')).toBeNull()
+    expect(within(dialog).queryByRole('group', { name: 'Côté' })).toBeNull()
+    expect(within(dialog).queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Gérer mes plats' })).toBeNull()
+  })
+
+  it('soumission : plat corrigé et portion relâchée → updateSolidMeal(b1, id, { occurredAt, dish, portion: null })', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION])
+    updateSolidMeal.mockResolvedValue({})
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier diversification de 12:00' }))
+    const dialog = screen.getByRole('dialog')
+    const field = within(dialog).getByLabelText('Plat')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Purée de carottes')
+    await userEvent.click(within(within(dialog).getByRole('group', { name: 'Portion' })).getByRole('button', { name: 'Tout' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateSolidMeal).toHaveBeenCalledTimes(1))
+    expect(updateSolidMeal.mock.calls[0]).toEqual(
+      ['b1', 'sm1', { occurredAt: expect.any(String), dish: 'Purée de carottes', portion: null }],
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
+  })
+
+  it('supprimer : modale de confirmation puis deleteSolidMeal(b1, id)', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION])
+    deleteSolidMeal.mockResolvedValue(null)
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Supprimer diversification de 12:00' }))
+    expect(deleteSolidMeal).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Oui, supprimer' }))
+
+    await waitFor(() => expect(deleteSolidMeal).toHaveBeenCalledTimes(1))
+    expect(deleteSolidMeal.mock.calls[0]).toEqual(['b1', 'sm1'])
+  })
+
+  it('modifier un repas ne propose pas d’ajouter le plat à « Mes plats » (US18.4, D18-AR)', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION])
+    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier diversification de 12:00' }))
+    const dialog = screen.getByRole('dialog')
+    const field = within(dialog).getByLabelText('Plat')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Yaourt à la vanille')
+    // Wait for the search of the NEW text to come back: the box would show up now if it ever did.
+    await waitFor(() => expect(searchDishes).toHaveBeenCalledWith('Yaourt à la vanille'))
+
+    expect(within(dialog).queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
+  })
+})

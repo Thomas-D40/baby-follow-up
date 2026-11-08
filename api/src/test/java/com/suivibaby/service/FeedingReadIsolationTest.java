@@ -1,6 +1,7 @@
 package com.suivibaby.service;
 
 import com.suivibaby.model.BreastSide;
+import com.suivibaby.model.MealPortion;
 import com.suivibaby.test.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -44,6 +45,9 @@ class FeedingReadIsolationTest {
     @Inject
     BreastfeedingService breastfeedingService;
 
+    @Inject
+    SolidMealService solidMealService;
+
     private record Fixture(UUID owner, UUID intruder, UUID babyId) {
     }
 
@@ -56,6 +60,39 @@ class FeedingReadIsolationTest {
                 ZonedDateTime.of(2026, 7, 15, 9, 0, 0, 0, PARIS).toInstant(), BreastSide.left, 12);
         UUID intruder = data.createActiveParent(data.uniqueEmail(prefix + "-intruder"), PWD);
         return new Fixture(owner, intruder, babyId);
+    }
+
+    // One solid meal on 2026-07-15 on a baby the intruder is NOT linked to.
+    private Fixture seedSolidMeal(String prefix) {
+        UUID owner = data.createActiveParent(data.uniqueEmail(prefix + "-owner"), PWD);
+        UUID babyId = data.createBaby("Bébé-" + prefix);
+        data.link(owner, babyId);
+        data.createSolidMeal(babyId, owner,
+                ZonedDateTime.of(2026, 7, 15, 12, 0, 0, 0, PARIS).toInstant(), "Purée", MealPortion.all);
+        UUID intruder = data.createActiveParent(data.uniqueEmail(prefix + "-intruder"), PWD);
+        return new Fixture(owner, intruder, babyId);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("Scénario : SolidMealService.listForDay sur un bébé non lié → 404 (et OK pour le lié)")
+    void repas_list_for_day_bebe_non_lie() {
+        Fixture f = seedSolidMeal("meal-list");
+
+        assertThrows(NotFoundException.class,
+                () -> solidMealService.listForDay(f.intruder(), f.babyId(), FROM, TO));
+        assertEquals(1, solidMealService.listForDay(f.owner(), f.babyId(), FROM, TO).size());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("Scénario : SolidMealService.countForDay sur un bébé non lié → 404 (et OK pour le lié)")
+    void repas_count_for_day_bebe_non_lie() {
+        Fixture f = seedSolidMeal("meal-count");
+
+        assertThrows(NotFoundException.class,
+                () -> solidMealService.countForDay(f.intruder(), f.babyId(), FROM, TO));
+        assertEquals(1, solidMealService.countForDay(f.owner(), f.babyId(), FROM, TO));
     }
 
     @Test

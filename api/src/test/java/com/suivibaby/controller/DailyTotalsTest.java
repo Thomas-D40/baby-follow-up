@@ -2,6 +2,7 @@ package com.suivibaby.controller;
 
 import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
+import com.suivibaby.model.MealPortion;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.test.AuthFixture;
@@ -423,6 +424,83 @@ class DailyTotalsTest {
                     .then().statusCode(200)
                     .body("totalMilkMl", is(120))
                     .body("breastfeedingCount", is(1));
+        }
+    }
+
+    @Nested
+    @DisplayName("Repas de diversification (US18.3)")
+    class SolidMeals {
+
+        @Test
+        @DisplayName("Scénario : deux repas du jour → solidMealCount = 2")
+        void comptage_des_repas() {
+            Caregiver c = linkedCaregiver("meal-count");
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Compote", null);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 19, 0), "Purée de carottes", MealPortion.half);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("solidMealCount", is(2));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans repas → solidMealCount = 0, et non null")
+        void aucun_repas_zero_pas_null() {
+            Caregiver c = linkedCaregiver("meal-none");
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("solidMealCount", is(0))
+                    .body("solidMealCount", notNullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — un repas hors du jour n'est pas compté")
+        void repas_hors_jour_non_compte() {
+            Caregiver c = linkedCaregiver("meal-bornes");
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 0, 0), "Compote", null);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 16, 0, 0), "Compote", null);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 14, 23, 30), "Compote", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("solidMealCount", is(1));
+        }
+
+        @Test
+        @DisplayName("Scénario : un repas n'ajoute aucun millilitre — totalMilkMl = somme des seuls biberons")
+        void pas_d_effet_sur_le_lait() {
+            Caregiver c = linkedCaregiver("meal-milk");
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 120, MilkType.formula);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Purée", MealPortion.all);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("totalMilkMl", is(120))
+                    .body("solidMealCount", is(1));
+        }
+
+        @Test
+        @DisplayName("Scénario : tétées et repas sont comptés indépendamment")
+        void independance_des_compteurs() {
+            Caregiver c = linkedCaregiver("meal-indep");
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), null, null);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Compote", null);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 19, 0), "Compote", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("breastfeedingCount", is(1))
+                    .body("solidMealCount", is(2));
         }
     }
 

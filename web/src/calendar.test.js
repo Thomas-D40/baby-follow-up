@@ -57,6 +57,12 @@ describe('describeEvent — détail par type (US6.1)', () => {
     expect(describeEvent({ type: 'breastfeeding', side: null, durationMinutes: null })).toBe('—')
   })
 
+  it('repas : plat seul, ou plat · portion (Épic 18)', () => {
+    expect(describeEvent({ type: 'solid_meal', dish: 'Compote', portion: null })).toBe('Compote')
+    expect(describeEvent({ type: 'solid_meal', dish: 'Purée de carottes', portion: 'half' }))
+      .toBe('Purée de carottes · La moitié')
+  })
+
   it('biberon : la valeur breast se lit « Lait maternel », jamais confondue avec la tétée', () => {
     expect(describeEvent({ type: 'bottle_feeding', quantityMl: 80, milkType: 'breast' })).toBe('80 ml · Lait maternel')
   })
@@ -130,6 +136,7 @@ describe('EVENT_TYPE_LABEL', () => {
     expect(EVENT_TYPE_LABEL).toEqual({
       bottle_feeding: 'Biberon',
       breastfeeding: 'Tétée',
+      solid_meal: 'Diversification',
       nap: 'Sieste',
       stool: 'Selle',
       urine: 'Urine',

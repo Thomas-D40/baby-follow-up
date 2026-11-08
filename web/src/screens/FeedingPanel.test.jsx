@@ -352,3 +352,78 @@ describe('FeedingPanel — rappel de la dernière tétée (US18.2, D18-W/D18-AM)
     expect(listBreastfeedings).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('FeedingPanel — noter un repas de diversification (US18.3)', () => {
+  beforeEach(() => {
+    localStorage.setItem(MODE_KEY, 'solid')
+  })
+
+  it('le mode Diversification affiche le formulaire du repas (plus de « Bientôt disponible. »)', () => {
+    renderPanel()
+
+    expect(tab('Diversification')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByLabelText('Plat')).toBeInTheDocument()
+    expect(screen.queryByText(/Bientôt disponible/)).not.toBeInTheDocument()
+  })
+
+  it('Purée en un toucher : createSolidMeal, « Repas enregistré. », champs vidés', async () => {
+    renderPanel()
+
+    await userEvent.click(within(screen.getByRole('group', { name: 'Propositions de plats' })).getByRole('button', { name: 'Purée' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
+    expect(createSolidMeal.mock.calls[0]).toEqual(
+      ['b1', { occurredAt: expect.any(String), dish: 'Purée', portion: null, addToDishes: false }],
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Repas enregistré.')
+    expect(screen.getByLabelText('Plat')).toHaveValue('')
+  })
+
+  it('plat libre + portion « La moitié » → portion: half', async () => {
+    renderPanel()
+
+    await userEvent.type(screen.getByLabelText('Plat'), 'Purée de carottes')
+    await userEvent.click(within(screen.getByRole('group', { name: 'Portion' })).getByRole('button', { name: 'La moitié' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
+    expect(createSolidMeal.mock.calls[0][1]).toMatchObject({ dish: 'Purée de carottes', portion: 'half' })
+  })
+
+  it('un plat vide est refusé sans appel serveur', async () => {
+    renderPanel()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(screen.getByText('Indiquez le plat.')).toBeInTheDocument()
+    expect(createSolidMeal).not.toHaveBeenCalled()
+    expect(localStorage.getItem(MODE_KEY)).toBe('solid') // untouched: a refused entry never rewrites it
+  })
+
+  it('une création réussie invalide le préfixe [babies, b1] et mémorise Diversification', async () => {
+    localStorage.clear()
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await userEvent.click(tab('Diversification'))
+
+    await userEvent.type(screen.getByLabelText('Plat'), 'Compote')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy.mock.calls.map((c) => c[0])).toContainEqual({ queryKey: ['babies', 'b1'] }))
+    await waitFor(() => expect(localStorage.getItem(MODE_KEY)).toBe('solid'))
+  })
+
+  it('une erreur serveur laisse la saisie et n’efface pas le plat', async () => {
+    createSolidMeal.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
+    renderPanel()
+
+    await userEvent.type(screen.getByLabelText('Plat'), 'Compote')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByText('Échec de l\'enregistrement.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Plat')).toHaveValue('Compote')
+    expect(screen.queryByText('Repas enregistré.')).not.toBeInTheDocument()
+  })
+})

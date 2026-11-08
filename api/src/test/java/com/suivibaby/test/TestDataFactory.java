@@ -9,6 +9,7 @@ import com.suivibaby.entity.BottleFeeding;
 import com.suivibaby.entity.Breastfeeding;
 import com.suivibaby.entity.MedicalCare;
 import com.suivibaby.entity.Nap;
+import com.suivibaby.entity.SolidMeal;
 import com.suivibaby.entity.Stool;
 import com.suivibaby.entity.Temperature;
 import com.suivibaby.entity.Urine;
@@ -16,6 +17,7 @@ import com.suivibaby.entity.VitaminIntake;
 import com.suivibaby.entity.Weight;
 import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
+import com.suivibaby.model.MealPortion;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
 import com.suivibaby.model.VitaminType;
@@ -28,6 +30,7 @@ import com.suivibaby.repository.BottleFeedingRepository;
 import com.suivibaby.repository.BreastfeedingRepository;
 import com.suivibaby.repository.MedicalCareRepository;
 import com.suivibaby.repository.NapRepository;
+import com.suivibaby.repository.SolidMealRepository;
 import com.suivibaby.repository.StoolRepository;
 import com.suivibaby.repository.TemperatureRepository;
 import com.suivibaby.repository.UrineRepository;
@@ -90,6 +93,9 @@ public class TestDataFactory {
 
     @Inject
     BreastfeedingRepository breastfeedingRepository;
+
+    @Inject
+    SolidMealRepository solidMealRepository;
 
     /** Unique email to isolate test methods (the database persists across the whole run). */
     public String uniqueEmail(String prefix) {
@@ -317,6 +323,34 @@ public class TestDataFactory {
     @Transactional
     public long countBreastfeeding(UUID babyId) {
         return breastfeedingRepository.count("babyId", babyId);
+    }
+
+    // Direct seed of a solid meal (Épic 18) — `dish` is free text (not a reference to the dish list).
+    @Transactional
+    public UUID createSolidMeal(UUID babyId, UUID authorId, Instant occurredAt, String dish,
+                                MealPortion portion) {
+        SolidMeal event = new SolidMeal();
+        event.id = UUID.randomUUID();
+        event.babyId = babyId;
+        event.occurredAt = occurredAt;
+        event.dish = dish;
+        event.portion = portion;
+        event.authorId = authorId;
+        event.createdAt = Instant.now();
+        solidMealRepository.persist(event);
+        return event.id;
+    }
+
+    @Transactional
+    public long countSolidMeal(UUID babyId) {
+        return solidMealRepository.count("babyId", babyId);
+    }
+
+    // Stored text of a meal's dish, to check what the service actually persisted (D18-AD).
+    @Transactional
+    public String solidMealDish(UUID mealId) {
+        SolidMeal meal = solidMealRepository.findById(mealId);
+        return meal == null ? null : meal.dish;
     }
 
     /** Seed direct d'un état-vitamine (Épic 9) — présence de ligne = donnée (D9-A). Sert au jalon IDOR. */
