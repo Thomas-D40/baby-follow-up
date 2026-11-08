@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import BottleFeedingForm from './BottleFeedingForm'
 
@@ -23,6 +23,28 @@ describe('BottleFeedingForm', () => {
 
     expect(screen.getByText(/max 2000/)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it.each(['0', '12.5'])('refuse la quantité %s (ml entier > 0) sans appeler onSubmit', async (raw) => {
+    // The decimal comma cannot be typed into a type="number" input under jsdom, so the decimal case
+    // uses a point: same rule (not an integer), same message.
+    const onSubmit = vi.fn()
+    render(<BottleFeedingForm onSubmit={onSubmit} />)
+
+    await userEvent.type(screen.getByLabelText('Quantité (ml)'), raw)
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(screen.getByText('Quantité invalide (ml entier > 0).')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('propose « — », « Lait maternel » puis « Artificiel » pour le type de lait (D18-T)', () => {
+    render(<BottleFeedingForm onSubmit={vi.fn()} />)
+
+    const options = within(screen.getByLabelText('Type de lait')).getAllByRole('option')
+    expect(options.map((o) => o.textContent)).toEqual(['—', 'Lait maternel', 'Artificiel'])
+    // The stored value stays `breast`.
+    expect(options[1]).toHaveValue('breast')
   })
 
   it('soumet un payload normalisé (occurredAt ISO, quantité entière, milkType)', async () => {
@@ -57,6 +79,28 @@ describe('BottleFeedingForm', () => {
 
     resolve() // settled → le bouton se ré-active (D3-G)
     await waitFor(() => expect(btn).not.toBeDisabled())
+  })
+
+  describe('heure pilotée par la feuille (Épic 18, D18-AL)', () => {
+    it('affiche la valeur `time` reçue et signale chaque changement par onTimeChange', async () => {
+      const onTimeChange = vi.fn()
+      render(<BottleFeedingForm onSubmit={vi.fn()} time="2026-11-08T14:00" onTimeChange={onTimeChange} />)
+
+      expect(screen.getByLabelText('Quand')).toHaveValue('2026-11-08T14:00')
+
+      fireEvent.change(screen.getByLabelText('Quand'), { target: { value: '2026-11-08T15:30' } })
+      expect(onTimeChange).toHaveBeenCalledWith('2026-11-08T15:30')
+    })
+
+    it('soumet l’heure reçue en `time`', async () => {
+      const onSubmit = vi.fn().mockResolvedValue(undefined)
+      render(<BottleFeedingForm onSubmit={onSubmit} time="2026-11-08T14:00" onTimeChange={vi.fn()} />)
+
+      await userEvent.type(screen.getByLabelText('Quantité (ml)'), '120')
+      await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      expect(onSubmit.mock.calls[0][0].occurredAt).toBe(new Date('2026-11-08T14:00').toISOString())
+    })
   })
 
   describe('mode édition (Épic 8, DA-1)', () => {

@@ -39,7 +39,6 @@ beforeEach(() => {
   // (Épic 5) : vides par défaut.
   api.getDayEvents.mockResolvedValue([])
   api.getDailyTotals.mockResolvedValue({ date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0 })
-  api.listBottleFeedings.mockResolvedValue({ items: [], nextCursor: null })
   api.getCurrentNap.mockResolvedValue(null)
   api.listNaps.mockResolvedValue({ items: [], nextCursor: null })
   api.listStools.mockResolvedValue({ items: [], nextCursor: null })
@@ -96,6 +95,37 @@ describe('BabiesScreen — suppression (D2-H)', () => {
     await waitFor(() => expect(api.deleteBaby).toHaveBeenCalled())
     expect(api.deleteBaby.mock.calls[0][0]).toBe('a')
     expect(await screen.findByRole('status')).toHaveTextContent('Bébé supprimé.')
+  })
+})
+
+describe('BabiesScreen — barre d’actions (Épic 18, US18.1)', () => {
+  it('cinq boutons dans l’ordre, « Repas » à la place de « Biberon »', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    // Scoped to the named group: the recap also has a « Biberon » chip.
+    const bar = screen.getByRole('group', { name: 'Actions rapides' })
+    const buttons = within(bar).getAllByRole('button')
+    expect(buttons).toHaveLength(5)
+    ;['Repas', 'Sieste', 'Couche', 'Poids', 'Médical'].forEach((name, i) => {
+      expect(buttons[i]).toHaveAccessibleName(name)
+    })
+    expect(within(bar).queryByRole('button', { name: 'Biberon' })).toBeNull()
+  })
+
+  it('« Repas » ouvre la feuille « Repas » avec le sélecteur de mode, sans interroger les tétées', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    await userEvent.click(within(screen.getByRole('group', { name: 'Actions rapides' })).getByRole('button', { name: 'Repas' }))
+
+    const sheet = screen.getByRole('dialog')
+    expect(within(sheet).getByRole('heading', { name: 'Repas' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('tablist', { name: 'Mode d\'alimentation' })).toBeInTheDocument()
+    // Opening on the default mode (bottle) never asks the server for the last breastfeeding.
+    expect(api.listBreastfeedings).not.toHaveBeenCalled()
   })
 })
 

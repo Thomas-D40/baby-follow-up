@@ -46,7 +46,7 @@ describe('parisToday / shiftDate — navigation jour (US6.1)', () => {
 
 describe('describeEvent — détail par type (US6.1)', () => {
   it('biberon : quantité + type de lait', () => {
-    expect(describeEvent({ type: 'bottle_feeding', quantityMl: 120, milkType: 'breast' })).toBe('120 ml · Maternel')
+    expect(describeEvent({ type: 'bottle_feeding', quantityMl: 120, milkType: 'breast' })).toBe('120 ml · Lait maternel')
     expect(describeEvent({ type: 'bottle_feeding', quantityMl: 90, milkType: null })).toBe('90 ml')
   })
 
