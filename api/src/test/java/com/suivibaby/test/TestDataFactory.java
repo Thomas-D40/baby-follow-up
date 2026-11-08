@@ -124,6 +124,8 @@ public class TestDataFactory {
                 ? PasswordUtil.unusablePlaceholder() // pending activation: not loginnable (as in prod)
                 : PasswordUtil.hash(plainPassword);
         user.createdAt = Instant.now();
+        // Accounts with a password are activated, as in prod; a pending account has no activation date.
+        user.activatedAt = plainPassword == null ? null : user.createdAt;
         appUserRepository.persist(user);
         return user.id;
     }
@@ -502,18 +504,93 @@ public class TestDataFactory {
 
     // === Épic 8 : invitations de partage ===
 
-    /** Seed direct d'une invitation (Épic 8) — {@code usedAt} null = active, sinon consommée. */
+    // Direct seed of an invitation (Épic 17: it names its recipient) — usedAt null = active, else consumed.
     @Transactional
-    public UUID createInvitation(UUID babyId, UUID createdBy, Instant expiresAt, Instant usedAt) {
+    public UUID createInvitation(UUID babyId, UUID createdBy, UUID inviteeUserId, Instant expiresAt,
+                                 Instant usedAt) {
         BabyInvitation invitation = new BabyInvitation();
         invitation.token = UUID.randomUUID();
         invitation.babyId = babyId;
         invitation.createdBy = createdBy;
+        invitation.inviteeUserId = inviteeUserId;
+        invitation.inviteeFirstName = "Invité";
         invitation.expiresAt = expiresAt;
         invitation.usedAt = usedAt;
         invitation.acceptedBy = null;
         babyInvitationRepository.persist(invitation);
         return invitation.token;
+    }
+
+    // Recipient the invitation was issued to (Épic 17).
+    @Transactional
+    public UUID invitationInvitee(UUID token) {
+        BabyInvitation i = babyInvitationRepository.findById(token);
+        return i == null ? null : i.inviteeUserId;
+    }
+
+    @Transactional
+    public UUID invitationCreatedBy(UUID token) {
+        BabyInvitation i = babyInvitationRepository.findById(token);
+        return i == null ? null : i.createdBy;
+    }
+
+    // Account that actually accepted the invitation (null while pending or after a revocation).
+    @Transactional
+    public UUID invitationAcceptedBy(UUID token) {
+        BabyInvitation i = babyInvitationRepository.findById(token);
+        return i == null ? null : i.acceptedBy;
+    }
+
+    @Transactional
+    public Instant invitationExpiresAt(UUID token) {
+        BabyInvitation i = babyInvitationRepository.findById(token);
+        return i == null ? null : i.expiresAt;
+    }
+
+    // === Épic 17 : lecteurs d'état de compte ===
+
+    // Activation date of an account, null while it is pending (Épic 17, D17-V).
+    @Transactional
+    public Instant activatedAt(UUID userId) {
+        AppUser user = appUserRepository.findById(userId);
+        return user == null ? null : user.activatedAt;
+    }
+
+    // Stored hash, to prove that a refused request left the credentials untouched.
+    @Transactional
+    public String passwordHash(UUID userId) {
+        AppUser user = appUserRepository.findById(userId);
+        return user == null ? null : user.passwordHash;
+    }
+
+    @Transactional
+    public String userFirstName(UUID userId) {
+        AppUser user = appUserRepository.findById(userId);
+        return user == null ? null : user.firstName;
+    }
+
+    @Transactional
+    public String userRole(UUID userId) {
+        AppUser user = appUserRepository.findById(userId);
+        return user == null ? null : user.role;
+    }
+
+    // Id of the account holding this email, null when none exists.
+    @Transactional
+    public UUID userIdByEmail(String email) {
+        AppUser user = appUserRepository.findByEmail(email);
+        return user == null ? null : user.id;
+    }
+
+    @Transactional
+    public long countUsersByEmail(String email) {
+        return appUserRepository.countByEmail(email);
+    }
+
+    // All activation tokens of an account, consumed or not.
+    @Transactional
+    public long countActivationTokens(UUID userId) {
+        return activationTokenRepository.count("appUserId", userId);
     }
 
     @Transactional

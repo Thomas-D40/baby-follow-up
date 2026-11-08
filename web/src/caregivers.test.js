@@ -16,9 +16,10 @@ describe('api/caregivers — routes & méthodes (Épic 8)', () => {
 
   it('createInvitation → POST /api/babies/{id}/invitations', async () => {
     global.fetch = mockFetch({ status: 201, json: { token: 't', link: 'http://x/invite?token=t' } })
-    const res = await createInvitation('b1')
+    const res = await createInvitation('b1', { email: 'a@b.fr', firstName: 'A' })
     expect(global.fetch.mock.calls[0][0]).toBe('/api/babies/b1/invitations')
     expect(global.fetch.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ email: 'a@b.fr', firstName: 'A' })
     expect(res.link).toBe('http://x/invite?token=t')
   })
 

@@ -17,6 +17,8 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** US1.2 — activation via single-use link. */
@@ -107,6 +109,23 @@ class ActivationTest {
             assertFalse(data.tokenConsumed(token), "le jeton ne doit PAS être consommé");
             // Still usable with a compliant password.
             postActivation(token, VALID_PASSWORD).then().statusCode(204);
+        }
+    }
+
+    @Nested
+    @DisplayName("Scénario : l'activation pose activated_at (D17-V)")
+    class ActivationPoseLeMarqueur {
+        @Test
+        void renseigne_activated_at_seulement_quand_l_activation_aboutit() {
+            UUID userId = data.createPendingParent(data.uniqueEmail("marker"));
+            UUID token = activeToken(userId);
+            assertNull(data.activatedAt(userId));
+
+            postActivation(token, "short").then().statusCode(400);
+            assertNull(data.activatedAt(userId), "un refus ne marque pas le compte comme activé");
+
+            postActivation(token, VALID_PASSWORD).then().statusCode(204);
+            assertNotNull(data.activatedAt(userId));
         }
     }
 

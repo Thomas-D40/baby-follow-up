@@ -30,6 +30,7 @@ class AdminBootstrapTest {
         assertNotNull(admin, "le hook de démarrage doit avoir créé l'admin");
         assertEquals("admin", admin.role);
         assertNotNull(admin.passwordHash, "l'admin amorcé a un mot de passe (court-circuite l'activation)");
+        assertNotNull(admin.activatedAt, "l'admin amorcé est activé d'emblée (D17-V)");
     }
 
     @Test

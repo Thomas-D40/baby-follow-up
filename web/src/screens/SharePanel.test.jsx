@@ -7,14 +7,25 @@ import SharePanel from './SharePanel'
 vi.mock('../api', () => ({
   listCaregivers: vi.fn(),
   createInvitation: vi.fn(),
+  listPendingInvitations: vi.fn(),
+  revokeInvitation: vi.fn(),
   removeCaregiver: vi.fn(),
   promoteCaregiver: vi.fn(),
 }))
-import { listCaregivers, createInvitation, removeCaregiver, promoteCaregiver } from '../api'
+import {
+  listCaregivers, createInvitation, listPendingInvitations, removeCaregiver, promoteCaregiver,
+} from '../api'
 
 const OWNER = { userId: 'me', firstName: 'Moi', email: 'me@test.local', isOwner: true }
 const GUEST = { userId: 'g1', firstName: 'Mamie', email: 'mamie@test.local', isOwner: false }
 const me = { id: 'me', firstName: 'Moi', email: 'me@test.local' }
+
+const FORM = { name: 'Inviter un proche' }
+const SUBMIT = { name: "Envoyer l'invitation" }
+const CREATED = {
+  token: 't', link: 'http://x/invite?token=t', inviteeEmail: 'jeanne@exemple.fr',
+  expiresAt: '2026-11-11T13:05:00Z', mailSent: true,
+}
 
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -23,8 +34,26 @@ function renderPanel() {
   )
 }
 
+// Fills the invitation form of an owner's panel (fields emptied first); the submit is left to the caller.
+async function fillInvitation(email, firstName) {
+  await screen.findByRole('form', FORM)
+  const emailField = screen.getByLabelText('Email du proche')
+  const firstNameField = screen.getByLabelText('Prénom du proche')
+  await userEvent.clear(emailField)
+  await userEvent.clear(firstNameField)
+  if (email) await userEvent.type(emailField, email)
+  if (firstName) await userEvent.type(firstNameField, firstName)
+}
+
+async function submitInvitation(email, firstName) {
+  await fillInvitation(email, firstName)
+  await userEvent.click(screen.getByRole('button', SUBMIT))
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  // The pending-invitations list is only requested for an owner; empty unless a test fills it.
+  listPendingInvitations.mockResolvedValue([])
   // clipboard pour le bouton « Copier »
   Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue() } })
 })
@@ -37,7 +66,7 @@ describe('SharePanel — visibilité owner-only (D8-J)', () => {
     ])
     renderPanel()
     expect(await screen.findByText('Moi')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: "Générer un lien d'invitation" })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', FORM)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Promouvoir' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Retirer/ })).not.toBeInTheDocument()
   })
@@ -57,22 +86,116 @@ describe('SharePanel — visibilité owner-only (D8-J)', () => {
   })
 })
 
-describe('SharePanel — génération de lien (D8-B)', () => {
-  it('génère et affiche le lien copiable', async () => {
+describe("SharePanel — formulaire d'invitation (US17.1)", () => {
+  it("l'owner voit le formulaire nominatif ; le bouton « Générer un lien » a disparu", async () => {
     listCaregivers.mockResolvedValue([OWNER])
-    createInvitation.mockResolvedValue({ token: 't', link: 'http://x/invite?token=t', expiresAt: '2026-06-28T00:00:00Z' })
     renderPanel()
 
-    await userEvent.click(await screen.findByRole('button', { name: "Générer un lien d'invitation" }))
+    expect(await screen.findByRole('form', FORM)).toBeInTheDocument()
+    expect(screen.getByLabelText('Email du proche')).toHaveAttribute('type', 'email')
+    expect(screen.getByLabelText('Prénom du proche')).toBeInTheDocument()
+    expect(screen.getByRole('button', SUBMIT)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: "Générer un lien d'invitation" })).not.toBeInTheDocument()
+  })
 
-    await waitFor(() => expect(createInvitation.mock.calls[0][0]).toBe('b1'))
+  it('la soumission appelle createInvitation(babyId, { email, firstName })', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockResolvedValue(CREATED)
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+
+    await waitFor(() => expect(createInvitation).toHaveBeenCalledTimes(1))
+    expect(createInvitation.mock.calls[0]).toEqual(['b1', { email: 'jeanne@exemple.fr', firstName: 'Jeanne' }])
+  })
+
+  it('anti-doublon : bouton désactivé pendant l’envoi, deux clics → un seul appel', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    let resolve
+    createInvitation.mockReturnValue(new Promise((r) => { resolve = r }))
+    renderPanel()
+
+    await fillInvitation('jeanne@exemple.fr', 'Jeanne')
+    // Reference kept before the click: while sending, the button label becomes « … ».
+    const button = screen.getByRole('button', SUBMIT)
+    await userEvent.click(button)
+    await userEvent.click(button)
+
+    expect(button).toBeDisabled()
+    expect(createInvitation).toHaveBeenCalledTimes(1)
+    resolve(CREATED)
+    await screen.findByLabelText("Lien d'invitation")
+  })
+
+  it('succès : le lien reste affiché et copiable, les champs sont vidés', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockResolvedValue(CREATED)
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+
     const input = await screen.findByLabelText("Lien d'invitation")
     expect(input).toHaveValue('http://x/invite?token=t')
-    expect(screen.getByText(/valable 3 jours/i)).toBeInTheDocument()
+    expect(input).toHaveAttribute('readonly')
+    expect(screen.getByText(/valable 3 jours/i)).toHaveTextContent('jeanne@exemple.fr')
+    expect(screen.getByLabelText('Email du proche')).toHaveValue('')
+    expect(screen.getByLabelText('Prénom du proche')).toHaveValue('')
 
     await userEvent.click(screen.getByRole('button', { name: 'Copier' }))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://x/invite?token=t')
     expect(await screen.findByRole('button', { name: 'Copié' })).toBeInTheDocument()
+  })
+
+  it('compte créé ou préexistant : le même message de succès (D17-G)', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation
+      .mockResolvedValueOnce({ ...CREATED, token: 'new', link: 'http://x/invite?token=new' })
+      .mockResolvedValueOnce({ ...CREATED, token: 'old', link: 'http://x/invite?token=old' })
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+    const first = (await screen.findByRole('status')).textContent
+    await submitInvitation('jeanne@exemple.fr', 'Papi')
+    await waitFor(() => expect(screen.getByLabelText("Lien d'invitation")).toHaveValue('http://x/invite?token=old'))
+
+    expect(screen.getByRole('status').textContent).toBe(first)
+  })
+
+  it('409 → « Cette personne fait déjà partie du cercle. »', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cette personne fait déjà partie du cercle.')
+    expect(screen.queryByLabelText("Lien d'invitation")).not.toBeInTheDocument()
+  })
+
+  it('400 → « Vérifiez l’email et le prénom. », autre erreur → message générique', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    createInvitation.mockRejectedValueOnce(Object.assign(new Error('-> 400'), { status: 400 }))
+    renderPanel()
+
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Vérifiez l'email et le prénom.")
+
+    createInvitation.mockRejectedValueOnce(Object.assign(new Error('-> 500'), { status: 500 }))
+    await submitInvitation('jeanne@exemple.fr', 'Jeanne')
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("Échec de l'invitation. Réessayez."))
+  })
+
+  it('champs vides ou blancs → message, aucun appel', async () => {
+    listCaregivers.mockResolvedValue([OWNER])
+    renderPanel()
+
+    await submitInvitation('', '')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Renseignez l'email et le prénom du proche.")
+
+    await submitInvitation('jeanne@exemple.fr', '   ')
+
+    expect(screen.getByRole('alert')).toHaveTextContent("Renseignez l'email et le prénom du proche.")
+    expect(createInvitation).not.toHaveBeenCalled()
   })
 })
 
