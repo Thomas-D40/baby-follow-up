@@ -12,9 +12,11 @@ import java.util.UUID;
 // Same rule for the breastfeeding detail: `side` and `durationMinutes` are their own fields. Beware
 // that `quantityMl`, `temperatureCelsiusX10` and `durationMinutes` are three Integers
 // (positional calls compile when swapped): CalendarMapper must stay the only constructor caller.
+// The same goes for the three neighbouring Strings `dish`, `medicationName` and `dosage`.
 public record CalendarEventResponse(CalendarEventType type, UUID id, Instant startAt, Instant endAt,
                                     UUID authorId, Integer quantityMl, MilkType milkType,
                                     StoolConsistency consistency, Integer temperatureCelsiusX10,
                                     BreastSide side, Integer durationMinutes,
-                                    String dish, MealPortion portion) {
+                                    String dish, MealPortion portion,
+                                    String medicationName, String dosage) {
 }

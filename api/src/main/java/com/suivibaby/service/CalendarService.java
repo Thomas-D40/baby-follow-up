@@ -53,6 +53,9 @@ public class CalendarService {
     MedicalCareService medicalCareService;
 
     @Inject
+    MedicationService medicationService;
+
+    @Inject
     CalendarMapper calendarMapper;
 
     public List<CalendarEventResponse> eventsOfDay(UUID userId, UUID babyId, String date) {
@@ -70,6 +73,7 @@ public class CalendarService {
         temperatureService.listForDay(userId, babyId, from, to).forEach(t -> events.add(calendarMapper.fromTemperature(t)));
         // Both care types come from a single listForDay; the mapper splits them into two calendar types.
         medicalCareService.listForDay(userId, babyId, from, to).forEach(m -> events.add(calendarMapper.fromMedicalCare(m)));
+        medicationService.listForDay(userId, babyId, from, to).forEach(m -> events.add(calendarMapper.fromMedication(m)));
 
         // Récap du jour en ordre anté-chronologique (US11.1) : dernier événement en haut. Tie-break
         // déterministe sur l'id, l'ensemble étant inversé (`reversed()`) pour le tri décroissant.
@@ -94,8 +98,10 @@ public class CalendarService {
         long noseCareCount = medicalCareService.countForDay(userId, babyId, CareType.nose, from, to);
         long breastfeedingCount = breastfeedingService.countForDay(userId, babyId, from, to);
         long solidMealCount = solidMealService.countForDay(userId, babyId, from, to);
+        long medicationCount = medicationService.countForDay(userId, babyId, from, to);
         return new DailyTotalsResponse(day, totalMilkMl, totalSleepMinutes, stoolCount, urineCount,
-                maxTemperatureCelsiusX10, eyeCareCount, noseCareCount, breastfeedingCount, solidMealCount);
+                maxTemperatureCelsiusX10, eyeCareCount, noseCareCount, breastfeedingCount, solidMealCount,
+                medicationCount);
     }
 
     /** Plafond de buckets retournés : garde-fou contre une plage arbitrairement large. */

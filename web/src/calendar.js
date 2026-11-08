@@ -4,6 +4,7 @@
 
 import { MILK_TYPE_LABEL } from './bottleFeeding'
 import { describeBreastfeeding } from './breastfeeding'
+import { describeMedication } from './medication'
 import { describeSolidMeal } from './solidMeal'
 import { formatCelsius } from './temperature'
 
@@ -21,6 +22,7 @@ export const EVENT_TYPE_LABEL = {
   temperature: 'Température',
   eye_care: 'Yeux',
   nose_care: 'Nez',
+  medication: 'Médicament',
 }
 
 /** Heure d'un instant ISO rendue en Europe/Paris ("HH:mm"), quel que soit le fuseau du device (D6-D). */
@@ -108,6 +110,9 @@ export function describeEvent(event, now = new Date()) {
   }
   if (event.type === 'nose_care') {
     return 'Soin du nez'
+  }
+  if (event.type === 'medication') {
+    return describeMedication(event)
   }
   return ''
 }

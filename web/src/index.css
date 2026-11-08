@@ -319,6 +319,8 @@ button { font-family: inherit; }
 .chip--nose-care { background: var(--care-bg); color: var(--care-ink); }
 .chip--breast { background: var(--breast-bg); color: var(--breast-ink); }
 .chip--meal { background: var(--meal-bg); color: var(--meal-ink); }
+/* 💊 shares the « soin » tint like 👁 and 👃: the emoji tells them apart (Épic 19). */
+.chip--medication { background: var(--care-bg); color: var(--care-ink); }
 
 /* Toggle flavour of a totals chip (Épic 16, D16-S): the chip IS the type filter of the day list.
    Modifier on the <button>, never `button.chip` — the bare `.chip` stays a decorative badge
@@ -346,6 +348,7 @@ button { font-family: inherit; }
 .chip--toggle[aria-pressed="true"].chip--nose-care { border-color: var(--care); }
 .chip--toggle[aria-pressed="true"].chip--breast { border-color: var(--breast); }
 .chip--toggle[aria-pressed="true"].chip--meal { border-color: var(--meal); }
+.chip--toggle[aria-pressed="true"].chip--medication { border-color: var(--care); }
 
 /* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
 .vitamins { margin-top: 0.75rem; }
@@ -390,6 +393,7 @@ button { font-family: inherit; }
 .event-tag--nose-care { background: var(--care-bg); color: var(--care-ink); }
 .event-tag--breast { background: var(--breast-bg); color: var(--breast-ink); }
 .event-tag--meal { background: var(--meal-bg); color: var(--meal-ink); }
+.event-tag--medication { background: var(--care-bg); color: var(--care-ink); }
 .event-detail { color: var(--text); }
 .event-detail strong { color: var(--text-strong); }
 .flag { color: var(--stool-ink); font-weight: 700; }

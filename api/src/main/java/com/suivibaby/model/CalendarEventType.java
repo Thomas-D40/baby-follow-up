@@ -17,5 +17,6 @@ public enum CalendarEventType {
     urine,
     temperature,
     eye_care,
-    nose_care
+    nose_care,
+    medication
 }

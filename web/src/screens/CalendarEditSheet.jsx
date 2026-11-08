@@ -4,6 +4,7 @@ import BottomSheet from './BottomSheet'
 import BottleFeedingForm from './BottleFeedingForm'
 import BreastfeedingForm from './BreastfeedingForm'
 import MedicalCareForm from './MedicalCareForm'
+import MedicationForm from './MedicationForm'
 import SolidMealForm from './SolidMealForm'
 import StoolForm from './StoolForm'
 import TemperatureForm from './TemperatureForm'
@@ -69,6 +70,12 @@ export default function CalendarEditSheet({ babyId, editing, onClose }) {
           type lui-même n'est pas modifiable ici, donc il ne part pas dans le PATCH. */}
       {(editing?.type === 'eye_care' || editing?.type === 'nose_care') && (
         <MedicalCareForm
+          initial={{ ...editing, occurredAt: editing.startAt }}
+          onSubmit={submit}
+        />
+      )}
+      {editing?.type === 'medication' && (
+        <MedicationForm
           initial={{ ...editing, occurredAt: editing.startAt }}
           onSubmit={submit}
         />

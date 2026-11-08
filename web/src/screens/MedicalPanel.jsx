@@ -9,11 +9,15 @@ import {
   updateTemperature,
 } from '../api'
 import { careEventType } from '../medicalCare'
+import { describeMedication } from '../medication'
+import { useUpdateEvent } from '../services/events'
+import { useCreateMedication, useMedicationList } from '../services/medications'
 import { formatCelsius } from '../temperature'
 import { useDeleteEvent } from '../useDeleteEvent'
 import { InlineDeleteConfirm } from './DeleteConfirm'
 import BottomSheet from './BottomSheet'
 import MedicalCareForm from './MedicalCareForm'
+import MedicationForm from './MedicationForm'
 import TemperatureForm from './TemperatureForm'
 
 // Display cap PER TYPE, deliberately NOT `slice(0, 10)` on the merged list like DiaperChangePanel.
@@ -24,11 +28,11 @@ import TemperatureForm from './TemperatureForm'
 const RECENT_PER_TYPE = 5
 
 /**
- * Surface « Médical » (US15.1/US15.2, D15-L) : une seule feuille pour les trois saisies —
- * température, soin des yeux, soin du nez — plus la liste « Derniers actes médicaux ». Patron
- * `DiaperChangePanel` : écritures en `retry: 0` (pas de rejeu auto qui dupliquerait en
- * réponse-perdue) et invalidation par **préfixe** `['babies', babyId]` au succès → rafraîchit la
- * liste locale ET le récap (events + daily-totals) qui dérivent des mêmes événements.
+ * "Medical" surface (US15.1/US15.2, D15-L; US19.1): one sheet for every entry — temperature, eye
+ * care, nose care, medication — plus the "Derniers actes médicaux" list. `DiaperChangePanel` pattern:
+ * writes run with `retry: 0` (no automatic replay that would duplicate on a lost response) and the
+ * PREFIX invalidation `['babies', babyId]` on success refreshes the local list AND the recap
+ * (events + daily-totals), which derive from the same events.
  *
  * ⚠️ La liste fusionne deux ressources dont les vocabulaires diffèrent : les items de
  * `/medical-cares` portent `careType: 'eye' | 'nose'`, alors que le routage d'édition et de
@@ -86,11 +90,22 @@ export default function MedicalPanel({ babyId }) {
     },
   })
   const deleteMut = useDeleteEvent(babyId)
+  const { medications, isLoading: medicationsLoading } = useMedicationList(babyId)
+  const createMedicationMut = useCreateMedication(babyId, {
+    onSuccess: () => setNotice('Médicament enregistré.'),
+  })
+  const updateMedicationMut = useUpdateEvent(babyId, {
+    onSuccess: () => {
+      setEditing(null)
+      setNotice('Médicament mis à jour.')
+    },
+  })
 
-  const isLoading = temperaturesQuery.isLoading || caresQuery.isLoading
+  const isLoading = temperaturesQuery.isLoading || caresQuery.isLoading || medicationsLoading
   const items = [
     ...(temperaturesQuery.data?.items ?? []).slice(0, RECENT_PER_TYPE).map((t) => ({ ...t, type: 'temperature' })),
     ...(caresQuery.data?.items ?? []).slice(0, RECENT_PER_TYPE).map((c) => ({ ...c, type: careEventType(c.careType) })),
+    ...medications.slice(0, RECENT_PER_TYPE).map((m) => ({ ...m, type: 'medication' })),
   ].sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt))
 
   return (
@@ -100,6 +115,9 @@ export default function MedicalPanel({ babyId }) {
 
       <h4 className="subtitle">Soin des yeux / du nez</h4>
       <MedicalCareForm onSubmit={(body) => createCareActMut.mutateAsync(body)} />
+
+      <h4 className="subtitle">Médicament</h4>
+      <MedicationForm onSubmit={(body) => createMedicationMut.mutateAsync(body)} />
 
       {notice && <p role="status" className="notice notice--success">{notice}</p>}
 
@@ -115,7 +133,7 @@ export default function MedicalPanel({ babyId }) {
               <span className="grow">
                 <span className="event-time">{formatWhen(e.occurredAt)}</span>
                 {` · ${ROW[e.type].emoji} ${ROW[e.type].tag}`}
-                {e.type === 'temperature' ? ` · ${formatCelsius(e.temperatureCelsiusX10)}` : ''}
+                {rowDetail(e)}
               </span>
               <button
                 type="button"
@@ -154,6 +172,14 @@ export default function MedicalPanel({ babyId }) {
             onSubmit={(body) => careUpdateMut.mutateAsync({ id: editing.item.id, patch: body })}
           />
         )}
+        {editing?.type === 'medication' && (
+          <MedicationForm
+            initial={editing.item}
+            onSubmit={(body) =>
+              updateMedicationMut.mutateAsync({ type: 'medication', id: editing.item.id, patch: body })
+            }
+          />
+        )}
       </BottomSheet>
     </>
   )
@@ -173,6 +199,18 @@ const ROW = {
     emoji: '👃', tag: 'Nez', accusative: 'le soin du nez',
     confirm: 'Supprimer ce soin du nez ?', deleted: 'Soin du nez supprimé.',
   },
+  medication: {
+    emoji: '💊', tag: 'Médicament', accusative: 'le médicament',
+    confirm: 'Supprimer ce médicament ?', deleted: 'Médicament supprimé.',
+  },
+}
+
+// Detail after the tag of a list row: the reading for a temperature, the name [· dosage] for a
+// medication, nothing for a care.
+function rowDetail(e) {
+  if (e.type === 'temperature') return ` · ${formatCelsius(e.temperatureCelsiusX10)}`
+  if (e.type === 'medication') return ` · ${describeMedication(e)}`
+  return ''
 }
 
 // Affichage local simple ; le formatage Europe/Paris dédié vit dans le calendrier (Épic 6).

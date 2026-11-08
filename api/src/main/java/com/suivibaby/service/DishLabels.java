@@ -20,7 +20,7 @@ public final class DishLabels {
     }
 
     public static String validate(String raw) {
-        String label = raw == null ? "" : raw.replaceAll("(?U)\\s+", " ").strip();
+        String label = TextLabels.tidy(raw);
         if (label.isEmpty()) {
             throw new BadRequestException("Indiquez le plat.");
         }
