@@ -427,3 +427,43 @@ describe('FeedingPanel — noter un repas de diversification (US18.3)', () => {
     expect(screen.queryByText('Repas enregistré.')).not.toBeInTheDocument()
   })
 })
+
+describe('FeedingPanel — ajouter un plat au référentiel (US18.4)', () => {
+  beforeEach(() => {
+    localStorage.setItem(MODE_KEY, 'solid')
+  })
+
+  it('case cochée : le repas part avec addToDishes: true', async () => {
+    renderPanel()
+    await userEvent.type(screen.getByLabelText('Plat'), 'Gratin de courgettes')
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
+    expect(createSolidMeal.mock.calls[0][1]).toMatchObject({ dish: 'Gratin de courgettes', addToDishes: true })
+  })
+
+  it('après la création, la liste partagée est invalidée (le plat devient proposable tout de suite)', async () => {
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await userEvent.type(screen.getByLabelText('Plat'), 'Gratin de courgettes')
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(spy.mock.calls.map((c) => c[0])).toContainEqual({ queryKey: ['dishes'] }))
+    expect(spy.mock.calls.map((c) => c[0])).toContainEqual({ queryKey: ['babies', 'b1'] })
+  })
+
+  it('sans la case, le repas part avec addToDishes: false', async () => {
+    renderPanel()
+    await userEvent.type(screen.getByLabelText('Plat'), 'Gratin de courgettes')
+    await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
+    expect(createSolidMeal.mock.calls[0][1].addToDishes).toBe(false)
+  })
+})

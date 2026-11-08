@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // Épic 18 — pure label rules shared by the meal dish, the dish list and the rename (D18-AD, D18-AE).
 // Plain JUnit: no Quarkus boot needed, the class is static and stateless.
@@ -56,6 +58,59 @@ class DishLabelsTest {
             // 30 + collapsed blank + 29 = 60 → accepted although the raw input is longer.
             assertEquals("x".repeat(30) + " " + "y".repeat(29),
                     DishLabels.validate("x".repeat(30) + "        " + "y".repeat(29)));
+        }
+    }
+
+    @Nested
+    @DisplayName("normalize — clé de recherche et d'unicité (D18-AE)")
+    class Normalize {
+
+        @Test
+        @DisplayName("Scénario : espaces compactés, minuscules, accents retirés")
+        void cas_de_reference() {
+            assertEquals("puree de carottes", DishLabels.normalize("  Purée   de Carottes "));
+            assertEquals("puree", DishLabels.normalize("PURÉE"));
+            assertEquals("creme brulee", DishLabels.normalize("Crème brûlée"));
+        }
+
+        @Test
+        @DisplayName("Scénario : deux saisies qui ne diffèrent que par casse, accents ou espaces se normalisent pareil")
+        void variantes_equivalentes() {
+            assertEquals(DishLabels.normalize("Purée de carottes"), DishLabels.normalize("puree  DE   carottes"));
+            assertEquals(DishLabels.normalize("Compote"), DishLabels.normalize(" COMPOTE "));
+        }
+
+        @Test
+        @DisplayName("Scénario : deux libellés différents ne se confondent pas")
+        void libelles_distincts() {
+            assertFalse(DishLabels.normalize("Purée de carottes").equals(DishLabels.normalize("Purée de carrotes")));
+        }
+    }
+
+    @Nested
+    @DisplayName("isFixed — Purée et Compote ne vont jamais au référentiel (D18-AF)")
+    class IsFixed {
+
+        @Test
+        @DisplayName("Scénario : puree et compote (formes normalisées) sont fixes")
+        void fixes() {
+            assertTrue(DishLabels.isFixed("puree"));
+            assertTrue(DishLabels.isFixed("compote"));
+        }
+
+        @Test
+        @DisplayName("Scénario : un autre plat, même proche, n'est pas fixe")
+        void non_fixes() {
+            assertFalse(DishLabels.isFixed("puree de carottes"));
+            assertFalse(DishLabels.isFixed("compote de pomme"));
+            assertFalse(DishLabels.isFixed("yaourt"));
+        }
+
+        @Test
+        @DisplayName("Scénario : appliqué à une saisie normalisée, Purée / PURÉE / compote sont reconnus")
+        void apres_normalisation() {
+            assertTrue(DishLabels.isFixed(DishLabels.normalize("  Purée ")));
+            assertTrue(DishLabels.isFixed(DishLabels.normalize("COMPOTE")));
         }
     }
 }
