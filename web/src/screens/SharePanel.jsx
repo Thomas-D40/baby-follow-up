@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listCaregivers, removeCaregiver, promoteCaregiver } from '../api'
-import { useCreateInvitation } from '../services/invitations'
+import { useCreateInvitation, usePendingInvitations, useRevokeInvitation } from '../services/invitations'
+import { formatInvitationExpiry } from '../invitation'
 import { InlineDeleteConfirm } from './DeleteConfirm'
 
 const INVITE_ERROR = {
@@ -31,6 +32,9 @@ export default function SharePanel({ babyId, me }) {
 
   // Le courant est-il owner de CE bébé ? Déduit de la liste + identité courante (pas de champ dédié).
   const iAmOwner = caregivers.some((c) => c.userId === me.id && c.isOwner)
+
+  const { invitations } = usePendingInvitations(babyId, iAmOwner)
+  const revokeInvitationMut = useRevokeInvitation(babyId)
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies', babyId] })
 
@@ -117,6 +121,32 @@ export default function SharePanel({ babyId, me }) {
           )
         })}
       </ul>
+
+      {iAmOwner && invitations.length > 0 && (
+        <>
+          <h3 className="subtitle">Invitations en attente</h3>
+          <ul className="event-list" aria-label="Invitations en attente">
+            {invitations.map((inv) => (
+              <li key={inv.token} className="event-row">
+                <div className="grow">
+                  <div>{inv.inviteeFirstName}</div>
+                  <div className="muted">{inv.inviteeEmail}</div>
+                  <div className="muted">expire le {formatInvitationExpiry(inv.expiresAt)}</div>
+                </div>
+                <InlineDeleteConfirm
+                  prompt={`Annuler le lien d'invitation envoyé à ${inv.inviteeEmail} ?`}
+                  triggerAriaLabel={`Annuler l'invitation de ${inv.inviteeFirstName}`}
+                  triggerTitle="Annuler le lien"
+                  confirmLabel="Oui, annuler le lien"
+                  onDelete={() => revokeInvitationMut.mutateAsync(inv.token)}
+                  onDeleted={() => { setError(null); setNotice("Lien d'invitation annulé.") }}
+                  onError={() => setError("Échec de l'annulation. Réessayez.")}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {iAmOwner && (
         <form aria-label="Inviter un proche" noValidate onSubmit={handleInvite} className="form">
