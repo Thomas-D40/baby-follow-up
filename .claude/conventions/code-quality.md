@@ -23,7 +23,10 @@ viser ~300 pour un écran neuf.
 
 **Code neuf : commentaires en anglais, `//` uniquement, jamais de javadoc/JSDoc.** Les libellés d'UI
 restent en français. Les commentaires existants en français ne sont **pas** traduits en masse : on
-corrige là où on touche. Les directives Liquibase (`--changeset …`) ne sont pas des commentaires.
+corrige là où on touche. Concrètement : un bloc de commentaire **retouché** (une ligne modifiée, un
+compte mis à jour, une phrase ajoutée) se traduit **en entier**, y compris dans les tests migrés ; un
+bloc seulement **déplacé** tel quel reste en l'état. Les directives Liquibase (`--changeset …`) ne
+sont pas des commentaires.
 
 ## 4. Front — découpage vue / service / modèle
 
