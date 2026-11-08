@@ -21,6 +21,14 @@ public class DishRepository implements PanacheRepositoryBase<Dish, UUID> {
                 .page(0, limit).list();
     }
 
+    public List<Dish> listByAuthor(UUID authorId) {
+        return find("authorId = ?1 order by normalizedLabel, id", authorId).list();
+    }
+
+    public List<Dish> listAllSorted() {
+        return find("order by normalizedLabel, id").list();
+    }
+
     public Dish findByNormalizedLabel(String normalized) {
         return find("normalizedLabel = ?1", normalized).firstResult();
     }

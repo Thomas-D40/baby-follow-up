@@ -182,6 +182,7 @@ button { font-family: inherit; }
 .linkbtn:hover { text-decoration: underline; }
 .linkbtn--muted { color: var(--muted); font-weight: 700; }
 .linkbtn--danger { color: var(--danger-deep); }
+.linkbtn--center { align-self: center; }
 
 /* ── Barre d'actions rapides ────────────────────────────────────────────── */
 /* 5 boutons depuis l'Épic 15. `repeat(auto-fit, minmax(70px, 1fr))` + gap 0.7rem exigerait
