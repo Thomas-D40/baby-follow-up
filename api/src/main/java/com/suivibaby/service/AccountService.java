@@ -1,6 +1,8 @@
 package com.suivibaby.service;
 
 import com.suivibaby.entity.AppUser;
+import com.suivibaby.mapper.UserMapper;
+import com.suivibaby.model.AccountResponse;
 import com.suivibaby.model.CreateUserResponse;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.security.PasswordUtil;
@@ -13,6 +15,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -26,6 +29,13 @@ public class AccountService {
 
     @Inject
     ActivationService activationService;
+
+    @Inject
+    UserMapper userMapper;
+
+    public List<AccountResponse> getAllAccounts() {
+        return appUserRepository.listAllNewestFirst().stream().map(userMapper::toAccountResponse).toList();
+    }
 
     @Transactional
     public CreateUserResponse createParent(String email, String firstName) {

@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.AccountResponse;
 import com.suivibaby.model.CreateUserRequest;
 import com.suivibaby.model.CreateUserResponse;
 import com.suivibaby.service.AccountService;
@@ -7,6 +8,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -14,6 +16,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.util.List;
 import java.util.UUID;
 
 @Path("/api/admin/users")
@@ -22,6 +25,12 @@ public class AdminUserController {
 
     @Inject
     AccountService accountService;
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<AccountResponse> list() {
+        return accountService.getAllAccounts();
+    }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
