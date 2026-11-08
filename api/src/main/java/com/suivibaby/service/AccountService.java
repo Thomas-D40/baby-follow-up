@@ -67,8 +67,13 @@ public class AccountService {
 
     @Transactional
     public CreateUserResponse regenerateActivationLink(UUID userId) {
-        if (appUserRepository.findById(userId) == null) {
+        AppUser user = appUserRepository.findById(userId);
+        if (user == null) {
             throw new NotFoundException("Utilisateur introuvable.");
+        }
+        // The link is now mailed: never let it reset the password of an activated account (D20-U).
+        if (user.activatedAt != null) {
+            throw new ClientErrorException("Ce compte est déjà activé.", Response.Status.CONFLICT);
         }
         UUID token = activationService.issueToken(userId);
         return new CreateUserResponse(userId, buildLink(token), false);
