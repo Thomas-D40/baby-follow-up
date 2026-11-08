@@ -943,7 +943,8 @@ describe('CalendarPanel — tétées au récap (Épic 18, US18.2)', () => {
     getDailyTotals.mockResolvedValue(totalsWith(3))
     renderPanel()
 
-    const full = rowOf(await screen.findByRole('button', { name: 'Supprimer tétée de 10:30' }))
+    await screen.findByRole('button', { name: 'Supprimer tétée de 10:30' })
+    const full = rowOf('Supprimer tétée de 10:30')
     expect(full).toHaveTextContent('🤱')
     expect(full).toHaveTextContent('Tétée')
     expect(full).toHaveTextContent('Gauche · 12 min')
@@ -1084,7 +1085,8 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
     getDailyTotals.mockResolvedValue(totalsWith(2))
     renderPanel()
 
-    const withPortion = rowOf(await screen.findByRole('button', { name: 'Supprimer diversification de 12:00' }))
+    await screen.findByRole('button', { name: 'Supprimer diversification de 12:00' })
+    const withPortion = rowOf('Supprimer diversification de 12:00')
     expect(withPortion).toHaveTextContent('🥄')
     expect(withPortion).toHaveTextContent('Diversification')
     expect(withPortion).toHaveTextContent('Purée de carrotes · Tout')
