@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.CareType;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.model.StoolConsistency;
@@ -22,6 +23,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 /**
@@ -359,6 +361,68 @@ class DailyTotalsTest {
                     .queryParam("date", "2026-07-16")
                     .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
                     .then().statusCode(200).body("noseCareCount", is(1));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tétées (US18.2)")
+    class Breastfeedings {
+
+        @Test
+        @DisplayName("Scénario : trois tétées du jour → breastfeedingCount = 3")
+        void comptage_des_tetees() {
+            Caregiver c = linkedCaregiver("breast-count");
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 0), BreastSide.left, 10);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), BreastSide.right, null);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 18, 0), null, null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("breastfeedingCount", is(3));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans tétée → breastfeedingCount = 0, et non null")
+        void aucune_tetee_zero_pas_null() {
+            Caregiver c = linkedCaregiver("breast-none");
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("breastfeedingCount", is(0))
+                    .body("breastfeedingCount", notNullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — une tétée hors du jour n'est pas comptée")
+        void tetee_hors_jour_non_comptee() {
+            Caregiver c = linkedCaregiver("breast-bornes");
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 0, 0), null, null);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 16, 0, 0), null, null);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 14, 23, 30), null, null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("breastfeedingCount", is(1));
+        }
+
+        @Test
+        @DisplayName("Scénario : une tétée n'ajoute aucun millilitre — totalMilkMl = somme des seuls biberons")
+        void pas_d_effet_sur_le_lait() {
+            Caregiver c = linkedCaregiver("breast-milk");
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 120, MilkType.formula);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 10, 0), BreastSide.left, 30);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("totalMilkMl", is(120))
+                    .body("breastfeedingCount", is(1));
         }
     }
 

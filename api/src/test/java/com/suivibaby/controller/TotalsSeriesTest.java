@@ -1,5 +1,6 @@
 package com.suivibaby.controller;
 
+import com.suivibaby.model.BreastSide;
 import com.suivibaby.model.MilkType;
 import com.suivibaby.test.AuthFixture;
 import com.suivibaby.test.TestDataFactory;
@@ -96,6 +97,28 @@ class TotalsSeriesTest {
                     .body("points.size()", is(2))
                     .body("points[0].totalSleepMinutes", is(120))
                     .body("points[1].totalSleepMinutes", is(480));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tétées (Épic 18)")
+    class Breastfeedings {
+
+        @Test
+        @DisplayName("Scénario : une tétée n'altère pas totalMilkMl du point (D18-C)")
+        void pas_d_effet_sur_le_lait() {
+            Caregiver c = linkedCaregiver("series-feeds");
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 6, 15, 9, 0), 120, MilkType.formula);
+            data.createBreastfeeding(c.babyId(), c.userId(), paris(2026, 6, 15, 10, 0), BreastSide.left, 30);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("from", "2026-06-15")
+                    .queryParam("to", "2026-06-15")
+                    .queryParam("bucket", "day")
+                    .when().get("/api/babies/{babyId}/totals-series", c.babyId())
+                    .then().statusCode(200)
+                    .body("points.size()", is(1))
+                    .body("points[0].totalMilkMl", is(120));
         }
     }
 

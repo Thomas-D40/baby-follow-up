@@ -50,6 +50,17 @@ describe('describeEvent — détail par type (US6.1)', () => {
     expect(describeEvent({ type: 'bottle_feeding', quantityMl: 90, milkType: null })).toBe('90 ml')
   })
 
+  it('tétée : côté et durée, ou « — » quand rien n’est précisé (Épic 18)', () => {
+    expect(describeEvent({ type: 'breastfeeding', side: 'left', durationMinutes: 12 })).toBe('Gauche · 12 min')
+    expect(describeEvent({ type: 'breastfeeding', side: 'right', durationMinutes: null })).toBe('Droit')
+    expect(describeEvent({ type: 'breastfeeding', side: null, durationMinutes: 12 })).toBe('12 min')
+    expect(describeEvent({ type: 'breastfeeding', side: null, durationMinutes: null })).toBe('—')
+  })
+
+  it('biberon : la valeur breast se lit « Lait maternel », jamais confondue avec la tétée', () => {
+    expect(describeEvent({ type: 'bottle_feeding', quantityMl: 80, milkType: 'breast' })).toBe('80 ml · Lait maternel')
+  })
+
   it('sieste terminée : durée brute', () => {
     expect(describeEvent({ type: 'nap', startAt: '2026-07-15T08:00:00.000Z', endAt: '2026-07-15T09:23:00.000Z' }))
       .toBe('1 h 23')
@@ -115,9 +126,10 @@ describe('formatSleepTotal — totaux (US6.3)', () => {
 })
 
 describe('EVENT_TYPE_LABEL', () => {
-  it('libellés FR par type (température + les deux soins ajoutés — Épic 15, K1)', () => {
+  it('libellés FR par type (température + soins — Épic 15 ; tétée — Épic 18)', () => {
     expect(EVENT_TYPE_LABEL).toEqual({
       bottle_feeding: 'Biberon',
+      breastfeeding: 'Tétée',
       nap: 'Sieste',
       stool: 'Selle',
       urine: 'Urine',
