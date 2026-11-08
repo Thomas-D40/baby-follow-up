@@ -146,4 +146,21 @@ class MailFailureTest {
             activate(response.jsonPath().getString("activationLink")).then().statusCode(204);
         }
     }
+
+    @Nested
+    @DisplayName("Scénario : l'envoi du lien d'activation échoue au renvoi")
+    class EchecRenvoi {
+
+        @Test
+        void repond_200_mail_non_envoye_et_le_nouveau_lien_active_le_compte() {
+            UUID pending = data.createPendingParent(data.uniqueEmail("jeanne"));
+
+            Response response = given().cookie(AuthFixture.COOKIE, adminCookie())
+                    .when().post("/api/admin/users/{id}/activation-link", pending);
+
+            response.then().statusCode(200);
+            assertFalse(response.jsonPath().getBoolean("mailSent"));
+            activate(response.jsonPath().getString("activationLink")).then().statusCode(204);
+        }
+    }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createAccount, listAccounts } from './adminUsers'
+import { createAccount, listAccounts, resendActivationLink } from './adminUsers'
 
 // The HTTP routes are the contract with the server: a wrong path or verb answers 404/405 in
 // production while every component test, which mocks this layer, stays green.
@@ -50,5 +50,26 @@ describe('api/adminUsers — création de compte (Épic 20, US20.2)', () => {
     global.fetch = mockFetch({ status: 409 })
 
     await expect(createAccount({ email: 'lisa@exemple.fr', firstName: 'Lisa' })).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+describe('api/adminUsers — renvoi du lien d’activation (Épic 20, US20.3)', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('resendActivationLink → POST /api/admin/users/{id}/activation-link, sans corps', async () => {
+    global.fetch = mockFetch({ status: 200, json: { userId: 'u1', activationLink: 'http://x', mailSent: false } })
+
+    const res = await resendActivationLink('u1')
+
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/admin/users/u1/activation-link')
+    expect(global.fetch.mock.calls[0][1].method).toBe('POST')
+    expect(global.fetch.mock.calls[0][1].body).toBeUndefined()
+    expect(res.mailSent).toBe(false)
+  })
+
+  it('resendActivationLink propage le status sur erreur (409)', async () => {
+    global.fetch = mockFetch({ status: 409 })
+
+    await expect(resendActivationLink('u1')).rejects.toMatchObject({ status: 409 })
   })
 })

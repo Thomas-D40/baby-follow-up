@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useAccounts, useCreateAccount } from './adminUsers'
+import { useAccounts, useCreateAccount, useResendActivationLink } from './adminUsers'
 
 // ⚠️ This file lives in web/src/services/: the mocked module is '../api'.
 vi.mock('../api', () => ({
@@ -9,7 +9,7 @@ vi.mock('../api', () => ({
   createAccount: vi.fn(),
   resendActivationLink: vi.fn(),
 }))
-import { createAccount, listAccounts } from '../api'
+import { createAccount, listAccounts, resendActivationLink } from '../api'
 
 // The client retries by default (twice, no delay): a hook that does not opt out itself would call the
 // API three times, so "one call" below really proves the hook's own `retry: 0`.
@@ -83,6 +83,41 @@ describe('useCreateAccount (Épic 20, US20.2)', () => {
     await expect(act(() => result.current.mutateAsync(BODY))).rejects.toMatchObject({ status: 409 })
 
     expect(createAccount).toHaveBeenCalledTimes(1)
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+})
+
+describe('useResendActivationLink (Épic 20, US20.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resendActivationLink.mockResolvedValue({ userId: 'u3', activationLink: 'http://x/activate?token=new', mailSent: true })
+  })
+
+  it('mutateAsync(userId) appelle resendActivationLink(userId)', async () => {
+    const { result } = setupHook(() => useResendActivationLink())
+
+    await act(() => result.current.mutateAsync('u3'))
+
+    expect(resendActivationLink).toHaveBeenCalledTimes(1)
+    expect(resendActivationLink.mock.calls[0]).toEqual(['u3'])
+  })
+
+  it('au succès : UNE invalidation de la liste [admin, users]', async () => {
+    const { result, invalidate } = setupHook(() => useResendActivationLink())
+
+    await act(() => result.current.mutateAsync('u3'))
+
+    expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'users'] })
+  })
+
+  it('une erreur remonte : un seul appel (retry: 0), aucune invalidation', async () => {
+    resendActivationLink.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
+    const { result, invalidate } = setupHook(() => useResendActivationLink())
+
+    await expect(act(() => result.current.mutateAsync('u3'))).rejects.toMatchObject({ status: 409 })
+
+    expect(resendActivationLink).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()
   })
 })
