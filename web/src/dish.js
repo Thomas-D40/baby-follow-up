@@ -13,3 +13,20 @@ export function parseDishLabel(raw) {
   if (label.length > DISH_MAX_LENGTH) return { ok: false, error: 'Le plat ne doit pas dépasser 60 caractères.' }
   return { ok: true, value: label }
 }
+
+// Mirror of the server's DishLabels.normalize (accents stripped, lower case, blanks collapsed),
+// used to key the search cache and to hide the "add to my dishes" box for the fixed dishes. The
+// server stays the truth for uniqueness and for `exactMatch`.
+export function normalizeDishLabel(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function isFixedDish(s) {
+  const normalized = normalizeDishLabel(s)
+  return FIXED_DISHES.some((fixed) => normalizeDishLabel(fixed) === normalized)
+}

@@ -2,5 +2,7 @@ package com.suivibaby.model;
 
 import java.time.Instant;
 
-public record CreateSolidMealRequest(Instant occurredAt, String dish, MealPortion portion) {
+// `addToDishes` absent in the JSON means false.
+public record CreateSolidMealRequest(Instant occurredAt, String dish, MealPortion portion,
+                                     boolean addToDishes) {
 }
