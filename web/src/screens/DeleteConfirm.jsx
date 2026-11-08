@@ -27,14 +27,17 @@ export const DELETE_LABELS = {
  * `onError(err)` (optionnel) : permet à l'appelant de mapper un code (ex. 409 dernier owner, Épic 8)
  * sur un message dédié ; sans lui, l'erreur générique locale (`DELETE_LABELS.error`) s'affiche (R3).
  */
-export function InlineDeleteConfirm({ prompt, triggerAriaLabel, onDelete, onDeleted, onError }) {
+export function InlineDeleteConfirm({
+  prompt, triggerAriaLabel, onDelete, onDeleted, onError,
+  confirmLabel = DELETE_LABELS.confirm, triggerTitle = DELETE_LABELS.trigger,
+}) {
   const [confirming, setConfirming] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
 
   if (!confirming) {
     return (
-      <button onClick={() => setConfirming(true)} className="icon-btn" aria-label={triggerAriaLabel} title={DELETE_LABELS.trigger}>
+      <button onClick={() => setConfirming(true)} className="icon-btn" aria-label={triggerAriaLabel} title={triggerTitle}>
         🗑
       </button>
     )
@@ -63,7 +66,7 @@ export function InlineDeleteConfirm({ prompt, triggerAriaLabel, onDelete, onDele
     <span className="confirm-inline" role="group">
       <span className="prompt">{prompt}</span>
       <button onClick={run} disabled={pending} className="btn btn--danger btn--sm">
-        {pending ? DELETE_LABELS.pending : DELETE_LABELS.confirm}
+        {pending ? DELETE_LABELS.pending : confirmLabel}
       </button>
       <button onClick={() => setConfirming(false)} disabled={pending} className="btn btn--ghost btn--sm">
         {DELETE_LABELS.cancel}

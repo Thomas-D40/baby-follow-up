@@ -6,6 +6,7 @@ import com.suivibaby.entity.BabyInvitation;
 import com.suivibaby.mapper.InvitationMapper;
 import com.suivibaby.model.CreateInvitationResponse;
 import com.suivibaby.model.InvitationPreviewResponse;
+import com.suivibaby.model.PendingInvitationResponse;
 import com.suivibaby.repository.AppUserRepository;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyInvitationRepository;
@@ -24,6 +25,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 // Emission and acceptance of sharing invitations. Each invitation names its recipient (D17-B); the
@@ -138,11 +141,33 @@ public class InvitationService {
         // persisted via dirty checking (entities managed within the transaction)
     }
 
-    /**
-     * Révocation admin-only des invitations en attente d'un bébé (D8-K). Le parent-facing s'appuie
-     * sur l'expiration 3j / la régénération ; l'admin garde la main explicite via AdminBabyController.
-     * Marque {@code used_at} (sans {@code accepted_by}) pour les sortir de l'index actif.
-     */
+    // Owner-only. Shows what the owner typed, nothing about the recipient's account (D17-G, D17-X).
+    public List<PendingInvitationResponse> listPending(UUID currentUserId, UUID babyId) {
+        requireOwner(currentUserId, babyId);
+        List<PendingInvitationResponse> pending = new ArrayList<>();
+        for (BabyInvitation invitation : babyInvitationRepository.listPendingByBaby(babyId, Instant.now())) {
+            AppUser invitee = appUserRepository.findById(invitation.inviteeUserId);
+            pending.add(invitationMapper.toPendingResponse(invitation, invitee));
+        }
+        return pending;
+    }
+
+    // Owner-only. Only a pending invitation of THIS baby can be revoked; anything else is a 404 (accepted,
+    // already revoked, expired, other baby, unknown). The recipient's account is left untouched (D17-R).
+    @Transactional
+    public void revoke(UUID currentUserId, UUID babyId, UUID token) {
+        requireOwner(currentUserId, babyId);
+        Instant now = Instant.now();
+        BabyInvitation invitation = babyInvitationRepository.findById(token);
+        if (invitation == null || !invitation.babyId.equals(babyId)
+                || invitation.isConsumed() || invitation.isExpired(now)) {
+            throw new NotFoundException();
+        }
+        invitation.usedAt = now; // acceptedBy stays null: revoked, not accepted
+    }
+
+    // Admin-only revocation of every pending invitation of a baby (D8-K), through AdminBabyController.
+    // Sets used_at (without accepted_by) to take them out of the active index.
     @Transactional
     public long revokeActiveInvitations(UUID babyId) {
         return babyInvitationRepository.invalidateActiveInvitations(babyId, Instant.now());

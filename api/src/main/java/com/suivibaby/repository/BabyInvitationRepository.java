@@ -2,9 +2,11 @@ package com.suivibaby.repository;
 
 import com.suivibaby.entity.BabyInvitation;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
+import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -22,5 +24,12 @@ public class BabyInvitationRepository implements PanacheRepositoryBase<BabyInvit
     public long invalidateActiveInvitationsForInvitee(UUID babyId, UUID inviteeUserId, Instant now) {
         return update("usedAt = ?1 where babyId = ?2 and inviteeUserId = ?3 and usedAt is null",
                 now, babyId, inviteeUserId);
+    }
+
+    // "Pending" = not consumed and expiresAt >= now, the exact complement of BabyInvitation.isExpired
+    // (D17-AD). Newest first, token as the tie-break (D17-AE).
+    public List<BabyInvitation> listPendingByBaby(UUID babyId, Instant now) {
+        return list("babyId = ?1 and usedAt is null and expiresAt >= ?2",
+                Sort.descending("expiresAt").and("token"), babyId, now);
     }
 }

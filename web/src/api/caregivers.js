@@ -23,6 +23,16 @@ export function previewInvitation(token) {
   return apiGet(`/invitations/${token}`)
 }
 
+// Pending invitations of CE baby (owner-only) → [{ token, inviteeEmail, inviteeFirstName, expiresAt }].
+export function listPendingInvitations(babyId) {
+  return apiGet(`/babies/${babyId}/invitations`)
+}
+
+// Revoke a pending invitation (owner-only) → 204. 404 if it is not pending any more (accepted, revoked, expired).
+export function revokeInvitation(babyId, token) {
+  return apiSend(`/babies/${babyId}/invitations/${token}`, 'DELETE')
+}
+
 // Lister le cercle de CE bébé (caregiver lié, D8-N) → [{ userId, firstName, email, isOwner }].
 export function listCaregivers(babyId) {
   return apiGet(`/babies/${babyId}/caregivers`)
