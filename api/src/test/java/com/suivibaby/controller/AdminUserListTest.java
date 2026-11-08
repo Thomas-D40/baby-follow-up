@@ -20,10 +20,8 @@ import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/**
- * Épic 20, US20.1 — the administrator lists every account with its status. The database is shared by
- * the whole run: each scenario filters the list on its own emails and never asserts its total size.
- */
+// Épic 20, US20.1 — the administrator lists every account with its status. The database is shared by
+// the whole run: each scenario filters the list on its own emails and never asserts its total size.
 @QuarkusTest
 class AdminUserListTest {
 

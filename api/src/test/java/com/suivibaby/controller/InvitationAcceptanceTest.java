@@ -29,10 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 17, US17.2 — the recipient joins a baby, setting its password in the same step when the
- * account is still pending. The accept route is public: the service alone decides (R7).
- */
+// Épic 17, US17.2 — the recipient joins a baby, setting its password in the same step when the
+// account is still pending. The accept route is public: the service alone decides (R7).
 @QuarkusTest
 class InvitationAcceptanceTest {
 

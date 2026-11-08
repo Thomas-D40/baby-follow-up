@@ -20,12 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/**
- * Every "the relay is down" scenario of Épics 17 and 20 lives in this one class, so Quarkus restarts
- * once for the whole failure profile. The mock mailer is switched off and the real SMTP client points
- * at a closed local port: Mailer.send throws, and MailService must turn it into mailSent=false without
- * undoing anything (D17-N, D17-AA).
- */
+// Every "the relay is down" scenario of Épics 17 and 20 lives in this one class, so Quarkus restarts
+// once for the whole failure profile. The mock mailer is switched off and the real SMTP client points
+// at a closed local port: Mailer.send throws, and MailService must turn it into mailSent=false without
+// undoing anything (D17-N, D17-AA).
 @QuarkusTest
 @TestProfile(MailFailureTest.SmtpDownProfile.class)
 class MailFailureTest {

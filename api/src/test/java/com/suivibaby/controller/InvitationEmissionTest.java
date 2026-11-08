@@ -28,10 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 17, US17.1 — an owner invites a relative by email: the account is created when it does not
- * exist, and the response is identical either way (D17-G).
- */
+// Épic 17, US17.1 — an owner invites a relative by email: the account is created when it does not
+// exist, and the response is identical either way (D17-G).
 @QuarkusTest
 class InvitationEmissionTest {
 

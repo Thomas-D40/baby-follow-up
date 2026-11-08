@@ -36,7 +36,7 @@ function renderScreen(onBack = vi.fn()) {
 beforeEach(() => {
   vi.clearAllMocks()
   listAccounts.mockResolvedValue(ACCOUNTS)
-  // clipboard pour le bouton « Copier »
+  // clipboard stub for the « Copier » button
   Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue() } })
 })
 
