@@ -21,7 +21,7 @@
   --stool: #d99a63;  --stool-ink: #a86c33;  --stool-bg: #fbefe1;
   --urine: #6cc5d9;  --urine-ink: #2f8ba3;  --urine-bg: #e4f5f9;
   --weight: #7bbf9e; --weight-ink: #3f8f6b; --weight-bg: #e6f5ee;
-  /* Alimentation (Épic 18) : le biberon garde --milk ; la tétée a sa teinte rose poudré. */
+  /* Feeding (Épic 18): the bottle keeps --milk; breastfeeding gets a dusty pink, solid meals a light green. */
   --breast: #e59ab0; --breast-ink: #a94a6c; --breast-bg: #fbeaf0;
   --meal: #a9c46a;   --meal-ink: #657f2c;   --meal-bg: #f1f6e2;
   /* Médical (Épic 15) : DEUX familles, pas trois. La température a la sienne (elle porte une
