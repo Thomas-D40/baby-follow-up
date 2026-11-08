@@ -23,11 +23,11 @@ vi.mock('./TrendsPanel', () => ({
 
 const me = { firstName: 'Parent', email: 'p@test.local', role: 'parent' }
 
-function renderScreen() {
+function renderScreen(user = me) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <BabiesScreen me={me} onLogout={() => {}} />
+      <BabiesScreen me={user} onLogout={() => {}} />
     </QueryClientProvider>,
   )
 }
@@ -201,5 +201,52 @@ describe('BabiesScreen — gate courbe de croissance (Épic 12, D12-G′)', () =
     expect(chart).toHaveTextContent('female')
     expect(chart).toHaveTextContent('2026-01-15')
     expect(screen.queryByText(/renseignez la date de naissance et le sexe/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('BabiesScreen — écran Utilisateurs de l’administrateur (Épic 20, US20.1)', () => {
+  const admin = { ...me, role: 'admin' }
+  const TWO_BABIES = [
+    { id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' },
+    { id: 'b', firstName: 'Tom', birthDate: '2026-02-20', sex: 'male' },
+  ]
+
+  beforeEach(() => {
+    api.listAccounts.mockResolvedValue([])
+  })
+
+  it('un parent ne voit pas le bouton « Utilisateurs »', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen(me)
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    expect(screen.queryByRole('button', { name: 'Utilisateurs' })).not.toBeInTheDocument()
+  })
+
+  it('un admin voit le bouton « Utilisateurs », même sans aucun bébé', async () => {
+    api.listBabies.mockResolvedValue([])
+    renderScreen(admin)
+
+    expect(await screen.findByRole('button', { name: 'Utilisateurs' })).toBeInTheDocument()
+  })
+
+  it('« Utilisateurs » ouvre l’écran plein, « Retour » rend la même fiche, le même bébé et le même onglet', async () => {
+    api.listBabies.mockResolvedValue(TWO_BABIES)
+    renderScreen(admin)
+    await userEvent.selectOptions(await screen.findByLabelText('Bébé suivi'), 'b')
+    await screen.findByRole('heading', { name: 'Tom', level: 2 })
+    await userEvent.click(screen.getByRole('tab', { name: 'Semaine' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Utilisateurs' }))
+
+    expect(await screen.findByRole('heading', { name: 'Utilisateurs', level: 1 })).toBeInTheDocument()
+    expect(api.listAccounts).toHaveBeenCalled()
+    expect(screen.queryByRole('heading', { name: 'Tom', level: 2 })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retour' }))
+
+    expect(await screen.findByRole('heading', { name: 'Tom', level: 2 })).toBeInTheDocument()
+    expect(screen.getByLabelText('Bébé suivi')).toHaveValue('b')
+    expect(screen.getByRole('tab', { name: 'Semaine' })).toHaveAttribute('aria-selected', 'true')
   })
 })
