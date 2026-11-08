@@ -55,7 +55,7 @@ export default function SharePanel({ babyId, me }) {
         setCopied(false)
         setEmail('')
         setFirstName('')
-        setNotice(`Invitation créée pour ${res.inviteeEmail}.`)
+        setNotice(res.mailSent ? `Invitation envoyée par email à ${res.inviteeEmail}.` : null)
       },
       onError: (err) => setError(INVITE_ERROR[err?.status] ?? "Échec de l'invitation. Réessayez."),
     })
@@ -132,6 +132,12 @@ export default function SharePanel({ babyId, me }) {
             {createInvitationMut.isPending ? '…' : "Envoyer l'invitation"}
           </button>
         </form>
+      )}
+
+      {iAmOwner && invitation && !invitation.mailSent && (
+        <p role="alert" className="notice notice--danger">
+          L'email n'a pas pu être envoyé : transmettez le lien vous-même.
+        </p>
       )}
 
       {iAmOwner && invitation && (
