@@ -129,6 +129,30 @@ class ResendActivationLinkTest {
     }
 
     @Nested
+    @DisplayName("Scénario : prénoms absents (comptes historiques, D17-Z)")
+    class PrenomsAbsents {
+
+        @Test
+        void admin_et_compte_sans_prenom_repondent_200_et_le_mail_part_sans_afficher_null() {
+            String adminEmail = data.uniqueEmail("admin-sans-prenom");
+            data.createUser(adminEmail, null, "admin", PWD);
+            String email = data.uniqueEmail("sans-prenom");
+            UUID pending = data.createUser(email, null, "parent", null);
+
+            Response response = resend(AuthFixture.loginCookie(adminEmail, PWD), pending);
+
+            response.then().statusCode(200).body("mailSent", is(true));
+            List<Mail> mails = mailsTo(email);
+            assertEquals(1, mails.size());
+            Mail mail = mails.get(0);
+            for (String content : List.of(mail.getSubject(), mail.getText(), mail.getHtml())) {
+                assertFalse(content.contains("null"), content);
+            }
+            assertTrue(mail.getText().contains(response.jsonPath().getString("activationLink")), mail.getText());
+        }
+    }
+
+    @Nested
     @DisplayName("Scénario : un compte déjà activé n'a rien à se faire renvoyer")
     class CompteActif {
 

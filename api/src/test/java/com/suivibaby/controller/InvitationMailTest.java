@@ -141,6 +141,29 @@ class InvitationMailTest {
     }
 
     @Nested
+    @DisplayName("Scénario : owner sans prénom (compte historique, D17-Z)")
+    class OwnerSansPrenom {
+
+        @Test
+        void repond_201_et_envoie_le_mail_sans_afficher_null() {
+            Owner owner = owner(null, "Léa");
+            String invitee = data.uniqueEmail("jeanne");
+
+            Response response = invite(owner.cookie(), owner.baby(), invitee, "Jeanne");
+
+            response.then().statusCode(201);
+            assertTrue(response.jsonPath().getBoolean("mailSent"));
+            List<Mail> mails = mailsTo(invitee);
+            assertEquals(1, mails.size());
+            Mail mail = mails.get(0);
+            for (String content : List.of(mail.getSubject(), mail.getText(), mail.getHtml())) {
+                assertFalse(content.contains("null"), content);
+            }
+            assertTrue(mail.getText().contains(response.jsonPath().getString("link")), mail.getText());
+        }
+    }
+
+    @Nested
     @DisplayName("Scénario : aucun envoi sur un refus")
     class AucunEnvoiSurRefus {
 
