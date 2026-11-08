@@ -10,24 +10,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 8 — partage & co-parents. Couvre 1:1 le §4 du preparation plan : émission owner-only,
- * acceptation (non-owner / expiré / utilisé / auto-invitation), liste bornée au cercle (D8-N),
- * déliaison (dernier owner, owner↔owner, IDOR), promotion, et le piège du DEFAULT (acceptation
- * ⇒ non-owner).
- */
+// Épic 8 — sharing and co-parents: circle listing bounded to the baby (D8-N), unlinking (last owner,
+// owner-to-owner, IDOR), promotion and the DEFAULT trap. Invitation emission and acceptance moved to
+// InvitationEmissionTest and InvitationAcceptanceTest when an invitation started naming its recipient
+// (Épic 17).
 @QuarkusTest
 class SharingTest {
 
@@ -46,16 +41,6 @@ class SharingTest {
         return new Account(id, AuthFixture.loginCookie(email, PWD));
     }
 
-    private Response createInvitation(String cookie, UUID babyId) {
-        return given().cookie(AuthFixture.COOKIE, cookie)
-                .when().post("/api/babies/{babyId}/invitations", babyId);
-    }
-
-    private Response accept(String cookie, Object token) {
-        return given().cookie(AuthFixture.COOKIE, cookie)
-                .when().post("/api/invitations/{token}/accept", token);
-    }
-
     private Response listCaregivers(String cookie, UUID babyId) {
         return given().cookie(AuthFixture.COOKIE, cookie)
                 .when().get("/api/babies/{babyId}/caregivers", babyId);
@@ -71,143 +56,6 @@ class SharingTest {
                 .contentType(ContentType.JSON)
                 .body(body)
                 .when().patch("/api/babies/{babyId}/caregivers/{userId}", babyId, userId);
-    }
-
-    // ===== POST .../invitations =====
-
-    @Nested
-    @DisplayName("Émission d'invitation (owner-only)")
-    class Emission {
-
-        @Test
-        void owner_emet_201_token_lien_expiration() {
-            Account owner = parent("owner");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-
-            createInvitation(owner.cookie(), baby).then().statusCode(201)
-                    .body("token", notNullValue())
-                    .body("link", notNullValue())
-                    .body("expiresAt", notNullValue());
-            assertEquals(1, data.countActiveInvitations(baby));
-        }
-
-        @Test
-        void caregiver_non_owner_recoit_403() {
-            Account owner = parent("owner");
-            Account guest = parent("guest");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-            data.linkAsCaregiver(guest.id(), baby); // lié mais non-owner
-
-            createInvitation(guest.cookie(), baby).then().statusCode(403);
-        }
-
-        @Test
-        void utilisateur_non_lie_recoit_404() {
-            Account stranger = parent("stranger");
-            UUID baby = data.createBaby("Noé");
-
-            createInvitation(stranger.cookie(), baby).then().statusCode(404);
-        }
-
-        @Test
-        void regeneration_invalide_la_precedente_active() {
-            Account owner = parent("owner");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-
-            createInvitation(owner.cookie(), baby).then().statusCode(201);
-            createInvitation(owner.cookie(), baby).then().statusCode(201);
-            // L'index partiel n'autorise qu'une invit active par bébé.
-            assertEquals(1, data.countActiveInvitations(baby));
-        }
-
-        @Test
-        void non_authentifie_recoit_401() {
-            UUID baby = data.createBaby("Noé");
-            given().when().post("/api/babies/{babyId}/invitations", baby).then().statusCode(401);
-        }
-    }
-
-    // ===== POST .../accept =====
-
-    @Nested
-    @DisplayName("Acceptation d'invitation")
-    class Acceptation {
-
-        @Test
-        void token_valide_lie_le_courant_en_non_owner() {
-            Account owner = parent("owner");
-            Account guest = parent("guest");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-            UUID token = data.createInvitation(baby, owner.id(),
-                    Instant.now().plus(3, ChronoUnit.DAYS), null);
-
-            accept(guest.cookie(), token).then().statusCode(204);
-
-            assertTrue(data.isLinkedHelper(guest.id(), baby));
-            // Piège DEFAULT : l'acceptation crée bien un NON-owner (D8-F/R5).
-            assertFalse(data.isOwner(guest.id(), baby), "un lien accepté ne doit jamais être owner");
-            assertTrue(data.invitationConsumed(token), "le token doit être consommé");
-        }
-
-        @Test
-        void token_expire_recoit_410() {
-            Account owner = parent("owner");
-            Account guest = parent("guest");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-            UUID token = data.createInvitation(baby, owner.id(),
-                    Instant.now().minus(1, ChronoUnit.HOURS), null);
-
-            accept(guest.cookie(), token).then().statusCode(410);
-            assertFalse(data.isLinkedHelper(guest.id(), baby));
-        }
-
-        @Test
-        void token_deja_utilise_recoit_410() {
-            Account owner = parent("owner");
-            Account guest = parent("guest");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-            UUID token = data.createInvitation(baby, owner.id(),
-                    Instant.now().plus(3, ChronoUnit.DAYS), Instant.now());
-
-            accept(guest.cookie(), token).then().statusCode(410);
-        }
-
-        @Test
-        void token_inexistant_recoit_410() {
-            Account guest = parent("guest");
-            accept(guest.cookie(), UUID.randomUUID()).then().statusCode(410);
-        }
-
-        @Test
-        void token_malforme_recoit_410() {
-            Account guest = parent("guest");
-            accept(guest.cookie(), "not-a-uuid").then().statusCode(410);
-        }
-
-        @Test
-        void auto_invitation_membre_deja_lie_recoit_409_sans_consommer() {
-            Account owner = parent("owner");
-            UUID baby = data.createBaby("Noé");
-            data.link(owner.id(), baby);
-            UUID token = data.createInvitation(baby, owner.id(),
-                    Instant.now().plus(3, ChronoUnit.DAYS), null);
-
-            // L'owner (déjà lié) tente d'accepter sa propre invitation.
-            accept(owner.cookie(), token).then().statusCode(409);
-            assertFalse(data.invitationConsumed(token), "le token reste utilisable par le destinataire réel");
-        }
-
-        @Test
-        void non_authentifie_recoit_401() {
-            given().when().post("/api/invitations/{token}/accept", UUID.randomUUID())
-                    .then().statusCode(401);
-        }
     }
 
     // ===== GET .../caregivers =====
