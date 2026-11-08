@@ -34,6 +34,12 @@ public class BabyInvitation {
     @Column(name = "accepted_by")
     public UUID acceptedBy;
 
+    @Column(name = "invitee_user_id", nullable = false)
+    public UUID inviteeUserId;
+
+    @Column(name = "invitee_first_name", nullable = false)
+    public String inviteeFirstName;
+
     public boolean isExpired(Instant now) {
         return expiresAt.isBefore(now);
     }

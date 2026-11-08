@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listCaregivers, createInvitation, removeCaregiver, promoteCaregiver } from '../api'
+import { listCaregivers, removeCaregiver, promoteCaregiver } from '../api'
+import { useCreateInvitation } from '../services/invitations'
 import { InlineDeleteConfirm } from './DeleteConfirm'
 
-/**
- * Section « Partage » de la fiche bébé (Épic 8, Lot F). Liste le cercle du bébé (D8-N) et expose, aux
- * owners seulement (D8-J), la génération d'un lien d'invitation hors-bande (D8-B), la promotion (D8-I)
- * et la déliaison (D8-L). « Dernier owner » (D8-M) → message dédié sur le 409, pas une erreur générique.
- *
- * Invalidation par préfixe `['babies', babyId]` après chaque mutation (cf. Épic 7 D7-C) : la liste des
- * caregivers et l'état owner se rafraîchissent partout. Mutations `retry: 0` (anti-double-saisie, D3-G).
- */
+const INVITE_ERROR = {
+  409: 'Cette personne fait déjà partie du cercle.',
+  400: "Vérifiez l'email et le prénom.",
+}
+
+// "Partage" section of the baby sheet: lists the baby's circle (D8-N) and, to owners only, exposes the
+// invitation by email (D17), promotion (D8-I) and removal (D8-L). 409 on removal = last owner (D8-M),
+// with its own message. Mutations use retry: 0 (anti double-submit, D3-G) and the prefix invalidation
+// ['babies', babyId] (Épic 7 D7-C) refreshes the circle everywhere.
 export default function SharePanel({ babyId, me }) {
   const qc = useQueryClient()
-  const [link, setLink] = useState(null)
+  const createInvitationMut = useCreateInvitation(babyId)
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [invitation, setInvitation] = useState(null) // last emission result, kept to show the link
   const [copied, setCopied] = useState(false)
   const [notice, setNotice] = useState(null)
   const [error, setError] = useState(null)
@@ -29,13 +34,6 @@ export default function SharePanel({ babyId, me }) {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['babies', babyId] })
 
-  const inviteMut = useMutation({
-    mutationFn: () => createInvitation(babyId),
-    retry: 0,
-    onSuccess: (res) => { setError(null); setCopied(false); setLink(res.link) },
-    onError: () => setError("Échec de la génération du lien. Réessayez."),
-  })
-
   const promoteMut = useMutation({
     mutationFn: (userId) => promoteCaregiver(babyId, userId),
     retry: 0,
@@ -43,9 +41,29 @@ export default function SharePanel({ babyId, me }) {
     onError: () => setError('Échec de la promotion. Réessayez.'),
   })
 
+  function handleInvite(e) {
+    e.preventDefault()
+    setNotice(null)
+    if (!email.trim() || !firstName.trim()) {
+      setError("Renseignez l'email et le prénom du proche.")
+      return
+    }
+    setError(null)
+    createInvitationMut.mutate({ email: email.trim(), firstName: firstName.trim() }, {
+      onSuccess: (res) => {
+        setInvitation(res)
+        setCopied(false)
+        setEmail('')
+        setFirstName('')
+        setNotice(`Invitation créée pour ${res.inviteeEmail}.`)
+      },
+      onError: (err) => setError(INVITE_ERROR[err?.status] ?? "Échec de l'invitation. Réessayez."),
+    })
+  }
+
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(link)
+      await navigator.clipboard.writeText(invitation.link)
       setCopied(true)
     } catch {
       setCopied(false)
@@ -101,29 +119,32 @@ export default function SharePanel({ babyId, me }) {
       </ul>
 
       {iAmOwner && (
-        <div className="field">
-          <button
-            onClick={() => { setNotice(null); inviteMut.mutate() }}
-            disabled={inviteMut.isPending}
-            className="btn btn--primary btn--sm"
-            style={{ alignSelf: 'flex-start' }}
-          >
-            {inviteMut.isPending ? '…' : "Générer un lien d'invitation"}
+        <form aria-label="Inviter un proche" noValidate onSubmit={handleInvite} className="form">
+          <label className="field">
+            <span className="field-label">Email du proche</span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
+          </label>
+          <label className="field">
+            <span className="field-label">Prénom du proche</span>
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="input" />
+          </label>
+          <button type="submit" disabled={createInvitationMut.isPending} className="btn btn--primary btn--sm btn--start">
+            {createInvitationMut.isPending ? '…' : "Envoyer l'invitation"}
           </button>
+        </form>
+      )}
 
-          {link && (
-            <div className="field" style={{ marginTop: '0.6rem' }}>
-              <span className="field-hint">
-                Valable 3 jours, à usage unique, à transmettre à un proche déjà inscrit.
-              </span>
-              <div className="modal-row">
-                <input className="input" readOnly value={link} aria-label="Lien d'invitation" onFocus={(e) => e.target.select()} />
-                <button onClick={copyLink} className="btn btn--ghost btn--sm">
-                  {copied ? 'Copié' : 'Copier'}
-                </button>
-              </div>
-            </div>
-          )}
+      {iAmOwner && invitation && (
+        <div className="field">
+          <span className="field-hint">
+            Valable 3 jours, à usage unique, réservé à {invitation.inviteeEmail}.
+          </span>
+          <div className="modal-row">
+            <input className="input" readOnly value={invitation.link} aria-label="Lien d'invitation" onFocus={(e) => e.target.select()} />
+            <button onClick={copyLink} className="btn btn--ghost btn--sm">
+              {copied ? 'Copié' : 'Copier'}
+            </button>
+          </div>
         </div>
       )}
     </section>

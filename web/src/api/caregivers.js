@@ -2,10 +2,11 @@ import { apiGet, apiSend } from './client'
 
 // --- Partage & co-parents (Épic 8) ---
 
-// Émettre un lien d'invitation pour CE bébé (owner-only, D8-B/J).
-// → 201 { token, link, expiresAt }. 404 si non lié (anti-énumération), 403 si lié non-owner.
-export function createInvitation(babyId) {
-  return apiSend(`/babies/${babyId}/invitations`, 'POST')
+// Invite a relative by email to CE baby (owner-only). body = { email, firstName }.
+// → 201 { token, link, inviteeEmail, expiresAt, mailSent }. 404 if not linked, 403 if linked non-owner,
+// 409 if the recipient is already in the circle, 400 on an invalid body.
+export function createInvitation(babyId, body) {
+  return apiSend(`/babies/${babyId}/invitations`, 'POST', body)
 }
 
 // Accepter une invitation (authentifié, D8-D). Lie l'utilisateur courant en non-owner (D8-F).

@@ -3,6 +3,11 @@ package com.suivibaby.model;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Réponse à l'émission d'une invitation de partage (Épic 8, D8-B/C). */
-public record CreateInvitationResponse(UUID token, String link, Instant expiresAt) {
+// Response to the emission of a sharing invitation: same keys whether the account was created or not (D17-G).
+public record CreateInvitationResponse(UUID token, String link, String inviteeEmail, Instant expiresAt,
+                                       boolean mailSent) {
+
+    public CreateInvitationResponse withMailSent(boolean mailSent) {
+        return new CreateInvitationResponse(token, link, inviteeEmail, expiresAt, mailSent);
+    }
 }

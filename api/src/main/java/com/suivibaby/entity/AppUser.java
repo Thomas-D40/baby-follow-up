@@ -37,4 +37,7 @@ public class AppUser {
 
     @Column(name = "created_at", nullable = false)
     public Instant createdAt;
+
+    @Column(name = "activated_at")
+    public Instant activatedAt;
 }

@@ -1,6 +1,7 @@
 package com.suivibaby.service;
 
 import com.suivibaby.entity.BabyInvitation;
+import com.suivibaby.mapper.InvitationMapper;
 import com.suivibaby.model.CreateInvitationResponse;
 import com.suivibaby.repository.BabyCaregiverRepository;
 import com.suivibaby.repository.BabyInvitationRepository;
@@ -17,10 +18,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-/**
- * Émission et acceptation des invitations de partage (Épic 8). Le token EST le secret porteur
- * (bearer link, D8-B) : mitigé par expiration 3j + usage unique + acceptation en non-owner (D8-C/F).
- */
+// Emission and acceptance of sharing invitations. Each invitation names its recipient (D17-B); the
+// token is still a bearer secret, mitigated by a short expiry, single use and non-owner acceptance.
 @ApplicationScoped
 public class InvitationService {
 
@@ -36,32 +35,39 @@ public class InvitationService {
     @Inject
     BabyCaregiverRepository babyCaregiverRepository;
 
-    /**
-     * Émet une invitation pour {@code babyId}. Double garde (D8-J, Lot B) :
-     * non lié → 404 (anti-énumération US1.5), lié mais non-owner → 403 (contrôle de rôle).
-     */
+    @Inject
+    AccountService accountService;
+
+    @Inject
+    InvitationMapper invitationMapper;
+
+    // Owner-only. Unknown baby or not a member -> 404 (no existence leak), member but not owner -> 403.
+    // The recipient account is created if needed (pending, no activation token), then any refusal
+    // (already in the circle -> 409) rolls the whole transaction back, account included.
     @Transactional
-    public CreateInvitationResponse create(UUID currentUserId, UUID babyId) {
-        if (!babyCaregiverRepository.isLinked(currentUserId, babyId)) {
-            throw new NotFoundException(); // 404 : on ne révèle pas l'existence d'un bébé non lié
-        }
-        if (!babyCaregiverRepository.isOwner(currentUserId, babyId)) {
-            throw new ForbiddenException("Seul un owner peut partager ce bébé."); // 403 : rôle
+    public CreateInvitationResponse create(UUID currentUserId, UUID babyId, String email, String firstName) {
+        requireOwner(currentUserId, babyId);
+
+        UUID inviteeUserId = accountService.findOrCreateParent(email, firstName);
+        if (babyCaregiverRepository.isLinked(inviteeUserId, babyId)) {
+            throw new ClientErrorException(
+                    "Cette personne fait déjà partie du cercle de ce bébé.", Response.Status.CONFLICT);
         }
 
-        // L'index partiel n'autorise qu'une invit active par bébé : la régénération invalide la précédente.
-        babyInvitationRepository.invalidateActiveInvitations(babyId, Instant.now());
+        babyInvitationRepository.invalidateActiveInvitationsForInvitee(babyId, inviteeUserId, Instant.now());
 
         BabyInvitation invitation = new BabyInvitation();
         invitation.token = UUID.randomUUID();
         invitation.babyId = babyId;
         invitation.createdBy = currentUserId;
+        invitation.inviteeUserId = inviteeUserId;
+        invitation.inviteeFirstName = firstName; // what the owner typed, never the account's own name (D17-X)
         invitation.expiresAt = Instant.now().plus(ttlDays, ChronoUnit.DAYS);
         invitation.usedAt = null;
         invitation.acceptedBy = null;
         babyInvitationRepository.persist(invitation);
 
-        return new CreateInvitationResponse(invitation.token, buildLink(invitation.token), invitation.expiresAt);
+        return invitationMapper.toCreateResponse(invitation, buildLink(invitation.token), email);
     }
 
     /**
@@ -94,6 +100,15 @@ public class InvitationService {
     @Transactional
     public long revokeActiveInvitations(UUID babyId) {
         return babyInvitationRepository.invalidateActiveInvitations(babyId, Instant.now());
+    }
+
+    private void requireOwner(UUID currentUserId, UUID babyId) {
+        if (!babyCaregiverRepository.isLinked(currentUserId, babyId)) {
+            throw new NotFoundException(); // 404: we do not reveal the existence of an unlinked baby
+        }
+        if (!babyCaregiverRepository.isOwner(currentUserId, babyId)) {
+            throw new ForbiddenException("Seul un owner peut partager ce bébé."); // 403: role
+        }
     }
 
     private BabyInvitation loadValidInvitation(String rawToken) {
