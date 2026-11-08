@@ -18,6 +18,9 @@ public class MailService {
     @ConfigProperty(name = "app.invitation.ttl-days", defaultValue = "3")
     long invitationTtlDays;
 
+    @ConfigProperty(name = "app.activation.ttl-days", defaultValue = "7")
+    long activationTtlDays;
+
     @Inject
     Mailer mailer;
 
@@ -40,6 +43,28 @@ public class MailService {
                 (valable %d jours, utilisable une seule fois)</p>
                 <p>Si vous ne vous attendiez pas à ce message, ignorez-le.</p>
                 """.formatted(escapeHtml(inviterFirstName), escapeHtml(babyFirstName), link, invitationTtlDays);
+        return deliver(new Mail().addTo(to).setSubject(subject).setText(text).setHtml(html));
+    }
+
+    public boolean sendActivation(String to, String inviteeFirstName, String adminFirstName, String link) {
+        String subject = adminFirstName + " vous a créé un compte sur Suivi Baby";
+        String text = """
+                Bonjour %s,
+
+                %s vous a créé un compte sur Suivi Baby.
+
+                Pour définir votre mot de passe, ouvrez ce lien (valable %d jours, utilisable une seule fois) :
+                %s
+
+                Si vous ne vous attendiez pas à ce message, ignorez-le.
+                """.formatted(inviteeFirstName, adminFirstName, activationTtlDays, link);
+        String html = """
+                <p>Bonjour %s,</p>
+                <p>%s vous a créé un compte sur Suivi Baby.</p>
+                <p>Pour définir votre mot de passe, ouvrez ce lien : <a href="%s">Définir mon mot de passe</a> \
+                (valable %d jours, utilisable une seule fois)</p>
+                <p>Si vous ne vous attendiez pas à ce message, ignorez-le.</p>
+                """.formatted(escapeHtml(inviteeFirstName), escapeHtml(adminFirstName), link, activationTtlDays);
         return deliver(new Mail().addTo(to).setSubject(subject).setText(text).setHtml(html));
     }
 

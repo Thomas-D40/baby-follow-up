@@ -1,4 +1,4 @@
-import { apiGet } from './client'
+import { apiGet, apiSend } from './client'
 
 // --- Account management for the administrator (Épic 20) ---
 
@@ -6,4 +6,10 @@ import { apiGet } from './client'
 // 403 for a parent, 401 without session.
 export function listAccounts() {
   return apiGet('/admin/users')
+}
+
+// Create a parent account and mail it its activation link.
+// → 201 { userId, activationLink, mailSent }. 409 email already used, 400 invalid body.
+export function createAccount({ email, firstName }) {
+  return apiSend('/admin/users', 'POST', { email, firstName })
 }
