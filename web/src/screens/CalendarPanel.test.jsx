@@ -10,7 +10,7 @@ import { toLocalInputValue as toLocalInputValueStool } from '../stool'
 vi.mock('../api', () => ({
   getDayEvents: vi.fn(),
   getDailyTotals: vi.fn(),
-  // `useDeleteEvent` route vers les 8 clients : tous présents dans le mock.
+  // `useDeleteEvent` route vers les 9 clients : tous présents dans le mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
@@ -19,7 +19,8 @@ vi.mock('../api', () => ({
   deleteMedicalCare: vi.fn(),
   deleteBreastfeeding: vi.fn(),
   deleteSolidMeal: vi.fn(),
-  // Édition depuis le récap (US11.2) : les 8 clients d'update.
+  deleteMedication: vi.fn(),
+  // Édition depuis le récap (US11.2) : les 9 clients d'update.
   updateBottleFeeding: vi.fn(),
   updateNap: vi.fn(),
   updateStool: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock('../api', () => ({
   updateMedicalCare: vi.fn(),
   updateBreastfeeding: vi.fn(),
   updateSolidMeal: vi.fn(),
+  updateMedication: vi.fn(),
   // L'édition d'un repas monte SolidMealForm, qui cherche dans le référentiel (Épic 18).
   searchDishes: vi.fn(),
   // Section Vitamines (Épic 9) rendue par CalendarPanel.
@@ -40,6 +42,7 @@ import {
   getDailyTotals,
   deleteBottleFeeding,
   deleteBreastfeeding,
+  deleteMedication,
   deleteNap,
   deleteSolidMeal,
   getVitamins,
@@ -47,6 +50,7 @@ import {
   updateBottleFeeding,
   updateBreastfeeding,
   updateMedicalCare,
+  updateMedication,
   updateNap,
   updateSolidMeal,
   updateStool,
@@ -382,14 +386,14 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     { type: 'stool', id: 's1', startAt: '2026-06-21T11:00:00.000Z', consistency: 'soft' },
     { type: 'urine', id: 'u1', startAt: '2026-06-21T12:00:00.000Z', endAt: null },
   ]
-  // Épic 16 : les NEUF champs sont renseignés. Sans `maxTemperatureCelsiusX10`, D16-H retirerait la
-  // pastille 🌡 et le compte de la rangée tomberait silencieusement de 9 à 8 ; sans `eyeCareCount` /
+  // Épic 16 : les DIX champs sont renseignés. Sans `maxTemperatureCelsiusX10`, D16-H retirerait la
+  // pastille 🌡 et le compte de la rangée tomberait silencieusement de 10 à 9 ; sans `eyeCareCount` /
   // `noseCareCount`, les pastilles 👁 et 👃 seraient rendues SANS valeur (D16-Q), ce qui rendrait
-  // infalsifiable l'AC « tout masqué → les neuf pastilles restent valuées ».
+  // infalsifiable l'AC « tout masqué → les dix pastilles restent valuées ».
   const TOTALS = {
     date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 2, urineCount: 3,
     maxTemperatureCelsiusX10: 384, eyeCareCount: 2, noseCareCount: 8,
-    breastfeedingCount: 3, solidMealCount: 2,
+    breastfeedingCount: 3, solidMealCount: 2, medicationCount: 2,
   }
 
   beforeEach(() => {
@@ -416,9 +420,9 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     // ne prouverait alors rien de D16-H. La 🌡 valuée atteste que les totaux sont bien arrivés.
     await waitFor(() => expect(chip('temperature')).toHaveTextContent('38,4 °C'))
 
-    // Les 9 pastilles sont « enfoncées » (rien de masqué au montage).
+    // Les 10 pastilles sont « enfoncées » (rien de masqué au montage).
     const toggles = within(chipRow()).getAllByRole('button')
-    expect(toggles).toHaveLength(9)
+    expect(toggles).toHaveLength(10)
     toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'true'))
   })
 
@@ -474,15 +478,15 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     expect(chip('urine')).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('tout masqué → message « Aucun événement pour les types affichés. » et 9 pastilles valuées', async () => {
+  it('tout masqué → message « Aucun événement pour les types affichés. » et 10 pastilles valuées', async () => {
     renderPanel()
     await screen.findByRole('button', { name: /Supprimer biberon/ })
     // Les valeurs doivent être là AVANT de tout éteindre : c'est ce qu'on veut voir survivre.
     await waitFor(() => expect(chip('temperature')).toHaveTextContent('38,4 °C'))
 
-    // L'AC dit « les NEUF types sont éteints » : la rangée fusionnée les rend tous cliquables, même
+    // L'AC dit « les DIX types sont éteints » : la rangée fusionnée les rend tous cliquables, même
     // ceux qui n'ont aucune ligne ce jour-là.
-    for (const type of ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']) {
+    for (const type of ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care', 'medication']) {
       await userEvent.click(chip(type))
     }
 
@@ -490,9 +494,9 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     // Plus aucune ligne (aucun 🗑).
     expect(screen.queryByRole('button', { name: /^Supprimer/ })).not.toBeInTheDocument()
 
-    // Les 9 pastilles restent affichées, VALUÉES et cliquables : aucun état irrécupérable (D16-O).
+    // Les 10 pastilles restent affichées, VALUÉES et cliquables : aucun état irrécupérable (D16-O).
     const toggles = within(chipRow()).getAllByRole('button')
-    expect(toggles).toHaveLength(9)
+    expect(toggles).toHaveLength(10)
     toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'false'))
     expect(chip('bottle_feeding')).toHaveTextContent('120 ml')
     expect(chip('nap')).toHaveTextContent('1 h 00')
@@ -503,6 +507,7 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     expect(chip('nose_care')).toHaveTextContent('8 soins du nez')
     expect(chip('breastfeeding')).toHaveTextContent('3 tétées')
     expect(chip('solid_meal')).toHaveTextContent('2 repas')
+    expect(chip('medication')).toHaveTextContent('2 prises')
 
     // …et rallumer un type ramène bien ses lignes : la sortie de l'état « tout masqué » existe.
     await userEvent.click(chip('urine'))
@@ -539,7 +544,7 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
   const BASE_TOTALS = {
     date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
     maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
-    breastfeedingCount: 0, solidMealCount: 0,
+    breastfeedingCount: 0, solidMealCount: 0, medicationCount: 0,
   }
   const TEMP_PAST = { type: 'temperature', id: 't1', startAt: '2020-03-15T09:30:00.000Z', temperatureCelsiusX10: 384 }
   const EYE_PAST = { type: 'eye_care', id: 'e1', startAt: '2020-03-15T08:00:00.000Z' }
@@ -561,16 +566,16 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
     expect(chip('temperature')).toHaveTextContent('🌡')
   })
 
-  it('pastille 🌡 : `null` (aucune mesure) → AUCUNE pastille rendue, la rangée tombe à 8 (D15-K/D16-H)', async () => {
+  it('pastille 🌡 : `null` (aucune mesure) → AUCUNE pastille rendue, la rangée tombe à 9 (D15-K/D16-H)', async () => {
     getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: null })
     renderPanel()
 
     // ⚠️ Attendre une VALEUR, pas un nœud : depuis D16-J, chip('milk') est présent dès le premier
     // rendu — un `waitFor` sur sa seule présence n'attendrait plus rien et les assertions
-    // tomberaient sur la rangée encore à 9 pastilles (D16-P), 🌡 comprise.
+    // tomberaient sur la rangée encore à 10 pastilles (D16-P), 🌡 comprise.
     await waitFor(() => expect(chip('bottle_feeding')).toHaveTextContent('0 ml'))
     expect(chip('temperature')).toBeNull()
-    expect(within(chipRow()).getAllByRole('button')).toHaveLength(8)
+    expect(within(chipRow()).getAllByRole('button')).toHaveLength(9)
     expect(screen.queryByText(/🌡/)).not.toBeInTheDocument()
   })
 
@@ -582,7 +587,7 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
 
     await waitFor(() => expect(chip('temperature')).toHaveTextContent('0,0 °C'))
     expect(chip('temperature')).toHaveTextContent('🌡')
-    expect(within(chipRow()).getAllByRole('button')).toHaveLength(9)
+    expect(within(chipRow()).getAllByRole('button')).toHaveLength(10)
   })
 
   it('pastilles 👁 et 👃 : comptages distincts l’un de l’autre ET de 🌡', async () => {
@@ -756,17 +761,17 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     { type: 'stool', id: 's1', startAt: '2026-06-21T11:00:00.000Z', consistency: 'soft' },
     { type: 'urine', id: 'u1', startAt: '2026-06-21T12:00:00.000Z', endAt: null },
   ]
-  // Les NEUF champs renseignés : c'est la fixture des régimes « valués ».
+  // Les DIX champs renseignés : c'est la fixture des régimes « valués ».
   const FULL_TOTALS = {
     date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 2, urineCount: 3,
     maxTemperatureCelsiusX10: 384, eyeCareCount: 2, noseCareCount: 8,
-    breastfeedingCount: 3, solidMealCount: 2,
+    breastfeedingCount: 3, solidMealCount: 2, medicationCount: 2,
   }
   // Journée réellement vide : aucun événement, donc AUCUNE mesure ⇒ maxTemperatureCelsiusX10 null.
   const EMPTY_TOTALS = {
     date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
     maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
-    breastfeedingCount: 0, solidMealCount: 0,
+    breastfeedingCount: 0, solidMealCount: 0, medicationCount: 0,
   }
   const labelsOf = () => within(chipRow()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))
 
@@ -793,11 +798,11 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     // c'est exactement la rangée de totaux. Si le bloc `.day-filter` avait survécu, on en compterait
     // 14, et ce test tomberait.
     const pressables = screen.getAllByRole('button').filter((b) => b.hasAttribute('aria-pressed'))
-    expect(pressables).toHaveLength(9)
+    expect(pressables).toHaveLength(10)
     expect(pressables).toEqual(within(chipRow()).getAllByRole('button'))
   })
 
-  it('nom accessible (D16-K/D16-T) : les 9 pastilles sont nommées « <Type> · <valeur> », dans l’ordre', async () => {
+  it('nom accessible (D16-K/D16-T) : les 10 pastilles sont nommées « <Type> · <valeur> », dans l’ordre', async () => {
     renderPanel()
 
     // ⚠️ Le relevé se fait derrière un waitFor : les libellés NAISSENT réduits au type (D16-P), et
@@ -812,6 +817,7 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
       'Température · 38,4 °C',
       'Yeux · 2 soins des yeux',
       'Nez · 8 soins du nez',
+      'Médicament · 2 prises',
     ]))
 
     // ⛔ D16-K : l'état est porté par aria-pressed SEUL, jamais écrit en toutes lettres.
@@ -823,7 +829,7 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     })
   })
 
-  it('journée sans événement (D16-J) : message vide MAIS rangée présente, 8 pastilles à 0 cliquables', async () => {
+  it('journée sans événement (D16-J) : message vide MAIS rangée présente, 9 pastilles à 0 cliquables', async () => {
     getDayEvents.mockResolvedValue([])
     getDailyTotals.mockResolvedValue(EMPTY_TOTALS)
     renderPanel()
@@ -831,9 +837,9 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     expect(await screen.findByText('Aucun événement ce jour-là.')).toBeInTheDocument()
 
     // Attendre une VALEUR : c'est la seule preuve que les totaux sont arrivés (D16-J fait naître la
-    // rangée avant eux, avec 9 pastilles — dont la 🌡 que D16-H retire ensuite).
+    // rangée avant eux, avec 10 pastilles — dont la 🌡 que D16-H retire ensuite).
     await waitFor(() => expect(chip('bottle_feeding')).toHaveTextContent('0 ml'))
-    expect(within(chipRow()).getAllByRole('button')).toHaveLength(8)
+    expect(within(chipRow()).getAllByRole('button')).toHaveLength(9)
     expect(chip('temperature')).toBeNull()
     expect(chip('stool')).toHaveTextContent('0 selle')
     expect(chip('urine')).toHaveTextContent('0 urine')
@@ -844,7 +850,7 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     expect(screen.getByText('Aucun événement ce jour-là.')).toBeInTheDocument()
   })
 
-  it('MODE DÉGRADÉ (D16-J/D16-P) : daily-totals en erreur ⇒ 9 pastilles sans valeur, filtre OPÉRANT', async () => {
+  it('MODE DÉGRADÉ (D16-J/D16-P) : daily-totals en erreur ⇒ 10 pastilles sans valeur, filtre OPÉRANT', async () => {
     getDailyTotals.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     renderPanel()
     // `renderPanel` fixe retry:false : l'erreur se stabilise sans attente artificielle.
@@ -858,12 +864,12 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     expect(chip('urine')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: /Supprimer selle/ })).toBeInTheDocument()
 
-    // (2) Les 9 pastilles sont là (la règle d'existence de 🌡 n'a rien à évaluer sans totaux) et
+    // (2) Les 10 pastilles sont là (la règle d'existence de 🌡 n'a rien à évaluer sans totaux) et
     // AUCUNE ne porte de valeur : chaque libellé est le type seul — jamais « Urine · undefined
     // urine » ni « Sieste · NaN min » (⛔ D16-K, porte de D16-Q). Relevé APRÈS le clic : toutes les
     // microtâches de la requête rejetée sont écoulées, l'absence de valeur est donc l'état stable.
     expect(labelsOf()).toEqual([
-      'Biberon', 'Tétée', 'Diversification', 'Sieste', 'Selle', 'Urine', 'Température', 'Yeux', 'Nez',
+      'Biberon', 'Tétée', 'Diversification', 'Sieste', 'Selle', 'Urine', 'Température', 'Yeux', 'Nez', 'Médicament',
     ])
     within(chipRow()).getAllByRole('button').forEach((btn) => {
       expect(btn.querySelector('strong')).toBeNull()
@@ -884,7 +890,7 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     await waitFor(() => expect(chip('bottle_feeding')).toHaveTextContent('120 ml'))
     expect(labelsOf()).toEqual([
       'Biberon · 120 ml', 'Tétée', 'Diversification', 'Sieste · 1 h 00', 'Selle · 2 selles',
-      'Urine · 3 urines', 'Yeux', 'Nez',
+      'Urine · 3 urines', 'Yeux', 'Nez', 'Médicament',
     ])
     // maxTemperatureCelsiusX10 absent ⇒ `!= null` faux ⇒ pas de pastille 🌡 du tout (D16-H).
     expect(chip('temperature')).toBeNull()
@@ -901,7 +907,7 @@ describe('CalendarPanel — tétées au récap (Épic 18, US18.2)', () => {
   const totalsWith = (breastfeedingCount) => ({
     date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
     maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
-    breastfeedingCount, solidMealCount: 0,
+    breastfeedingCount, solidMealCount: 0, medicationCount: 0,
   })
   // 09:30Z / 08:00Z / 07:00Z on a March day = 10:30 / 09:00 / 08:00 in Paris (CET).
   const BREAST_FULL = { type: 'breastfeeding', id: 'br1', startAt: '2020-03-15T09:30:00.000Z', endAt: null, side: 'left', durationMinutes: 12 }
@@ -1053,7 +1059,7 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
   const totalsWith = (solidMealCount) => ({
     date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
     maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
-    breastfeedingCount: 0, solidMealCount,
+    breastfeedingCount: 0, solidMealCount, medicationCount: 0,
   })
   // 11:00Z / 08:00Z on a March day = 12:00 / 09:00 in Paris (CET).
   const MEAL_PORTION = { type: 'solid_meal', id: 'sm1', startAt: '2020-03-15T11:00:00.000Z', endAt: null, dish: 'Purée de carrotes', portion: 'all' }
@@ -1178,5 +1184,175 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
     await waitFor(() => expect(searchDishes).toHaveBeenCalledWith('Yaourt à la vanille'))
 
     expect(within(dialog).queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
+  })
+})
+
+describe('CalendarPanel — prises de médicament au récap (Épic 19, US19.1)', () => {
+  const VITAMINS = { date: '2026-06-21', items: [
+    { vitaminType: 'd', given: false, authorId: null },
+    { vitaminType: 'k', given: false, authorId: null },
+  ] }
+  const totalsWith = (medicationCount) => ({
+    date: '2026-06-21', totalMilkMl: 0, totalSleepMinutes: 0, stoolCount: 0, urineCount: 0,
+    maxTemperatureCelsiusX10: null, eyeCareCount: 0, noseCareCount: 0,
+    breastfeedingCount: 0, solidMealCount: 0, medicationCount,
+  })
+  // 13:00Z / 07:10Z on a March day = 14:00 / 08:10 in Paris (CET). Received newest first, like the server.
+  const MED_VENTOLINE = {
+    type: 'medication', id: 'm2', startAt: '2020-03-15T13:00:00.000Z', endAt: null, medicationName: 'Ventoline', dosage: null,
+  }
+  const MED_DOLIPRANE = {
+    type: 'medication', id: 'm1', startAt: '2020-03-15T07:10:00.000Z', endAt: null, medicationName: 'Doliprane', dosage: '1 dose 6 kg',
+  }
+  const rowOf = (name) => screen.getByRole('button', { name }).closest('li')
+  const dosageField = (dialog) => within(dialog).getByRole('textbox', { name: 'Posologie' })
+  const optionIn = (dialog, name) => within(within(dialog).getByRole('group', { name: 'Choix du médicament' }))
+    .getByRole('button', { name })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+    getVitamins.mockResolvedValue(VITAMINS)
+    getDayEvents.mockResolvedValue([])
+    getDailyTotals.mockResolvedValue(totalsWith(0))
+  })
+
+  it('pastille 💊 : « Médicament · 2 prises », dernière de la rangée, avec le compte visible', async () => {
+    getDayEvents.mockResolvedValue([MED_VENTOLINE, MED_DOLIPRANE])
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    renderPanel()
+
+    await waitFor(() => expect(chip('medication')).toHaveAttribute('aria-label', 'Médicament · 2 prises'))
+    const buttons = within(chipRow()).getAllByRole('button')
+    expect(buttons[buttons.length - 1]).toBe(chip('medication'))
+    expect(chip('medication')).toHaveTextContent('💊')
+    expect(chip('medication').querySelector('strong')).toHaveTextContent('2')
+  })
+
+  it.each([
+    [1, 'Médicament · 1 prise'],
+    [0, 'Médicament · 0 prise'],
+  ])('journée à %i prise(s) : « %s » (singulier)', async (count, label) => {
+    getDailyTotals.mockResolvedValue(totalsWith(count))
+    renderPanel()
+
+    await waitFor(() => expect(chip('medication')).toHaveAttribute('aria-label', label))
+  })
+
+  it('lignes du récap : tag 💊 Médicament, détail « Ventoline » puis « Doliprane · 1 dose 6 kg », heures Paris', async () => {
+    getDayEvents.mockResolvedValue([MED_VENTOLINE, MED_DOLIPRANE])
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    renderPanel()
+
+    await screen.findByRole('button', { name: 'Supprimer médicament de 14:00' })
+    const names = screen.getAllByRole('button', { name: /^Supprimer/ }).map((b) => b.getAttribute('aria-label'))
+    expect(names).toEqual(['Supprimer médicament de 14:00', 'Supprimer médicament de 08:10'])
+
+    const ventoline = rowOf('Supprimer médicament de 14:00')
+    expect(ventoline).toHaveTextContent('💊')
+    expect(ventoline).toHaveTextContent('Médicament')
+    expect(ventoline).toHaveTextContent('Ventoline')
+    expect(ventoline).not.toHaveTextContent('·')
+    const doliprane = rowOf('Supprimer médicament de 08:10')
+    expect(doliprane).toHaveTextContent('💊')
+    expect(doliprane).toHaveTextContent('Doliprane · 1 dose 6 kg')
+  })
+
+  it('filtrer : la pastille 💊 masque les lignes, garde son nom « Médicament · 2 prises » et se mémorise en session', async () => {
+    getDayEvents.mockResolvedValue([MED_VENTOLINE, MED_DOLIPRANE])
+    getDailyTotals.mockResolvedValue(totalsWith(2))
+    renderPanel()
+    await screen.findAllByRole('button', { name: /Supprimer médicament/ })
+    await waitFor(() => expect(chip('medication')).toHaveAttribute('aria-label', 'Médicament · 2 prises'))
+
+    await userEvent.click(chip('medication'))
+
+    expect(screen.queryByRole('button', { name: /Supprimer médicament/ })).not.toBeInTheDocument()
+    expect(chip('medication')).toHaveAttribute('aria-pressed', 'false')
+    expect(chip('medication')).toHaveAttribute('aria-label', 'Médicament · 2 prises')
+    expect(JSON.parse(sessionStorage.getItem('calendar.dayFilter'))).toContain('medication')
+  })
+
+  it('modifier un défaut : Doliprane enfoncé, posologie et heure de la prise, aucun champ libre ni autre champ (D19-I)', async () => {
+    getDayEvents.mockResolvedValue([MED_DOLIPRANE])
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier médicament de 08:10' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier médicament')
+    expect(optionIn(dialog, 'Doliprane')).toHaveAttribute('aria-pressed', 'true')
+    expect(optionIn(dialog, 'Advil')).toHaveAttribute('aria-pressed', 'false')
+    expect(dosageField(dialog)).toHaveValue('1 dose 6 kg')
+    const when = within(dialog).getByLabelText('Quand')
+    expect(when).toHaveValue(toLocalInputValue(new Date(MED_DOLIPRANE.startAt)))
+    expect(when.value).not.toBe(toLocalInputValue(new Date()))
+    expect(within(dialog).queryByRole('textbox', { name: 'Médicament' })).toBeNull()
+    expect(within(dialog).getAllByRole('textbox')).toHaveLength(1)
+    expect(within(dialog).queryByLabelText('Quantité (ml)')).toBeNull()
+    expect(within(dialog).queryByRole('group', { name: 'Type de soin' })).toBeNull()
+  })
+
+  it.each(['Gaviscon', 'doliprane'])('modifier un libre « %s » : « Autre » enfoncé, champ libre rempli', async (name) => {
+    getDayEvents.mockResolvedValue([{ ...MED_DOLIPRANE, medicationName: name, dosage: null }])
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier médicament de 08:10' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(optionIn(dialog, 'Autre')).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByRole('textbox', { name: 'Médicament' })).toHaveValue(name)
+  })
+
+  it('corriger « Dolipran » → Doliprane, posologie effacée, heure changée → updateMedication(b1, id, { …, dosage: null })', async () => {
+    getDayEvents.mockResolvedValue([{ ...MED_DOLIPRANE, medicationName: 'Dolipran' }])
+    updateMedication.mockResolvedValue({})
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier médicament de 08:10' }))
+    const dialog = screen.getByRole('dialog')
+    await userEvent.click(optionIn(dialog, 'Doliprane'))
+    await userEvent.clear(dosageField(dialog))
+    const when = within(dialog).getByLabelText('Quand')
+    await userEvent.clear(when)
+    await userEvent.type(when, '2020-03-15T08:30')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateMedication).toHaveBeenCalledTimes(1))
+    expect(updateMedication.mock.calls[0]).toEqual(
+      ['b1', 'm1', { occurredAt: expect.any(String), medicationName: 'Doliprane', dosage: null }],
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
+  })
+
+  it('défaut → Autre : « Advil » devient « Nurofen »', async () => {
+    getDayEvents.mockResolvedValue([{ ...MED_DOLIPRANE, medicationName: 'Advil', dosage: null }])
+    updateMedication.mockResolvedValue({})
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier médicament de 08:10' }))
+    const dialog = screen.getByRole('dialog')
+    await userEvent.click(optionIn(dialog, 'Autre'))
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Médicament' }), 'Nurofen')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateMedication).toHaveBeenCalledTimes(1))
+    expect(updateMedication.mock.calls[0][2].medicationName).toBe('Nurofen')
+  })
+
+  it('supprimer : modale générique « Supprimer cet événement ? » (Q19-4, option A) puis deleteMedication(b1, id)', async () => {
+    getDayEvents.mockResolvedValue([MED_DOLIPRANE])
+    deleteMedication.mockResolvedValue(null)
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Supprimer médicament de 08:10' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Supprimer cet événement ?')
+    expect(deleteMedication).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Oui, supprimer' }))
+
+    await waitFor(() => expect(deleteMedication).toHaveBeenCalledTimes(1))
+    expect(deleteMedication.mock.calls[0]).toEqual(['b1', 'm1'])
   })
 })

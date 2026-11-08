@@ -17,10 +17,11 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-// Guard on the requireLinked of the FOUR recap reads that have NO route of their own: they are only
+// Guard on the requireLinked of the SIX recap reads that have NO route of their own (the two medication
+// reads were added by Épic 19): they are only
 // ever reached through CalendarService (daily-totals / events), which calls bottleFeedingService
 // FIRST. That neighbour already throws 404 on an unlinked baby, so the controller-level isolation
-// tests (DailyTotalsTest, CalendarEventsTest) stay green even if these four lose their requireLinked
+// tests (DailyTotalsTest, CalendarEventsTest) stay green even if these six lose their requireLinked
 // — and the @Nested MaxForDay milestones go through the repository via TestDataFactory, which
 // short-circuits the service entirely.
 //
@@ -48,11 +49,14 @@ class MedicalReadIsolationTest {
     @Inject
     MedicalCareService medicalCareService;
 
+    @Inject
+    MedicationService medicationService;
+
     private record Fixture(UUID owner, UUID intruder, UUID babyId) {
     }
 
-    // One reading (39,1 °C) + one eye care + one nose care on 2026-07-15, on a baby the intruder is
-    // NOT linked to.
+    // One reading (39,1 °C) + one eye care + one nose care + one medication intake on 2026-07-15, on a
+    // baby the intruder is NOT linked to.
     private Fixture seed(String prefix) {
         UUID owner = data.createActiveParent(data.uniqueEmail(prefix + "-owner"), PWD);
         UUID babyId = data.createBaby("Bébé-" + prefix);
@@ -62,6 +66,8 @@ class MedicalReadIsolationTest {
                 ZonedDateTime.of(2026, 7, 15, 10, 0, 0, 0, PARIS).toInstant());
         data.createMedicalCare(babyId, owner, CareType.nose,
                 ZonedDateTime.of(2026, 7, 15, 11, 0, 0, 0, PARIS).toInstant());
+        data.createMedication(babyId, owner, ZonedDateTime.of(2026, 7, 15, 12, 0, 0, 0, PARIS).toInstant(),
+                "Doliprane", "1 dose 6 kg");
         UUID intruder = data.createActiveParent(data.uniqueEmail(prefix + "-intruder"), PWD);
         return new Fixture(owner, intruder, babyId);
     }
@@ -112,5 +118,27 @@ class MedicalReadIsolationTest {
                 () -> medicalCareService.countForDay(f.intruder(), f.babyId(), CareType.nose, FROM, TO));
         assertEquals(1, medicalCareService.countForDay(f.owner(), f.babyId(), CareType.eye, FROM, TO));
         assertEquals(1, medicalCareService.countForDay(f.owner(), f.babyId(), CareType.nose, FROM, TO));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("Scénario : MedicationService.listForDay sur un bébé non lié → 404 (et OK pour le lié)")
+    void prise_list_for_day_bebe_non_lie() {
+        Fixture f = seed("med-list");
+
+        assertThrows(NotFoundException.class,
+                () -> medicationService.listForDay(f.intruder(), f.babyId(), FROM, TO));
+        assertEquals(1, medicationService.listForDay(f.owner(), f.babyId(), FROM, TO).size());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("Scénario : MedicationService.countForDay sur un bébé non lié → 404 (et OK pour le lié)")
+    void prise_count_for_day_bebe_non_lie() {
+        Fixture f = seed("med-count");
+
+        assertThrows(NotFoundException.class,
+                () -> medicationService.countForDay(f.intruder(), f.babyId(), FROM, TO));
+        assertEquals(1, medicationService.countForDay(f.owner(), f.babyId(), FROM, TO));
     }
 }

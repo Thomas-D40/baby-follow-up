@@ -505,6 +505,69 @@ class DailyTotalsTest {
     }
 
     @Nested
+    @DisplayName("Prises de médicament (US19.1)")
+    class Medications {
+
+        @Test
+        @DisplayName("Scénario : deux prises du jour → medicationCount = 2")
+        void comptage_des_prises() {
+            Caregiver c = linkedCaregiver("med-count");
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 8, 10), "Doliprane", "1 dose 6 kg");
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 14, 0), "Ventoline", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("medicationCount", is(2));
+        }
+
+        @Test
+        @DisplayName("Scénario : journée sans prise → medicationCount = 0, et non null")
+        void aucune_prise_zero_pas_null() {
+            Caregiver c = linkedCaregiver("med-none");
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("medicationCount", is(0))
+                    .body("medicationCount", notNullValue());
+        }
+
+        @Test
+        @DisplayName("Scénario : bornes [from,to) Paris — une prise hors du jour n'est pas comptée")
+        void prise_hors_jour_non_comptee() {
+            Caregiver c = linkedCaregiver("med-bornes");
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 0, 0), "Doliprane", null);
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 16, 0, 0), "Doliprane", null);
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 14, 23, 30), "Doliprane", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200).body("medicationCount", is(1));
+        }
+
+        @Test
+        @DisplayName("Scénario : une prise n'ajoute aucun millilitre et laisse les autres compteurs intacts")
+        void pas_d_effet_sur_les_autres_totaux() {
+            Caregiver c = linkedCaregiver("med-indep");
+            data.createBottleFeeding(c.babyId(), c.userId(), paris(2026, 7, 15, 9, 0), 120, MilkType.formula);
+            data.createSolidMeal(c.babyId(), c.userId(), paris(2026, 7, 15, 12, 0), "Compote", null);
+            data.createMedication(c.babyId(), c.userId(), paris(2026, 7, 15, 13, 0), "Doliprane", null);
+
+            given().cookie(AuthFixture.COOKIE, c.cookie())
+                    .queryParam("date", "2026-07-15")
+                    .when().get("/api/babies/{babyId}/daily-totals", c.babyId())
+                    .then().statusCode(200)
+                    .body("totalMilkMl", is(120))
+                    .body("solidMealCount", is(1))
+                    .body("medicationCount", is(1));
+        }
+    }
+
+    @Nested
     @DisplayName("Isolation (US1.5 / D6-E)")
     class Isolation {
 

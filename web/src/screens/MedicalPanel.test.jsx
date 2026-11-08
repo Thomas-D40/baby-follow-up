@@ -11,7 +11,7 @@ vi.mock('../api', () => ({
   createMedicalCareAct: vi.fn(),
   updateTemperature: vi.fn(),
   updateMedicalCare: vi.fn(),
-  // `useDeleteEvent` route vers les 8 clients de suppression : tous présents dans le mock.
+  // `useDeleteEvent` route vers les 9 clients de suppression : tous présents dans le mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
@@ -20,6 +20,17 @@ vi.mock('../api', () => ({
   deleteMedicalCare: vi.fn(),
   deleteBreastfeeding: vi.fn(),
   deleteSolidMeal: vi.fn(),
+  deleteMedication: vi.fn(),
+  // `useUpdateEvent` (édition d'une prise) lit ses 9 clients au chargement du module : tous déclarés.
+  updateBottleFeeding: vi.fn(),
+  updateNap: vi.fn(),
+  updateStool: vi.fn(),
+  updateUrine: vi.fn(),
+  updateBreastfeeding: vi.fn(),
+  updateSolidMeal: vi.fn(),
+  updateMedication: vi.fn(),
+  listMedications: vi.fn(),
+  createMedication: vi.fn(),
 }))
 import {
   listTemperatures,
@@ -29,6 +40,10 @@ import {
   updateMedicalCare,
   deleteMedicalCare,
   deleteTemperature,
+  deleteMedication,
+  listMedications,
+  createMedication,
+  updateMedication,
 } from '../api'
 
 const PREFIX = { queryKey: ['babies', 'b1'] }
@@ -52,6 +67,7 @@ describe('MedicalPanel — saisie (US15.1/US15.2)', () => {
     vi.clearAllMocks()
     listTemperatures.mockResolvedValue({ items: [], nextCursor: null })
     listMedicalCares.mockResolvedValue({ items: [], nextCursor: null })
+    listMedications.mockResolvedValue({ items: [], nextCursor: null })
   })
 
   it('température : createTemperature une fois, notice, invalidation par préfixe', async () => {
@@ -91,6 +107,7 @@ describe('MedicalPanel — liste fusionnée : traduction du vocabulaire (K1)', (
     vi.clearAllMocks()
     listTemperatures.mockResolvedValue({ items: [TEMP], nextCursor: null })
     listMedicalCares.mockResolvedValue({ items: [EYE, NOSE], nextCursor: null })
+    listMedications.mockResolvedValue({ items: [], nextCursor: null })
   })
 
   it('rend une ligne par acte, tri DESC, valeur formatée pour la température', async () => {
@@ -167,6 +184,7 @@ describe('MedicalPanel — plafond d’affichage PAR TYPE (5 + 5)', () => {
     }))
     listTemperatures.mockResolvedValue({ items: TEMPS, nextCursor: null })
     listMedicalCares.mockResolvedValue({ items: NOSES, nextCursor: null })
+    listMedications.mockResolvedValue({ items: [], nextCursor: null })
     renderPanel()
 
     // Les 3 températures sont là…
@@ -178,8 +196,187 @@ describe('MedicalPanel — plafond d’affichage PAR TYPE (5 + 5)', () => {
   it('aucun acte : message vide dédié', async () => {
     listTemperatures.mockResolvedValue({ items: [], nextCursor: null })
     listMedicalCares.mockResolvedValue({ items: [], nextCursor: null })
+    listMedications.mockResolvedValue({ items: [], nextCursor: null })
     renderPanel()
 
     expect(await screen.findByText('Aucun acte médical enregistré.')).toBeInTheDocument()
+  })
+})
+
+// ── Épic 19 (US19.1) : prises de médicament dans la feuille Médical ───────────────────────────────
+const MED = {
+  id: 'm1', occurredAt: '2026-06-21T08:10:00.000Z', medicationName: 'Doliprane', dosage: '1 dose 6 kg', authorId: 'a1',
+}
+const TEMP_EARLY = { id: 't1', occurredAt: '2026-06-21T08:00:00.000Z', temperatureCelsiusX10: 384, authorId: 'a1' }
+
+const medicationForm = () => screen.getByRole('form', { name: 'Prise de médicament' })
+const optionsGroup = () => within(medicationForm()).getByRole('group', { name: 'Choix du médicament' })
+const medicationOption = (name) => within(optionsGroup()).getByRole('button', { name })
+const optionNames = () => within(optionsGroup()).getAllByRole('button').map((b) => b.textContent.trim())
+const OPENING_OPTIONS = ['Doliprane', 'Advil', 'Ventoline', 'Célestène', 'Amoxicilline', 'Smecta', 'Autre']
+
+describe('MedicalPanel — la section Médicament (Épic 19)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listTemperatures.mockResolvedValue({ items: [], nextCursor: null })
+    listMedicalCares.mockResolvedValue({ items: [], nextCursor: null })
+    listMedications.mockResolvedValue({ items: [], nextCursor: null })
+  })
+
+  it('les titres de section sont dans l’ordre : Température, Soin des yeux / du nez, Médicament, Derniers actes médicaux', () => {
+    renderPanel()
+
+    expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
+      'Température', 'Soin des yeux / du nez', 'Médicament', 'Derniers actes médicaux',
+    ])
+  })
+
+  it('à l’ouverture : sept options dans l’ordre, aucune enfoncée, posologie vide, aucun champ libre', () => {
+    renderPanel()
+
+    expect(optionNames()).toEqual(OPENING_OPTIONS)
+    OPENING_OPTIONS.forEach((name) => expect(medicationOption(name)).toHaveAttribute('aria-pressed', 'false'))
+    expect(within(medicationForm()).getByRole('textbox', { name: 'Posologie' })).toHaveValue('')
+    expect(within(medicationForm()).queryByRole('textbox', { name: 'Médicament' })).not.toBeInTheDocument()
+  })
+
+  it('Doliprane + « 1 dose 6 kg » : createMedication une fois, confirmation, UNE invalidation par préfixe', async () => {
+    createMedication.mockResolvedValue(MED)
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(medicationOption('Doliprane'))
+    await userEvent.type(within(medicationForm()).getByRole('textbox', { name: 'Posologie' }), '1 dose 6 kg')
+    await userEvent.click(within(medicationForm()).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(createMedication).toHaveBeenCalledTimes(1))
+    expect(createMedication.mock.calls[0]).toEqual([
+      'b1', { occurredAt: expect.any(String), medicationName: 'Doliprane', dosage: '1 dose 6 kg' },
+    ])
+    expect(await screen.findByRole('status')).toHaveTextContent('Médicament enregistré.')
+    expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
+    // Back to the opening state.
+    await waitFor(() => expect(within(medicationForm()).getByRole('textbox', { name: 'Posologie' })).toHaveValue(''))
+    OPENING_OPTIONS.forEach((name) => expect(medicationOption(name)).toHaveAttribute('aria-pressed', 'false'))
+  })
+
+  it('aucune option : « Choisissez un médicament. » et rien n’est envoyé', async () => {
+    renderPanel()
+
+    await userEvent.click(within(medicationForm()).getByRole('button', { name: 'Enregistrer' }))
+
+    expect(screen.getByText('Choisissez un médicament.')).toBeInTheDocument()
+    expect(createMedication).not.toHaveBeenCalled()
+  })
+
+  it('aucune mémoire : après une prise « Gaviscon » via Autre, la section ne propose toujours que les sept options', async () => {
+    const GAVISCON = { id: 'm7', occurredAt: '2026-06-21T09:00:00.000Z', medicationName: 'Gaviscon', dosage: null, authorId: 'a1' }
+    createMedication.mockResolvedValue(GAVISCON)
+    renderPanel()
+
+    await userEvent.click(medicationOption('Autre'))
+    await userEvent.type(within(medicationForm()).getByRole('textbox', { name: 'Médicament' }), 'Gaviscon')
+    // The refetch triggered by the write now returns the new intake.
+    listMedications.mockResolvedValue({ items: [GAVISCON], nextCursor: null })
+    await userEvent.click(within(medicationForm()).getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByRole('button', { name: /Supprimer le médicament/ })).toBeInTheDocument()
+    expect(optionNames()).toEqual(OPENING_OPTIONS)
+  })
+})
+
+describe('MedicalPanel — les prises dans « Derniers actes médicaux » (Épic 19, D19-D)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listTemperatures.mockResolvedValue({ items: [TEMP_EARLY], nextCursor: null })
+    listMedicalCares.mockResolvedValue({ items: [], nextCursor: null })
+    listMedications.mockResolvedValue({ items: [MED], nextCursor: null })
+  })
+
+  it('la prise de 08:10 est au-dessus de la température de 08:00, ligne « 💊 Médicament · Doliprane · 1 dose 6 kg »', async () => {
+    renderPanel()
+
+    const rows = await screen.findAllByRole('button', { name: /^Supprimer/ })
+    expect(rows.map((b) => b.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/Supprimer le médicament du/),
+      expect.stringMatching(/Supprimer la température du/),
+    ])
+    expect(rows[0].closest('li')).toHaveTextContent(/· 💊 Médicament · Doliprane · 1 dose 6 kg/)
+  })
+
+  it('7 prises et 2 températures : les 5 prises les plus récentes et les 2 températures', async () => {
+    // Already newest first, like the server; distinct names tell which ones are kept.
+    const SEVEN = Array.from({ length: 7 }, (_, i) => ({
+      id: `m${i}`, occurredAt: `2026-06-21T${20 - i}:00:00.000Z`, medicationName: `Prise${i}`, dosage: null,
+    }))
+    const TWO_TEMPS = [
+      { id: 't1', occurredAt: '2026-06-21T08:00:00.000Z', temperatureCelsiusX10: 384 },
+      { id: 't2', occurredAt: '2026-06-21T07:00:00.000Z', temperatureCelsiusX10: 372 },
+    ]
+    listMedications.mockResolvedValue({ items: SEVEN, nextCursor: null })
+    listTemperatures.mockResolvedValue({ items: TWO_TEMPS, nextCursor: null })
+    renderPanel()
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Supprimer le médicament du/ })).toHaveLength(5))
+    expect(screen.getAllByRole('button', { name: /Supprimer la température du/ })).toHaveLength(2)
+    ;['Prise0', 'Prise1', 'Prise2', 'Prise3', 'Prise4'].forEach((name) => {
+      expect(screen.getByText(new RegExp(name))).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Prise5/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Prise6/)).not.toBeInTheDocument()
+  })
+
+  it('✏️ sur une prise : feuille « Modifier le médicament » avec Doliprane, la posologie, et rien d’autre (D19-I)', async () => {
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier le médicament du/ }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Modifier le médicament')
+    const form = within(dialog).getByRole('form', { name: 'Modifier le médicament' })
+    const group = within(form).getByRole('group', { name: 'Choix du médicament' })
+    expect(within(group).getByRole('button', { name: 'Doliprane' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(form).getByRole('textbox', { name: 'Posologie' })).toHaveValue('1 dose 6 kg')
+    expect(within(form).getAllByRole('textbox')).toHaveLength(1)
+    expect(within(form).queryByLabelText('Température (°C)')).not.toBeInTheDocument()
+    expect(within(form).queryByRole('group', { name: 'Type de soin' })).not.toBeInTheDocument()
+  })
+
+  it('corriger « Dolipran » → Doliprane, posologie effacée : updateMedication(b1, id, patch), confirmation, feuille fermée', async () => {
+    listMedications.mockResolvedValue({ items: [{ ...MED, medicationName: 'Dolipran' }], nextCursor: null })
+    updateMedication.mockResolvedValue({})
+    const { qc } = renderPanel()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+
+    await userEvent.click(await screen.findByRole('button', { name: /Modifier le médicament du/ }))
+    const dialog = screen.getByRole('dialog')
+    const form = within(dialog).getByRole('form', { name: 'Modifier le médicament' })
+    await userEvent.click(within(within(form).getByRole('group', { name: 'Choix du médicament' }))
+      .getByRole('button', { name: 'Doliprane' }))
+    await userEvent.clear(within(form).getByRole('textbox', { name: 'Posologie' }))
+    await userEvent.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(updateMedication).toHaveBeenCalledTimes(1))
+    expect(updateMedication.mock.calls[0]).toEqual([
+      'b1', 'm1', { occurredAt: expect.any(String), medicationName: 'Doliprane', dosage: null },
+    ])
+    expect(await screen.findByRole('status')).toHaveTextContent('Médicament mis à jour.')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(spy.mock.calls.filter((c) => JSON.stringify(c[0]) === JSON.stringify(PREFIX))).toHaveLength(1)
+  })
+
+  it('🗑 sur une prise : invite « Supprimer ce médicament ? » puis deleteMedication(b1, id) et « Médicament supprimé. »', async () => {
+    deleteMedication.mockResolvedValue(null)
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: /Supprimer le médicament du/ }))
+    expect(screen.getByText('Supprimer ce médicament ?')).toBeInTheDocument()
+    expect(deleteMedication).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Oui, supprimer' }))
+
+    await waitFor(() => expect(deleteMedication).toHaveBeenCalledTimes(1))
+    expect(deleteMedication.mock.calls[0]).toEqual(['b1', 'm1'])
+    expect(deleteTemperature).not.toHaveBeenCalled()
+    expect(await screen.findByRole('status')).toHaveTextContent('Médicament supprimé.')
   })
 })

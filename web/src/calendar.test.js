@@ -63,6 +63,12 @@ describe('describeEvent — détail par type (US6.1)', () => {
       .toBe('Purée de carottes · La moitié')
   })
 
+  it('médicament : nom seul, ou nom · posologie (Épic 19)', () => {
+    expect(describeEvent({ type: 'medication', medicationName: 'Ventoline', dosage: null })).toBe('Ventoline')
+    expect(describeEvent({ type: 'medication', medicationName: 'Doliprane', dosage: '1 dose 6 kg' }))
+      .toBe('Doliprane · 1 dose 6 kg')
+  })
+
   it('biberon : la valeur breast se lit « Lait maternel », jamais confondue avec la tétée', () => {
     expect(describeEvent({ type: 'bottle_feeding', quantityMl: 80, milkType: 'breast' })).toBe('80 ml · Lait maternel')
   })
@@ -132,7 +138,7 @@ describe('formatSleepTotal — totaux (US6.3)', () => {
 })
 
 describe('EVENT_TYPE_LABEL', () => {
-  it('libellés FR par type (température + soins — Épic 15 ; tétée — Épic 18)', () => {
+  it('libellés FR par type (température + soins — Épic 15 ; tétée — Épic 18 ; médicament — Épic 19)', () => {
     expect(EVENT_TYPE_LABEL).toEqual({
       bottle_feeding: 'Biberon',
       breastfeeding: 'Tétée',
@@ -143,6 +149,7 @@ describe('EVENT_TYPE_LABEL', () => {
       temperature: 'Température',
       eye_care: 'Yeux',
       nose_care: 'Nez',
+      medication: 'Médicament',
     })
   })
 })
