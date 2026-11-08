@@ -25,10 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 17, US17.4 — the owner follows and revokes the pending invitations of a baby. The list shows
- * what the owner typed, never the state of the recipient's account (D17-G, D17-X).
- */
+// Épic 17, US17.4 — the owner follows and revokes the pending invitations of a baby. The list shows
+// what the owner typed, never the state of the recipient's account (D17-G, D17-X).
 @QuarkusTest
 class PendingInvitationsTest {
 

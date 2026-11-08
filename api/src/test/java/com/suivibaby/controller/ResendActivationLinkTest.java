@@ -26,10 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 20, US20.3 — the administrator regenerates the activation link of a pending account and it is
- * mailed again. The SMTP failure path lives in MailFailureTest (it needs its own test profile).
- */
+// Épic 20, US20.3 — the administrator regenerates the activation link of a pending account and it is
+// mailed again. The SMTP failure path lives in MailFailureTest (it needs its own test profile).
 @QuarkusTest
 class ResendActivationLinkTest {
 

@@ -27,10 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 20, US20.2 — the administrator creates a parent account and the activation link is mailed to it.
- * The SMTP failure path lives in MailFailureTest (it needs its own test profile).
- */
+// Épic 20, US20.2 — the administrator creates a parent account and the activation link is mailed to it.
+// The SMTP failure path lives in MailFailureTest (it needs its own test profile).
 @QuarkusTest
 class AdminAccountCreationTest {
 

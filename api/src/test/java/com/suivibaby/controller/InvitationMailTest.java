@@ -25,10 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Épic 17, US17.3 — the invitation mail, read from the mock mailbox. The SMTP failure path lives in
- * MailFailureTest (it needs its own test profile).
- */
+// Épic 17, US17.3 — the invitation mail, read from the mock mailbox. The SMTP failure path lives in
+// MailFailureTest (it needs its own test profile).
 @QuarkusTest
 class InvitationMailTest {
 
