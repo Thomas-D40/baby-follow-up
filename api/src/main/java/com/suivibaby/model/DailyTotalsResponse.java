@@ -11,5 +11,5 @@ public record DailyTotalsResponse(LocalDate date, int totalMilkMl, long totalSle
                                   long stoolCount, long urineCount,
                                   Integer maxTemperatureCelsiusX10,
                                   long eyeCareCount, long noseCareCount,
-                                  long breastfeedingCount) {
+                                  long breastfeedingCount, long solidMealCount) {
 }

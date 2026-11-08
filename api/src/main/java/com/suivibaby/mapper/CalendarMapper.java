@@ -6,6 +6,7 @@ import com.suivibaby.model.CalendarEventResponse;
 import com.suivibaby.model.CalendarEventType;
 import com.suivibaby.model.MedicalCareResponse;
 import com.suivibaby.model.NapResponse;
+import com.suivibaby.model.SolidMealResponse;
 import com.suivibaby.model.StoolResponse;
 import com.suivibaby.model.TemperatureResponse;
 import com.suivibaby.model.UrineResponse;
@@ -16,32 +17,37 @@ public class CalendarMapper {
 
     public CalendarEventResponse fromBottle(BottleFeedingResponse event) {
         return new CalendarEventResponse(CalendarEventType.bottle_feeding, event.id(), event.occurredAt(),
-                null, event.authorId(), event.quantityMl(), event.milkType(), null, null, null, null);
+                null, event.authorId(), event.quantityMl(), event.milkType(), null, null, null, null, null, null);
     }
 
     public CalendarEventResponse fromBreastfeeding(BreastfeedingResponse event) {
         return new CalendarEventResponse(CalendarEventType.breastfeeding, event.id(), event.occurredAt(),
-                null, event.authorId(), null, null, null, null, event.side(), event.durationMinutes());
+                null, event.authorId(), null, null, null, null, event.side(), event.durationMinutes(), null, null);
+    }
+
+    public CalendarEventResponse fromSolidMeal(SolidMealResponse event) {
+        return new CalendarEventResponse(CalendarEventType.solid_meal, event.id(), event.occurredAt(),
+                null, event.authorId(), null, null, null, null, null, null, event.dish(), event.portion());
     }
 
     public CalendarEventResponse fromNap(NapResponse nap) {
         return new CalendarEventResponse(CalendarEventType.nap, nap.id(), nap.startAt(), nap.endAt(),
-                nap.authorId(), null, null, null, null, null, null);
+                nap.authorId(), null, null, null, null, null, null, null, null);
     }
 
     public CalendarEventResponse fromStool(StoolResponse event) {
         return new CalendarEventResponse(CalendarEventType.stool, event.id(), event.occurredAt(),
-                null, event.authorId(), null, null, event.consistency(), null, null, null);
+                null, event.authorId(), null, null, event.consistency(), null, null, null, null, null);
     }
 
     public CalendarEventResponse fromUrine(UrineResponse event) {
         return new CalendarEventResponse(CalendarEventType.urine, event.id(), event.occurredAt(),
-                null, event.authorId(), null, null, null, null, null, null);
+                null, event.authorId(), null, null, null, null, null, null, null, null);
     }
 
     public CalendarEventResponse fromTemperature(TemperatureResponse event) {
         return new CalendarEventResponse(CalendarEventType.temperature, event.id(), event.occurredAt(),
-                null, event.authorId(), null, null, null, event.temperatureCelsiusX10(), null, null);
+                null, event.authorId(), null, null, null, event.temperatureCelsiusX10(), null, null, null, null);
     }
 
     // The single back-side translation point between the STORAGE vocabulary (care_type eye|nose) and
@@ -53,6 +59,6 @@ public class CalendarMapper {
             case nose -> CalendarEventType.nose_care;
         };
         return new CalendarEventResponse(type, event.id(), event.occurredAt(),
-                null, event.authorId(), null, null, null, null, null, null);
+                null, event.authorId(), null, null, null, null, null, null, null, null);
     }
 }
