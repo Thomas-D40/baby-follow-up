@@ -9,7 +9,7 @@ vi.mock('../api', () => ({
   createAccount: vi.fn(),
   resendActivationLink: vi.fn(),
 }))
-import { listAccounts } from '../api'
+import { listAccounts, createAccount } from '../api'
 
 const JEANNE = {
   id: 'u3', email: 'jeanne@exemple.fr', firstName: 'Jeanne', role: 'parent', status: 'pending',
@@ -108,5 +108,137 @@ describe('AdminUsersScreen — liste des comptes (US20.1)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Retour' }))
     await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('AdminUsersScreen — création (US20.2)', () => {
+  const CREATED = { userId: 'u9', activationLink: 'http://x/activate?token=abc', mailSent: true }
+  const FORM = { name: 'Créer un compte' }
+  const SUBMIT = { name: 'Créer' }
+
+  // Fills the creation form (fields emptied first); the submit is left to the caller.
+  async function fillAccount(email, firstName) {
+    await screen.findByRole('form', FORM)
+    const emailField = screen.getByLabelText('Email')
+    const firstNameField = screen.getByLabelText('Prénom')
+    await userEvent.clear(emailField)
+    await userEvent.clear(firstNameField)
+    if (email) await userEvent.type(emailField, email)
+    if (firstName) await userEvent.type(firstNameField, firstName)
+  }
+
+  async function submitAccount(email, firstName) {
+    await fillAccount(email, firstName)
+    await userEvent.click(screen.getByRole('button', SUBMIT))
+  }
+
+  it('le formulaire n’a que l’email et le prénom : ni bébé ni rôle', async () => {
+    renderScreen()
+
+    expect(await screen.findByRole('form', FORM)).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toHaveAttribute('type', 'email')
+    expect(screen.getByLabelText('Prénom')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/bébé/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/rôle/i)).not.toBeInTheDocument()
+  })
+
+  it('la soumission appelle createAccount({ email, firstName })', async () => {
+    createAccount.mockResolvedValue(CREATED)
+    renderScreen()
+
+    await submitAccount('lisa@exemple.fr', 'Lisa')
+
+    await waitFor(() => expect(createAccount).toHaveBeenCalledTimes(1))
+    expect(createAccount.mock.calls[0][0]).toEqual({ email: 'lisa@exemple.fr', firstName: 'Lisa' })
+  })
+
+  it('mail envoyé → « Compte créé, email envoyé à {email} », lien copiable, champs vidés', async () => {
+    createAccount.mockResolvedValue(CREATED)
+    renderScreen()
+
+    await submitAccount('lisa@exemple.fr', 'Lisa')
+
+    const status = await screen.findByRole('status')
+    expect(status.textContent.trim()).toBe('Compte créé, email envoyé à lisa@exemple.fr')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    const input = screen.getByLabelText("Lien d'activation")
+    expect(input).toHaveValue('http://x/activate?token=abc')
+    expect(input).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Email')).toHaveValue('')
+    expect(screen.getByLabelText('Prénom')).toHaveValue('')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copier' }))
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://x/activate?token=abc')
+    expect(await screen.findByRole('button', { name: 'Copié' })).toBeInTheDocument()
+  })
+
+  it('la liste est rechargée après la création, le nouveau compte en tête', async () => {
+    const NADIA = { ...LISA, id: 'u8', email: 'nadia@exemple.fr', firstName: 'Nadia', status: 'pending' }
+    listAccounts.mockResolvedValueOnce([LISA]).mockResolvedValue([NADIA, LISA])
+    createAccount.mockResolvedValue(CREATED)
+    renderScreen()
+    await screen.findByRole('list', { name: 'Comptes' })
+
+    await submitAccount('nadia@exemple.fr', 'Nadia')
+
+    await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+    const rows = within(screen.getByRole('list', { name: 'Comptes' })).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('Nadia')
+  })
+
+  it('mail non envoyé → avertissement, aucun message de succès, lien de secours affiché', async () => {
+    createAccount.mockResolvedValue({ ...CREATED, mailSent: false })
+    renderScreen()
+
+    await submitAccount('lisa@exemple.fr', 'Lisa')
+
+    expect(await screen.findByRole('alert'))
+      .toHaveTextContent("L'email n'a pas pu être envoyé : transmettez le lien vous-même.")
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Lien d'activation")).toHaveValue('http://x/activate?token=abc')
+  })
+
+  it.each([
+    [409, 'Un compte existe déjà avec cet email.'],
+    [400, 'Saisissez un email valide et un prénom.'],
+    [500, 'Échec de la création. Réessayez.'],
+  ])('erreur %i → message dédié, aucun lien affiché', async (status, message) => {
+    createAccount.mockRejectedValue(Object.assign(new Error(`-> ${status}`), { status }))
+    renderScreen()
+
+    await submitAccount('lisa@exemple.fr', 'Lisa')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.queryByLabelText("Lien d'activation")).not.toBeInTheDocument()
+  })
+
+  it('champs vides ou blancs → message, aucun appel', async () => {
+    renderScreen()
+
+    await submitAccount('', '')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Saisissez un email valide et un prénom.')
+
+    await submitAccount('lisa@exemple.fr', '   ')
+    expect(screen.getByRole('alert')).toHaveTextContent('Saisissez un email valide et un prénom.')
+
+    expect(createAccount).not.toHaveBeenCalled()
+  })
+
+  it('anti-doublon : bouton désactivé pendant l’envoi, deux clics → un seul appel', async () => {
+    let resolve
+    createAccount.mockReturnValue(new Promise((r) => { resolve = r }))
+    renderScreen()
+
+    await fillAccount('lisa@exemple.fr', 'Lisa')
+    // Reference kept before the click: while sending, the button label becomes « … ».
+    const button = screen.getByRole('button', SUBMIT)
+    await userEvent.click(button)
+    await userEvent.click(button)
+
+    expect(button).toBeDisabled()
+    expect(createAccount).toHaveBeenCalledTimes(1)
+    resolve(CREATED)
+    await screen.findByRole('status')
   })
 })
