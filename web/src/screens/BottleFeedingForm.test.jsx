@@ -27,7 +27,8 @@ describe('BottleFeedingForm', () => {
 
   it.each(['0', '12.5'])('refuse la quantité %s (ml entier > 0) sans appeler onSubmit', async (raw) => {
     // The decimal comma cannot be typed into a type="number" input under jsdom, so the decimal case
-    // uses a point: same rule (not an integer), same message.
+    // uses a point: same rule (not an integer), same message. The comma itself ('12,5') is covered on
+    // parseQuantity in bottleFeeding.test.js.
     const onSubmit = vi.fn()
     render(<BottleFeedingForm onSubmit={onSubmit} />)
 
