@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createInvitation, acceptInvitation, listCaregivers, removeCaregiver, promoteCaregiver } from './api'
+import {
+  createInvitation, acceptInvitation, previewInvitation, listCaregivers, removeCaregiver, promoteCaregiver,
+} from './api'
 
 // On teste que chaque client tape la bonne route/méthode (calque des tests api existants).
 function mockFetch({ status = 200, json = {} } = {}) {
@@ -23,12 +25,32 @@ describe('api/caregivers — routes & méthodes (Épic 8)', () => {
     expect(res.link).toBe('http://x/invite?token=t')
   })
 
-  it('acceptInvitation → POST /api/invitations/{token}/accept (204 → null)', async () => {
+  it('acceptInvitation → POST /api/invitations/{token}/accept (204 → null), corps { password }', async () => {
     global.fetch = mockFetch({ status: 204 })
-    const res = await acceptInvitation('tok-123')
+    const res = await acceptInvitation('tok-123', 'pwd')
     expect(global.fetch.mock.calls[0][0]).toBe('/api/invitations/tok-123/accept')
     expect(global.fetch.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ password: 'pwd' })
     expect(res).toBe(null)
+  })
+
+  it('acceptInvitation sans mot de passe → corps JSON { password: null } (jamais de corps vide)', async () => {
+    global.fetch = mockFetch({ status: 204 })
+    await acceptInvitation('tok-123')
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ password: null })
+  })
+
+  it('previewInvitation → GET /api/invitations/{token}', async () => {
+    global.fetch = mockFetch({ status: 200, json: { needsPassword: true } })
+    const res = await previewInvitation('t')
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/invitations/t')
+    expect(global.fetch.mock.calls[0][1]?.method ?? 'GET').toBe('GET')
+    expect(res.needsPassword).toBe(true)
+  })
+
+  it('previewInvitation propage le status sur erreur (410)', async () => {
+    global.fetch = mockFetch({ status: 410 })
+    await expect(previewInvitation('t')).rejects.toMatchObject({ status: 410 })
   })
 
   it('acceptInvitation propage le status sur erreur (410/409)', async () => {
