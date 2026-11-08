@@ -9,7 +9,7 @@ vi.mock('../api', () => ({
   createAccount: vi.fn(),
   resendActivationLink: vi.fn(),
 }))
-import { listAccounts, createAccount } from '../api'
+import { listAccounts, createAccount, resendActivationLink } from '../api'
 
 const JEANNE = {
   id: 'u3', email: 'jeanne@exemple.fr', firstName: 'Jeanne', role: 'parent', status: 'pending',
@@ -239,6 +239,81 @@ describe('AdminUsersScreen — création (US20.2)', () => {
     expect(button).toBeDisabled()
     expect(createAccount).toHaveBeenCalledTimes(1)
     resolve(CREATED)
+    await screen.findByRole('status')
+  })
+})
+
+describe('AdminUsersScreen — renvoi du lien (US20.3)', () => {
+  const RESENT = { userId: 'u3', activationLink: 'http://x/activate?token=new', mailSent: true }
+  const PAUL = { ...JEANNE, id: 'u4', email: 'paul@exemple.fr', firstName: 'Paul' }
+  const RESEND = { name: 'Renvoyer le lien' }
+
+  it('clic → resendActivationLink(id), « Lien renvoyé à {email} » et lien copiable', async () => {
+    resendActivationLink.mockResolvedValue(RESENT)
+    renderScreen()
+
+    await userEvent.click(await screen.findByRole('button', RESEND))
+
+    await waitFor(() => expect(resendActivationLink).toHaveBeenCalledTimes(1))
+    expect(resendActivationLink.mock.calls[0][0]).toBe('u3')
+    const status = await screen.findByRole('status')
+    expect(status.textContent.trim()).toBe('Lien renvoyé à jeanne@exemple.fr')
+    const input = screen.getByLabelText("Lien d'activation")
+    expect(input).toHaveValue('http://x/activate?token=new')
+    await userEvent.click(screen.getByRole('button', { name: 'Copier' }))
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://x/activate?token=new')
+  })
+
+  it('la liste est rechargée après le renvoi', async () => {
+    resendActivationLink.mockResolvedValue(RESENT)
+    renderScreen()
+
+    await userEvent.click(await screen.findByRole('button', RESEND))
+
+    await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+  })
+
+  it('mail non envoyé → avertissement, aucun message de succès, lien de secours affiché', async () => {
+    resendActivationLink.mockResolvedValue({ ...RESENT, mailSent: false })
+    renderScreen()
+
+    await userEvent.click(await screen.findByRole('button', RESEND))
+
+    expect(await screen.findByRole('alert'))
+      .toHaveTextContent("L'email n'a pas pu être envoyé : transmettez le lien vous-même.")
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Lien d'activation")).toHaveValue('http://x/activate?token=new')
+  })
+
+  it.each([
+    [409, 'Ce compte est déjà activé.'],
+    [500, 'Échec du renvoi du lien. Réessayez.'],
+  ])('erreur %i → message dédié', async (status, message) => {
+    resendActivationLink.mockRejectedValue(Object.assign(new Error(`-> ${status}`), { status }))
+    renderScreen()
+
+    await userEvent.click(await screen.findByRole('button', RESEND))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.queryByLabelText("Lien d'activation")).not.toBeInTheDocument()
+  })
+
+  it('anti-doublon : deux clics → un seul appel, et les boutons des autres lignes sont désactivés', async () => {
+    listAccounts.mockResolvedValue([JEANNE, PAUL, LISA])
+    let resolve
+    resendActivationLink.mockReturnValue(new Promise((r) => { resolve = r }))
+    renderScreen()
+
+    // References kept before the click: the buttons can be re-rendered while the request is pending.
+    const [jeanneButton, paulButton] = await screen.findAllByRole('button', RESEND)
+    await userEvent.click(jeanneButton)
+    await userEvent.click(jeanneButton)
+    await userEvent.click(paulButton)
+
+    expect(jeanneButton).toBeDisabled()
+    expect(paulButton).toBeDisabled()
+    expect(resendActivationLink).toHaveBeenCalledTimes(1)
+    resolve(RESENT)
     await screen.findByRole('status')
   })
 })
