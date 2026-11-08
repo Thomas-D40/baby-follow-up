@@ -53,3 +53,10 @@ données et déclencher ses actions.
 
 - Back : un `@Nested` par scénario d'AC ; fixtures `AuthFixture` / `TestDataFactory`.
 - Front : un `describe` par scénario ; sélection par rôle et nom accessible plutôt que par classe CSS.
+- Pièges connus du front (jsdom / jest-dom) :
+  - pendant l'envoi, un bouton de soumission affiche « … » : un test anti double-tap **garde la
+    référence** du bouton obtenue avant le clic, il ne le recherche pas par « Enregistrer » ;
+  - `toHaveValue` n'accepte pas de matcher asymétrique (`expect.stringMatching`) : lire la valeur du
+    champ et utiliser `toMatch` ;
+  - un `<input type="number">` vide une saisie à virgule (`12,5`) : le cas « virgule » se teste sur la
+    fonction de lecture du modèle (ex. `parseQuantity`), pas sur le formulaire.
