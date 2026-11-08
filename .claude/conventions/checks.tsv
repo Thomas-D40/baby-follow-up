@@ -10,3 +10,4 @@ added	.*	(TODO|FIXME)	signal	TODO/FIXME : à résoudre ou à justifier
 maxlines	^web/src/screens/[^.]*\.jsx$	340	blocking	Écran au-delà du plafond
 maxlines	^web/src/[^.]*\.jsx?$	300	signal	Module front au-delà du seuil indicatif
 maxlines	^api/src/main/.*\.java$	250	signal	Classe Java au-delà du seuil indicatif
+added	\.(java|js|jsx|css|sql)$	(//|/\*|^[[:space:]]*\*|^[[:space:]]*--).*[[:space:]](le|la|les|des|du|est|une|pour|avec)[[:space:]]	signal	Commentaire neuf en français : commentaires en anglais
