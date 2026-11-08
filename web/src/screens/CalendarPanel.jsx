@@ -198,11 +198,11 @@ export default function CalendarPanel({ babyId }) {
 
 const TAG_CLASS = {
   bottle_feeding: 'milk', breastfeeding: 'breast', solid_meal: 'meal', nap: 'sleep', stool: 'stool', urine: 'urine',
-  temperature: 'temperature', eye_care: 'eye-care', nose_care: 'nose-care',
+  temperature: 'temperature', eye_care: 'eye-care', nose_care: 'nose-care', medication: 'medication',
 }
 const EVENT_EMOJI = {
   bottle_feeding: '🍼', breastfeeding: '🤱', solid_meal: '🥄', nap: '😴', stool: '💩', urine: '💧',
-  temperature: '🌡', eye_care: '👁', nose_care: '👃',
+  temperature: '🌡', eye_care: '👁', nose_care: '👃', medication: '💊',
 }
 
 // How each chip renders its total (Épic 16, D16-U): `{ strong, suffix }`, where `strong` is the only
@@ -222,12 +222,13 @@ const CHIP_VALUE = {
   temperature: (t) => (t.maxTemperatureCelsiusX10 != null ? { strong: formatCelsius(t.maxTemperatureCelsiusX10), suffix: '' } : null),
   eye_care: (t) => (t.eyeCareCount != null ? { strong: t.eyeCareCount, suffix: ` soin${t.eyeCareCount > 1 ? 's' : ''} des yeux` } : null),
   nose_care: (t) => (t.noseCareCount != null ? { strong: t.noseCareCount, suffix: ` soin${t.noseCareCount > 1 ? 's' : ''} du nez` } : null),
+  medication: (t) => (t.medicationCount != null ? { strong: t.medicationCount, suffix: ` prise${t.medicationCount > 1 ? 's' : ''}` } : null),
 }
 
 // US13.3 : ordre d'affichage des toggles du filtre (calé sur les chips totaux) et clé de persistance.
 // Un toggle par type de soin (D15-I) : c'est la condition de viabilité du modèle — une journée à
 // ~8 lavages de nez noierait la frise sans un filtre qui masque VRAIMENT ce type-là.
-const FILTER_ORDER = ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care']
+const FILTER_ORDER = ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care', 'medication']
 const DAY_FILTER_KEY = 'calendar.dayFilter'
 
 // État initial du filtre depuis sessionStorage. Rien de stocké → [] (tout affiché, défaut de lecture).

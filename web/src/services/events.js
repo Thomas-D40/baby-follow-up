@@ -3,6 +3,7 @@ import {
   updateBottleFeeding,
   updateBreastfeeding,
   updateMedicalCare,
+  updateMedication,
   updateNap,
   updateSolidMeal,
   updateStool,
@@ -23,6 +24,7 @@ const UPDATE_CLIENT = {
   nose_care: updateMedicalCare,
   breastfeeding: updateBreastfeeding,
   solid_meal: updateSolidMeal,
+  medication: updateMedication,
 }
 
 // Edit from the recap. retry: 0 (no replay on a lost response); PREFIX invalidation refreshes the
