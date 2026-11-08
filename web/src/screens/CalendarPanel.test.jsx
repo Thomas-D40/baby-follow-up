@@ -10,7 +10,7 @@ import { toLocalInputValue as toLocalInputValueStool } from '../stool'
 vi.mock('../api', () => ({
   getDayEvents: vi.fn(),
   getDailyTotals: vi.fn(),
-  // `useDeleteEvent` route vers les 9 clients : tous présents dans le mock.
+  // `useDeleteEvent` routes to the 9 clients: all present in the mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../api', () => ({
   deleteBreastfeeding: vi.fn(),
   deleteSolidMeal: vi.fn(),
   deleteMedication: vi.fn(),
-  // Édition depuis le récap (US11.2) : les 9 clients d'update.
+  // Editing from the recap (US11.2): the 9 update clients.
   updateBottleFeeding: vi.fn(),
   updateNap: vi.fn(),
   updateStool: vi.fn(),
@@ -386,10 +386,10 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     { type: 'stool', id: 's1', startAt: '2026-06-21T11:00:00.000Z', consistency: 'soft' },
     { type: 'urine', id: 'u1', startAt: '2026-06-21T12:00:00.000Z', endAt: null },
   ]
-  // Épic 16 : les DIX champs sont renseignés. Sans `maxTemperatureCelsiusX10`, D16-H retirerait la
-  // pastille 🌡 et le compte de la rangée tomberait silencieusement de 10 à 9 ; sans `eyeCareCount` /
-  // `noseCareCount`, les pastilles 👁 et 👃 seraient rendues SANS valeur (D16-Q), ce qui rendrait
-  // infalsifiable l'AC « tout masqué → les dix pastilles restent valuées ».
+  // Épic 16: all TEN fields are filled in. Without `maxTemperatureCelsiusX10`, D16-H would remove the
+  // 🌡 chip and the row count would silently drop from 10 to 9; without `eyeCareCount` /
+  // `noseCareCount`, the 👁 and 👃 chips would render WITHOUT a value (D16-Q), which would make the
+  // AC "everything hidden → the ten chips keep their values" unfalsifiable.
   const TOTALS = {
     date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 2, urineCount: 3,
     maxTemperatureCelsiusX10: 384, eyeCareCount: 2, noseCareCount: 8,
@@ -420,7 +420,7 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     // ne prouverait alors rien de D16-H. La 🌡 valuée atteste que les totaux sont bien arrivés.
     await waitFor(() => expect(chip('temperature')).toHaveTextContent('38,4 °C'))
 
-    // Les 10 pastilles sont « enfoncées » (rien de masqué au montage).
+    // All 10 chips are "pressed" (nothing hidden on mount).
     const toggles = within(chipRow()).getAllByRole('button')
     expect(toggles).toHaveLength(10)
     toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'true'))
@@ -484,8 +484,8 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     // Les valeurs doivent être là AVANT de tout éteindre : c'est ce qu'on veut voir survivre.
     await waitFor(() => expect(chip('temperature')).toHaveTextContent('38,4 °C'))
 
-    // L'AC dit « les DIX types sont éteints » : la rangée fusionnée les rend tous cliquables, même
-    // ceux qui n'ont aucune ligne ce jour-là.
+    // The AC says "all TEN types are switched off": the merged row makes them all clickable, even
+    // those with no line that day.
     for (const type of ['bottle_feeding', 'breastfeeding', 'solid_meal', 'nap', 'stool', 'urine', 'temperature', 'eye_care', 'nose_care', 'medication']) {
       await userEvent.click(chip(type))
     }
@@ -494,7 +494,7 @@ describe('CalendarPanel — filtre d’affichage par type sur la liste du jour (
     // Plus aucune ligne (aucun 🗑).
     expect(screen.queryByRole('button', { name: /^Supprimer/ })).not.toBeInTheDocument()
 
-    // Les 10 pastilles restent affichées, VALUÉES et cliquables : aucun état irrécupérable (D16-O).
+    // All 10 chips stay displayed, WITH VALUES and clickable: no unrecoverable state (D16-O).
     const toggles = within(chipRow()).getAllByRole('button')
     expect(toggles).toHaveLength(10)
     toggles.forEach((btn) => expect(btn).toHaveAttribute('aria-pressed', 'false'))
@@ -570,9 +570,9 @@ describe('CalendarPanel — température et soins au récap (Épic 15, US15.1/US
     getDailyTotals.mockResolvedValue({ ...BASE_TOTALS, maxTemperatureCelsiusX10: null })
     renderPanel()
 
-    // ⚠️ Attendre une VALEUR, pas un nœud : depuis D16-J, chip('milk') est présent dès le premier
-    // rendu — un `waitFor` sur sa seule présence n'attendrait plus rien et les assertions
-    // tomberaient sur la rangée encore à 10 pastilles (D16-P), 🌡 comprise.
+    // ⚠️ Wait for a VALUE, not a node: since D16-J, chip('milk') is present from the first render —
+    // a `waitFor` on its mere presence would no longer wait for anything and the assertions would
+    // hit the row still at 10 chips (D16-P), 🌡 included.
     await waitFor(() => expect(chip('bottle_feeding')).toHaveTextContent('0 ml'))
     expect(chip('temperature')).toBeNull()
     expect(within(chipRow()).getAllByRole('button')).toHaveLength(9)
@@ -761,7 +761,7 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     { type: 'stool', id: 's1', startAt: '2026-06-21T11:00:00.000Z', consistency: 'soft' },
     { type: 'urine', id: 'u1', startAt: '2026-06-21T12:00:00.000Z', endAt: null },
   ]
-  // Les DIX champs renseignés : c'est la fixture des régimes « valués ».
+  // All TEN fields filled in: this is the fixture for the "with values" regimes.
   const FULL_TOTALS = {
     date: '2026-06-21', totalMilkMl: 120, totalSleepMinutes: 60, stoolCount: 2, urineCount: 3,
     maxTemperatureCelsiusX10: 384, eyeCareCount: 2, noseCareCount: 8,
@@ -836,8 +836,8 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
 
     expect(await screen.findByText('Aucun événement ce jour-là.')).toBeInTheDocument()
 
-    // Attendre une VALEUR : c'est la seule preuve que les totaux sont arrivés (D16-J fait naître la
-    // rangée avant eux, avec 10 pastilles — dont la 🌡 que D16-H retire ensuite).
+    // Wait for a VALUE: it is the only proof that the totals have arrived (D16-J creates the row
+    // before them, with 10 chips — including the 🌡 one that D16-H then removes).
     await waitFor(() => expect(chip('bottle_feeding')).toHaveTextContent('0 ml'))
     expect(within(chipRow()).getAllByRole('button')).toHaveLength(9)
     expect(chip('temperature')).toBeNull()
@@ -864,10 +864,10 @@ describe('CalendarPanel — rangée unifiée totaux ↔ filtre (Épic 16, US16.1
     expect(chip('urine')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: /Supprimer selle/ })).toBeInTheDocument()
 
-    // (2) Les 10 pastilles sont là (la règle d'existence de 🌡 n'a rien à évaluer sans totaux) et
-    // AUCUNE ne porte de valeur : chaque libellé est le type seul — jamais « Urine · undefined
-    // urine » ni « Sieste · NaN min » (⛔ D16-K, porte de D16-Q). Relevé APRÈS le clic : toutes les
-    // microtâches de la requête rejetée sont écoulées, l'absence de valeur est donc l'état stable.
+    // (2) All 10 chips are there (the 🌡 existence rule has nothing to evaluate without totals) and
+    // NONE carries a value: each label is the type alone — never "Urine · undefined urine" nor
+    // "Sieste · NaN min" (⛔ D16-K, gate of D16-Q). Read AFTER the click: every microtask of the
+    // rejected request has run, so the absence of value is the stable state.
     expect(labelsOf()).toEqual([
       'Biberon', 'Tétée', 'Diversification', 'Sieste', 'Selle', 'Urine', 'Température', 'Yeux', 'Nez', 'Médicament',
     ])

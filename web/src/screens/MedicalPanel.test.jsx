@@ -11,7 +11,7 @@ vi.mock('../api', () => ({
   createMedicalCareAct: vi.fn(),
   updateTemperature: vi.fn(),
   updateMedicalCare: vi.fn(),
-  // `useDeleteEvent` route vers les 9 clients de suppression : tous présents dans le mock.
+  // `useDeleteEvent` routes to the 9 delete clients: all present in the mock.
   deleteBottleFeeding: vi.fn(),
   deleteNap: vi.fn(),
   deleteStool: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../api', () => ({
   deleteBreastfeeding: vi.fn(),
   deleteSolidMeal: vi.fn(),
   deleteMedication: vi.fn(),
-  // `useUpdateEvent` (édition d'une prise) lit ses 9 clients au chargement du module : tous déclarés.
+  // `useUpdateEvent` (editing an intake) reads its 9 clients at module load: all declared.
   updateBottleFeeding: vi.fn(),
   updateNap: vi.fn(),
   updateStool: vi.fn(),
@@ -203,7 +203,7 @@ describe('MedicalPanel — plafond d’affichage PAR TYPE (5 + 5)', () => {
   })
 })
 
-// ── Épic 19 (US19.1) : prises de médicament dans la feuille Médical ───────────────────────────────
+// ── Épic 19 (US19.1): medication intakes in the Medical sheet ─────────────────────────────────────
 const MED = {
   id: 'm1', occurredAt: '2026-06-21T08:10:00.000Z', medicationName: 'Doliprane', dosage: '1 dose 6 kg', authorId: 'a1',
 }

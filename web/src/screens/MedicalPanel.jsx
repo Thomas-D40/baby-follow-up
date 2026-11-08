@@ -27,20 +27,17 @@ import TemperatureForm from './TemperatureForm'
 // Display cap only: the recap chips and the day timeline never rely on it.
 const RECENT_PER_TYPE = 5
 
-/**
- * "Medical" surface (US15.1/US15.2, D15-L; US19.1): one sheet for every entry — temperature, eye
- * care, nose care, medication — plus the "Derniers actes médicaux" list. `DiaperChangePanel` pattern:
- * writes run with `retry: 0` (no automatic replay that would duplicate on a lost response) and the
- * PREFIX invalidation `['babies', babyId]` on success refreshes the local list AND the recap
- * (events + daily-totals), which derive from the same events.
- *
- * ⚠️ La liste fusionne deux ressources dont les vocabulaires diffèrent : les items de
- * `/medical-cares` portent `careType: 'eye' | 'nose'`, alors que le routage d'édition et de
- * suppression (`useDeleteEvent`, `MedicalCareForm`) key sur les types de **présentation**
- * `eye_care` / `nose_care` (K1). La traduction est explicite via `careEventType` : poser
- * `type: 'eye'` par mimétisme avec `DiaperChangePanel` donnerait `DELETE_CLIENT['eye'] ===
- * undefined`, donc un TypeError à la première suppression.
- */
+// "Medical" surface (US15.1/US15.2, D15-L; US19.1): one sheet for every entry — temperature, eye
+// care, nose care, medication — plus the "Derniers actes médicaux" list. `DiaperChangePanel` pattern:
+// writes run with `retry: 0` (no automatic replay that would duplicate on a lost response) and the
+// PREFIX invalidation `['babies', babyId]` on success refreshes the local list AND the recap
+// (events + daily-totals), which derive from the same events.
+//
+// ⚠️ The list merges two resources whose vocabularies differ: `/medical-cares` items carry
+// `careType: 'eye' | 'nose'`, whereas edit and delete routing (`useDeleteEvent`, `MedicalCareForm`)
+// keys on the PRESENTATION types `eye_care` / `nose_care` (K1). The translation is explicit through
+// `careEventType`: setting `type: 'eye'` by mimicking `DiaperChangePanel` would give
+// `DELETE_CLIENT['eye'] === undefined`, hence a TypeError on the first delete.
 export default function MedicalPanel({ babyId }) {
   const qc = useQueryClient()
   const [notice, setNotice] = useState(null)
