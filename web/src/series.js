@@ -95,7 +95,7 @@ export function formatPointLabel(dateYmd) {
  * converti en heures pour rester lisible), `format` produit le texte du tooltip.
  */
 export const TREND_METRICS = [
-  { key: 'totalMilkMl', label: 'Lait', emoji: '🍼', color: 'var(--milk)',
+  { key: 'totalMilkMl', label: 'Lait (biberons)', emoji: '🍼', color: 'var(--milk)',
     value: (p) => p.totalMilkMl, format: (v) => `${v} ml` },
   { key: 'sleepHours', label: 'Sommeil', emoji: '😴', color: 'var(--sleep)',
     value: (p) => Math.round((p.totalSleepMinutes / 60) * 10) / 10, format: (v) => `${v} h` },
