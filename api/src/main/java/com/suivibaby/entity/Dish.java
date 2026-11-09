@@ -18,7 +18,7 @@ public class Dish {
     @Column(name = "normalized_label", nullable = false)
     public String normalizedLabel;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

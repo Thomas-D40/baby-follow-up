@@ -26,7 +26,7 @@ public class BottleFeeding {
     @Column(name = "milk_type")
     public MilkType milkType;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

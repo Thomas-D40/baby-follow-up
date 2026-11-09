@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAccounts, useCreateAccount, useResendActivationLink } from '../services/adminUsers'
 import { ACCOUNT_ROLE_LABEL, ACCOUNT_STATUS_LABEL, formatAccountDate } from '../adminUsers'
+import AccountRemoval from './AccountRemoval'
 
 const CREATE_ERROR = {
   400: 'Saisissez un email valide et un prénom.',
@@ -134,6 +135,7 @@ export default function AdminUsersScreen({ onBack }) {
                     Renvoyer le lien
                   </button>
                 )}
+                {account.role !== 'admin' && account.status === 'active' && <AccountRemoval account={account} />}
               </li>
             ))}
           </ul>

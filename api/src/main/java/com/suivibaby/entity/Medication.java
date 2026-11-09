@@ -24,7 +24,7 @@ public class Medication {
     @Column(name = "dosage")
     public String dosage;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

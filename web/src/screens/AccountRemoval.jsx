@@ -1,0 +1,63 @@
+import { useState } from 'react'
+import { useAccountDeletionImpact, useDeleteAccount } from '../services/adminUsers'
+import { ACCOUNT_REMOVAL_LABELS, describeAccountRemoval } from '../adminUsers'
+
+// Per-row removal of an account on the administrator's "Utilisateurs" screen (Épic 24). The preview of what
+// the removal does is read when the confirmation opens; the confirmation sends back its fingerprint.
+// Same markup and wording as InlineDeleteConfirm, which cannot load a text asynchronously nor show a refusal.
+export default function AccountRemoval({ account }) {
+  const [mode, setMode] = useState(null) // null = closed; frozen from the opening to the closing (delete|revoke)
+  const [isRefreshed, setIsRefreshed] = useState(false) // the last confirmation hit a changed impact
+  const [hasFailed, setHasFailed] = useState(false)
+  const { impact, isFetching, isError } = useAccountDeletionImpact(account, mode !== null)
+  const deleteMut = useDeleteAccount()
+
+  function close() {
+    setMode(null)
+    setIsRefreshed(false)
+    setHasFailed(false)
+  }
+
+  function handleConfirm() {
+    setIsRefreshed(false)
+    setHasFailed(false)
+    deleteMut.mutate(
+      { userId: account.id, impactToken: impact.impactToken, isPendingOnly: mode === 'revoke' },
+      { onError: (err) => (err?.status === 409 ? setIsRefreshed(true) : setHasFailed(true)) },
+    )
+  }
+
+  if (mode === null) {
+    return (
+      <button onClick={() => setMode(modeFor(account))} className="btn btn--ghost btn--sm">
+        {ACCOUNT_REMOVAL_LABELS[modeFor(account)].trigger}
+      </button>
+    )
+  }
+
+  const labels = ACCOUNT_REMOVAL_LABELS[mode]
+  const view = impact ? describeAccountRemoval(mode, account, impact) : null
+  return (
+    <span className="confirm-inline" role="group">
+      {isError && <p role="alert" className="error-text">{labels.failure}</p>}
+      {!isError && !view && <span className="prompt">…</span>}
+      {isRefreshed && <p role="status" className="notice notice--info">L'impact a changé : vérifiez avant de confirmer.</p>}
+      {view && <span className="prompt">{view.message}</span>}
+      {view?.kind === 'confirm' && (
+        <button
+          onClick={handleConfirm}
+          disabled={isFetching || deleteMut.isPending}
+          className="btn btn--danger btn--sm"
+        >
+          {deleteMut.isPending ? '…' : labels.confirm}
+        </button>
+      )}
+      <button onClick={close} disabled={deleteMut.isPending} className="btn btn--ghost btn--sm">Annuler</button>
+      {hasFailed && <p role="alert" className="error-text">{labels.failure}</p>}
+    </span>
+  )
+}
+
+function modeFor() {
+  return 'delete'
+}

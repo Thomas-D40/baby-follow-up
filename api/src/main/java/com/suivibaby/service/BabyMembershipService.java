@@ -97,12 +97,15 @@ public class BabyMembershipService {
         }
     }
 
-    /**
-     * Garde-fou transverse (D8-M, Lot E) : on ne détruit jamais le dernier owner d'un bébé.
-     * Appelé par tous les chemins de départ (délink, self-delink, future suppression de compte).
-     */
+    // Cross-cutting rule (D8-M, Lot E): the last owner of a baby is never removed. Shared by every
+    // departure path: delink, self-delink and the account deletion (Epic 24), which reads it through
+    // the impact preview.
+    public boolean isLastOwner(UUID babyId) {
+        return babyCaregiverRepository.countOwners(babyId) <= 1;
+    }
+
     private void assertNotLastOwner(UUID babyId) {
-        if (babyCaregiverRepository.countOwners(babyId) <= 1) {
+        if (isLastOwner(babyId)) {
             throw new ClientErrorException(
                     "Impossible de retirer le dernier owner : désignez un autre owner ou supprimez le bébé.",
                     Response.Status.CONFLICT);

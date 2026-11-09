@@ -31,3 +31,5 @@ databaseChangeLog:
       file: db/changelog/015-medication.sql
   - include:
       file: db/changelog/016-invitation-invitee.sql
+  - include:
+      file: db/changelog/017-account-deletion.sql

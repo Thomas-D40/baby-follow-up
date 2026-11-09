@@ -80,13 +80,14 @@ public class DishService {
     }
 
     // 404 for an unknown dish; 403 (not 404) for someone else's: every dish is visible to everybody
-    // through the search, so hiding it would be a lie (D18-AH).
+    // through the search, so hiding it would be a lie (D18-AH). A dish whose author was deleted has no
+    // author left: only the admin manages it (D24-X).
     private Dish requireManageable(AppUser currentUser, UUID id) {
         Dish dish = dishRepository.findById(id);
         if (dish == null) {
             throw new NotFoundException();
         }
-        if (!isAdmin(currentUser) && !dish.authorId.equals(currentUser.id)) {
+        if (!isAdmin(currentUser) && !currentUser.id.equals(dish.authorId)) {
             throw new ForbiddenException("Action réservée à l'auteur du plat.");
         }
         return dish;
