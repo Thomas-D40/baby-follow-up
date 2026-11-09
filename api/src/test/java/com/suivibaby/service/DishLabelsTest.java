@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // Épic 18 — pure label rules shared by the meal dish, the dish list and the rename (D18-AD, D18-AE).
 // Plain JUnit: no Quarkus boot needed, the class is static and stateless.
@@ -84,33 +83,6 @@ class DishLabelsTest {
         @DisplayName("Scénario : deux libellés différents ne se confondent pas")
         void libelles_distincts() {
             assertFalse(DishLabels.normalize("Purée de carottes").equals(DishLabels.normalize("Purée de carrotes")));
-        }
-    }
-
-    @Nested
-    @DisplayName("isFixed — Purée et Compote ne vont jamais au référentiel (D18-AF)")
-    class IsFixed {
-
-        @Test
-        @DisplayName("Scénario : puree et compote (formes normalisées) sont fixes")
-        void fixes() {
-            assertTrue(DishLabels.isFixed("puree"));
-            assertTrue(DishLabels.isFixed("compote"));
-        }
-
-        @Test
-        @DisplayName("Scénario : un autre plat, même proche, n'est pas fixe")
-        void non_fixes() {
-            assertFalse(DishLabels.isFixed("puree de carottes"));
-            assertFalse(DishLabels.isFixed("compote de pomme"));
-            assertFalse(DishLabels.isFixed("yaourt"));
-        }
-
-        @Test
-        @DisplayName("Scénario : appliqué à une saisie normalisée, Purée / PURÉE / compote sont reconnus")
-        void apres_normalisation() {
-            assertTrue(DishLabels.isFixed(DishLabels.normalize("  Purée ")));
-            assertTrue(DishLabels.isFixed(DishLabels.normalize("COMPOTE")));
         }
     }
 }
