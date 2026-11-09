@@ -9,8 +9,16 @@ export default function AccountRemoval({ account }) {
   const [mode, setMode] = useState(null) // null = closed; frozen from the opening to the closing (delete|revoke)
   const [isRefreshed, setIsRefreshed] = useState(false) // the last confirmation hit a changed impact
   const [hasFailed, setHasFailed] = useState(false)
-  const { impact, isFetching, isError } = useAccountDeletionImpact(account, mode !== null)
+  const { impact, isFetching, isError, refetch } = useAccountDeletionImpact(account, mode !== null)
   const deleteMut = useDeleteAccount()
+
+  function open() {
+    setIsRefreshed(false)
+    setHasFailed(false)
+    setMode(modeFor(account))
+    // Reopened after an "activated" refusal, the preview query never got disabled: read it again explicitly.
+    if (mode !== null) refetch()
+  }
 
   function close() {
     setMode(null)
@@ -32,7 +40,7 @@ export default function AccountRemoval({ account }) {
   if (mode === null || view?.kind === 'activated') {
     return (
       <>
-        <button onClick={() => setMode(modeFor(account))} className="btn btn--ghost btn--sm">
+        <button onClick={open} className="btn btn--ghost btn--sm">
           {ACCOUNT_REMOVAL_LABELS[modeFor(account)].trigger}
         </button>
         {view && <p role="alert" className="notice notice--info">{view.message}</p>}

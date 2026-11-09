@@ -42,7 +42,7 @@ export function useResendActivationLink() {
 // the list is stale: both reload the list (Épic 24).
 export function useAccountDeletionImpact(account, isEnabled) {
   const qc = useQueryClient()
-  const { data, isLoading, isFetching, isError } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: impactKey(account.id),
     queryFn: async () => {
       try {
@@ -58,7 +58,7 @@ export function useAccountDeletionImpact(account, isEnabled) {
     enabled: isEnabled,
     retry: false,
   })
-  return { impact: data ?? null, isLoading, isFetching, isError }
+  return { impact: data ?? null, isLoading, isFetching, isError, refetch }
 }
 
 // retry: 0 (a replay would hit an account already deleted); 404 = idempotent success (D24-D).
