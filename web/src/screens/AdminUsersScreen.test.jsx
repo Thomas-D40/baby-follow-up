@@ -8,8 +8,12 @@ vi.mock('../api', () => ({
   listAccounts: vi.fn(),
   createAccount: vi.fn(),
   resendActivationLink: vi.fn(),
+  getAccountDeletionImpact: vi.fn(),
+  deleteAccount: vi.fn(),
 }))
-import { listAccounts, createAccount, resendActivationLink } from '../api'
+import {
+  listAccounts, createAccount, resendActivationLink, getAccountDeletionImpact, deleteAccount,
+} from '../api'
 
 const JEANNE = {
   id: 'u3', email: 'jeanne@exemple.fr', firstName: 'Jeanne', role: 'parent', status: 'pending',
@@ -315,5 +319,454 @@ describe('AdminUsersScreen — renvoi du lien (US20.3)', () => {
     expect(resendActivationLink).toHaveBeenCalledTimes(1)
     resolve(RESENT)
     await screen.findByRole('status')
+  })
+})
+
+// --- Épic 24 : suppression d'un compte (US24.1) et révocation d'une invitation (US24.2) ---
+
+describe("Épic 24 — suppression de comptes et révocation d'invitations", () => {
+  // The accounts of the first epics plus the ones the removal scenarios talk about.
+  beforeEach(() => {
+    listAccounts.mockResolvedValue([NADIA, PAUL, MARC, JEANNE, LISA, THOMAS])
+  })
+
+  
+  const NADIA = {
+    id: 'u5', email: 'nadia@exemple.fr', firstName: 'Nadia', role: 'parent', status: 'active',
+    createdAt: '2026-11-05T10:00:00Z',
+  }
+  const PAUL = {
+    id: 'u6', email: 'paul@exemple.fr', firstName: 'Paul', role: 'parent', status: 'active',
+    createdAt: '2026-11-04T10:00:00Z',
+  }
+  const MARC = {
+    id: 'u7', email: 'marc@exemple.fr', firstName: 'Marc', role: 'parent', status: 'active',
+    createdAt: '2026-11-03T10:00:00Z',
+  }
+  
+  const impactOf = (account, over = {}) => ({
+    userId: account.id, status: account.status, deletedBabyCount: 0, sharedBabyCount: 0, blockingBabyCount: 0,
+    impactToken: 't1', ...over,
+  })
+  const serverError = (status) => Object.assign(new Error(`-> ${status}`), { status })
+  
+  // The row of the account whose first name is `firstName`; the same <li> is kept across list reloads.
+  async function rowOf(firstName) {
+    const list = await screen.findByRole('list', { name: 'Comptes' })
+    return within(list).getAllByRole('listitem').find((li) => within(li).queryByText(firstName))
+  }
+  
+  async function openRemoval(row, trigger) {
+    await userEvent.click(within(row).getByRole('button', { name: trigger }))
+  }
+  
+  describe('AdminUsersScreen — suppression (US24.1) — membre non-owner', () => {
+    it('« Supprimer » → aperçu de l’impact, texte exact, confirmation, liste rechargée, la ligne disparaît', async () => {
+      listAccounts.mockResolvedValueOnce([NADIA, LISA, THOMAS]).mockResolvedValue([LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA, { sharedBabyCount: 1 }))
+      deleteAccount.mockResolvedValue(null)
+      renderScreen()
+      const row = await rowOf('Nadia')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      await waitFor(() => expect(getAccountDeletionImpact).toHaveBeenCalledTimes(1))
+      expect(getAccountDeletionImpact.mock.calls[0][0]).toBe('u5')
+      expect(await within(row).findByText(
+        'Supprimer le compte de Nadia ? Ce compte sera retiré de 1 bébé partagé. Action définitive.',
+      )).toBeInTheDocument()
+      await userEvent.click(within(row).getByRole('button', { name: 'Oui, supprimer' }))
+  
+      await waitFor(() => expect(deleteAccount).toHaveBeenCalledTimes(1))
+      expect(deleteAccount.mock.calls[0]).toEqual(['u5', { impactToken: 't1', isPendingOnly: false }])
+      await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(screen.queryByText('Nadia')).not.toBeInTheDocument())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  
+    it('pendant le chargement de l’impact : « … » et « Annuler » seulement', async () => {
+      getAccountDeletionImpact.mockReturnValue(new Promise(() => {}))
+      renderScreen()
+      const row = await rowOf('Nadia')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      const group = await within(row).findByRole('group')
+      expect(group).toHaveTextContent('…')
+      expect(within(group).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
+      expect(within(group).queryByRole('button', { name: 'Oui, supprimer' })).not.toBeInTheDocument()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — bébé suivi par la seule personne supprimée', () => {
+    it('« 1 bébé et tout son suivi seront supprimés ; ce compte sera retiré de 2 bébés partagés », sans prénom de bébé', async () => {
+      listAccounts.mockResolvedValue([PAUL, LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(PAUL, { deletedBabyCount: 1, sharedBabyCount: 2 }))
+      renderScreen()
+      const row = await rowOf('Paul')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      expect(await within(row).findByText(
+        'Supprimer le compte de Paul ? 1 bébé et tout son suivi seront supprimés ; ce compte sera retiré de 2 bébés partagés. Action définitive.',
+      )).toBeInTheDocument()
+      expect(within(row).getByRole('group')).not.toHaveTextContent('Tom')
+    })
+  
+    it('plusieurs bébés supprimés : accord au pluriel', async () => {
+      listAccounts.mockResolvedValue([PAUL, LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(PAUL, { deletedBabyCount: 2 }))
+      renderScreen()
+      const row = await rowOf('Paul')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      expect(await within(row).findByText(
+        'Supprimer le compte de Paul ? 2 bébés et tout leur suivi seront supprimés. Action définitive.',
+      )).toBeInTheDocument()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — compte sans bébé', () => {
+    it('la confirmation se limite à « Supprimer le compte de Nadia ? Action définitive. »', async () => {
+      listAccounts.mockResolvedValue([NADIA, LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA))
+      renderScreen()
+      const row = await rowOf('Nadia')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      expect(await within(row).findByText('Supprimer le compte de Nadia ? Action définitive.')).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Oui, supprimer' })).toBeInTheDocument()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — dernier owner d’un bébé suivi par d’autres', () => {
+    it('texte de refus, « Annuler » seulement : aucun bouton « Oui, supprimer », aucun appel de suppression', async () => {
+      listAccounts.mockResolvedValue([NADIA, LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(LISA, { blockingBabyCount: 1 }))
+      renderScreen()
+      const row = await rowOf('Lisa')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      expect(await within(row).findByText(
+        "Lisa est le dernier owner de 1 bébé suivi par d'autres : il faut d'abord désigner un autre owner depuis le Partage de ce bébé, ou le supprimer.",
+      )).toBeInTheDocument()
+      expect(within(row).queryByRole('button', { name: 'Oui, supprimer' })).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — impact changé (D24-R)', () => {
+    it('409 : notice, nouveau texte, et la confirmation suivante envoie la nouvelle empreinte', async () => {
+      listAccounts.mockResolvedValue([MARC, LISA, THOMAS])
+      getAccountDeletionImpact
+        .mockResolvedValueOnce(impactOf(MARC, { sharedBabyCount: 1, impactToken: 't1' }))
+        .mockResolvedValue(impactOf(MARC, { deletedBabyCount: 1, impactToken: 't2' }))
+      deleteAccount.mockRejectedValueOnce(serverError(409)).mockResolvedValue(null)
+      renderScreen()
+      const row = await rowOf('Marc')
+      await openRemoval(row, 'Supprimer')
+      await within(row).findByText(
+        'Supprimer le compte de Marc ? Ce compte sera retiré de 1 bébé partagé. Action définitive.',
+      )
+  
+      await userEvent.click(within(row).getByRole('button', { name: 'Oui, supprimer' }))
+  
+      expect(await within(row).findByText(
+        'Supprimer le compte de Marc ? 1 bébé et tout son suivi seront supprimés. Action définitive.',
+      )).toBeInTheDocument()
+      expect(within(row).getByRole('status')).toHaveTextContent("L'impact a changé : vérifiez avant de confirmer.")
+      expect(deleteAccount).toHaveBeenCalledTimes(1)
+  
+      await waitFor(() => expect(within(row).getByRole('button', { name: 'Oui, supprimer' })).toBeEnabled())
+      await userEvent.click(within(row).getByRole('button', { name: 'Oui, supprimer' }))
+  
+      await waitFor(() => expect(deleteAccount).toHaveBeenCalledTimes(2))
+      expect(deleteAccount.mock.calls[0][1].impactToken).toBe('t1')
+      expect(deleteAccount.mock.calls[1][1].impactToken).toBe('t2')
+    })
+  
+    it('409 dû à un nouveau dernier owner : le texte de refus remplace la confirmation', async () => {
+      listAccounts.mockResolvedValue([MARC, LISA, THOMAS])
+      getAccountDeletionImpact
+        .mockResolvedValueOnce(impactOf(MARC, { sharedBabyCount: 1 }))
+        .mockResolvedValue(impactOf(MARC, { blockingBabyCount: 1, impactToken: 't2' }))
+      deleteAccount.mockRejectedValue(serverError(409))
+      renderScreen()
+      const row = await rowOf('Marc')
+      await openRemoval(row, 'Supprimer')
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, supprimer' }))
+  
+      expect(await within(row).findByText(/est le dernier owner de 1 bébé suivi par d'autres/)).toBeInTheDocument()
+      expect(within(row).queryByRole('button', { name: 'Oui, supprimer' })).not.toBeInTheDocument()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — confirmation et annulation', () => {
+    it('« Annuler » referme sans rien supprimer : la ligne et « Supprimer » restent', async () => {
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA, { sharedBabyCount: 1 }))
+      renderScreen()
+      const row = await rowOf('Nadia')
+      await openRemoval(row, 'Supprimer')
+      await within(row).findByText(/Supprimer le compte de Nadia \?/)
+  
+      await userEvent.click(within(row).getByRole('button', { name: 'Annuler' }))
+  
+      expect(within(row).queryByText(/Supprimer le compte de Nadia/)).not.toBeInTheDocument()
+      expect(within(row).queryByRole('group')).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+      expect(screen.getByText('Nadia')).toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — anti-doublon et idempotence', () => {
+    it('deux touchers sur « Oui, supprimer » → un seul appel, bouton désactivé pendant l’appel', async () => {
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA))
+      let resolve
+      deleteAccount.mockReturnValue(new Promise((r) => { resolve = r }))
+      renderScreen()
+      const row = await rowOf('Nadia')
+      await openRemoval(row, 'Supprimer')
+      // Reference kept before the click: while deleting, the button label becomes « … ».
+      const confirm = await within(row).findByRole('button', { name: 'Oui, supprimer' })
+  
+      await userEvent.click(confirm)
+      await userEvent.click(confirm)
+  
+      expect(confirm).toBeDisabled()
+      expect(deleteAccount).toHaveBeenCalledTimes(1)
+      resolve(null)
+      await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+    })
+  
+    it('suppression en 404 (déjà supprimé ailleurs) : la ligne disparaît sans message d’erreur', async () => {
+      listAccounts.mockResolvedValueOnce([NADIA, LISA, THOMAS]).mockResolvedValue([LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA))
+      deleteAccount.mockRejectedValue(serverError(404))
+      renderScreen()
+      const row = await rowOf('Nadia')
+      await openRemoval(row, 'Supprimer')
+  
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, supprimer' }))
+  
+      await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(screen.queryByText('Nadia')).not.toBeInTheDocument())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  
+    it('aperçu en 404 (compte déjà supprimé) : liste rechargée, la ligne disparaît sans message d’erreur', async () => {
+      listAccounts.mockResolvedValueOnce([NADIA, LISA, THOMAS]).mockResolvedValue([LISA, THOMAS])
+      getAccountDeletionImpact.mockRejectedValue(serverError(404))
+      renderScreen()
+      const row = await rowOf('Nadia')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(screen.queryByText('Nadia')).not.toBeInTheDocument())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — échec', () => {
+    it('erreur serveur à la suppression : « Échec de la suppression. Réessayez. », la ligne et la confirmation restent', async () => {
+      getAccountDeletionImpact.mockResolvedValue(impactOf(NADIA))
+      deleteAccount.mockRejectedValue(serverError(500))
+      renderScreen()
+      const row = await rowOf('Nadia')
+      await openRemoval(row, 'Supprimer')
+  
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, supprimer' }))
+  
+      expect(await within(row).findByRole('alert')).toHaveTextContent('Échec de la suppression. Réessayez.')
+      await waitFor(() => expect(within(row).getByRole('button', { name: 'Oui, supprimer' })).toBeEnabled())
+      expect(screen.getByText('Nadia')).toBeInTheDocument()
+    })
+  
+    it('aperçu en erreur serveur : même message, aucun bouton de confirmation, « Annuler » reste', async () => {
+      getAccountDeletionImpact.mockRejectedValue(serverError(500))
+      renderScreen()
+      const row = await rowOf('Nadia')
+  
+      await openRemoval(row, 'Supprimer')
+  
+      expect(await within(row).findByRole('alert')).toHaveTextContent('Échec de la suppression. Réessayez.')
+      expect(within(row).queryByRole('button', { name: 'Oui, supprimer' })).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
+  })
+  
+  describe('AdminUsersScreen — suppression (US24.1) — l’admin ne peut pas se supprimer', () => {
+    it('ligne d’un compte admin : aucun bouton, aucun appel d’aperçu', async () => {
+      renderScreen()
+  
+      const row = await rowOf('Thomas')
+  
+      expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+      expect(getAccountDeletionImpact).not.toHaveBeenCalled()
+    })
+  })
+  
+  describe('AdminUsersScreen — révocation (US24.2)', () => {
+    const JEANNE_TEXT = "Révoquer l'invitation de jeanne@exemple.fr ? Son compte, jamais activé, sera supprimé et son lien ne fonctionnera plus."
+    const pendingImpact = (over = {}) => impactOf(JEANNE, over)
+  
+    it('« Révoquer l’invitation » → texte exact, « Oui, révoquer » → isPendingOnly: true, la ligne disparaît', async () => {
+      listAccounts.mockResolvedValueOnce(ACCOUNTS).mockResolvedValue([LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      deleteAccount.mockResolvedValue(null)
+      renderScreen()
+      const row = await rowOf('Jeanne')
+  
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      await waitFor(() => expect(getAccountDeletionImpact).toHaveBeenCalledTimes(1))
+      expect(getAccountDeletionImpact.mock.calls[0][0]).toBe('u3')
+      expect(await within(row).findByText(JEANNE_TEXT)).toBeInTheDocument()
+      await userEvent.click(within(row).getByRole('button', { name: 'Oui, révoquer' }))
+  
+      await waitFor(() => expect(deleteAccount).toHaveBeenCalledTimes(1))
+      expect(deleteAccount.mock.calls[0]).toEqual(['u3', { impactToken: 't1', isPendingOnly: true }])
+      await waitFor(() => expect(screen.queryByText('Jeanne')).not.toBeInTheDocument())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  
+    it('seules les lignes en attente proposent la révocation, et elles ne proposent pas « Supprimer »', async () => {
+      renderScreen()
+  
+      const jeanne = await rowOf('Jeanne')
+      const lisa = await rowOf('Lisa')
+      const thomas = await rowOf('Thomas')
+  
+      expect(within(jeanne).getByRole('button', { name: "Révoquer l'invitation" })).toBeInTheDocument()
+      expect(within(jeanne).getByRole('button', { name: 'Renvoyer le lien' })).toBeInTheDocument()
+      expect(within(jeanne).queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
+      expect(within(lisa).getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+      expect(within(lisa).queryByRole('button', { name: "Révoquer l'invitation" })).not.toBeInTheDocument()
+      expect(within(thomas).queryByRole('button')).not.toBeInTheDocument()
+    })
+  
+    it('le message ne ment pas : ni bébé, ni suivi, ni « Action définitive » pour un compte qui n’en suit pas', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      renderScreen()
+      const row = await rowOf('Jeanne')
+  
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      const group = await within(row).findByRole('group')
+      await within(group).findByText(JEANNE_TEXT)
+      expect(group).not.toHaveTextContent(/bébé|suivi|Action définitive/)
+    })
+  
+    it('compte en attente rattaché à un bébé solo : les nombres de la suppression s’ajoutent', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact({ deletedBabyCount: 1 }))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+  
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      expect(await within(row).findByText(`${JEANNE_TEXT} 1 bébé et tout son suivi seront supprimés.`))
+        .toBeInTheDocument()
+    })
+  
+    it('compte en attente dernier owner d’un bébé suivi par d’autres : refus, sans « Oui, révoquer »', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact({ blockingBabyCount: 1 }))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+  
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      expect(await within(row).findByText(/Jeanne est le dernier owner de 1 bébé suivi par d'autres/)).toBeInTheDocument()
+      expect(within(row).queryByRole('button', { name: 'Oui, révoquer' })).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
+    })
+  
+    it('la personne active son compte entre-temps : refus « Ce compte vient d’être activé. », ligne « Actif » avec « Supprimer »', async () => {
+      const jeanneActive = { ...JEANNE, status: 'active' }
+      listAccounts.mockResolvedValueOnce(ACCOUNTS).mockResolvedValue([jeanneActive, LISA, THOMAS])
+      getAccountDeletionImpact
+        .mockResolvedValueOnce(pendingImpact({ status: 'pending' }))
+        .mockResolvedValue(pendingImpact({ status: 'active' }))
+      deleteAccount.mockRejectedValue(serverError(409))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, révoquer' }))
+  
+      expect(await within(row).findByRole('alert')).toHaveTextContent("Ce compte vient d'être activé.")
+      await waitFor(() => expect(within(row).getByText('Actif')).toBeInTheDocument())
+      expect(within(row).getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+      expect(within(row).queryByRole('button', { name: "Révoquer l'invitation" })).not.toBeInTheDocument()
+      expect(within(row).queryByRole('group')).not.toBeInTheDocument()
+      expect(within(row).getByRole('alert')).toHaveTextContent("Ce compte vient d'être activé.")
+    })
+  
+    it('« Annuler » referme sans appel de révocation', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+      await within(row).findByText(JEANNE_TEXT)
+  
+      await userEvent.click(within(row).getByRole('button', { name: 'Annuler' }))
+  
+      expect(within(row).queryByText(JEANNE_TEXT)).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: "Révoquer l'invitation" })).toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
+  
+    it('deux touchers sur « Oui, révoquer » → un seul appel', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      let resolve
+      deleteAccount.mockReturnValue(new Promise((r) => { resolve = r }))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+      // Reference kept before the click: while revoking, the button label becomes « … ».
+      const confirm = await within(row).findByRole('button', { name: 'Oui, révoquer' })
+  
+      await userEvent.click(confirm)
+      await userEvent.click(confirm)
+  
+      expect(confirm).toBeDisabled()
+      expect(deleteAccount).toHaveBeenCalledTimes(1)
+      resolve(null)
+      await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2))
+    })
+  
+    it('révocation en 404 (déjà révoquée ailleurs) : la ligne disparaît sans message d’erreur', async () => {
+      listAccounts.mockResolvedValueOnce(ACCOUNTS).mockResolvedValue([LISA, THOMAS])
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      deleteAccount.mockRejectedValue(serverError(404))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, révoquer' }))
+  
+      await waitFor(() => expect(screen.queryByText('Jeanne')).not.toBeInTheDocument())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  
+    it('erreur serveur à la révocation : « Échec de la révocation. Réessayez. », la ligne reste', async () => {
+      getAccountDeletionImpact.mockResolvedValue(pendingImpact())
+      deleteAccount.mockRejectedValue(serverError(500))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+  
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, révoquer' }))
+  
+      expect(await within(row).findByRole('alert')).toHaveTextContent('Échec de la révocation. Réessayez.')
+      await waitFor(() => expect(within(row).getByRole('button', { name: 'Oui, révoquer' })).toBeEnabled())
+      expect(screen.getByText('Jeanne')).toBeInTheDocument()
+    })
   })
 })
