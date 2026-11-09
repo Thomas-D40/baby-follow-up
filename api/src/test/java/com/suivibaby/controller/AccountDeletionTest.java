@@ -509,7 +509,7 @@ class AccountDeletionTest {
 
             deleteAccount(nadia.id(), tokenFor(nadia.id())).then().statusCode(204);
 
-            assertEquals(eventsBefore, data.countAllEvents(lea), "aucune ligne de suivi supprimée (I5)");
+            assertEquals(eventsBefore, data.countAllEvents(lea), "aucune ligne de suivi supprimée");
             List<Object> authors = as(lisa.cookie()).when().get("/api/babies/{babyId}/bottle-feedings", lea)
                     .then().statusCode(200)
                     .body("items.size()", is(3))
@@ -619,7 +619,7 @@ class AccountDeletionTest {
             assertEquals(newId, recreated.get("id"));
             assertEquals(0, data.countLink(UUID.fromString(newId), lea));
 
-            // RA2: while the new account is pending, the old session cookie opens nothing (D24-W).
+            // While the new account is pending, the old session cookie opens nothing (D24-W).
             as(nadia.cookie()).when().get("/api/me").then().statusCode(401);
             as(nadia.cookie()).when().get("/api/babies").then().statusCode(401);
             as(nadia.cookie()).queryParam("q", "pu").when().get("/api/dishes").then().statusCode(401);
