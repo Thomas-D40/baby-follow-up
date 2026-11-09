@@ -622,4 +622,60 @@ public class TestDataFactory {
     public long countActiveInvitations(UUID babyId) {
         return babyInvitationRepository.count("babyId = ?1 and usedAt is null", babyId);
     }
+
+    // === Épic 24 : suppression de comptes ===
+
+    @Transactional
+    public boolean userExists(UUID userId) {
+        return appUserRepository.findById(userId) != null;
+    }
+
+    @Transactional
+    public boolean babyExists(UUID babyId) {
+        return babyRepository.findById(babyId) != null;
+    }
+
+    @Transactional
+    public boolean invitationExists(UUID token) {
+        return babyInvitationRepository.findById(token) != null;
+    }
+
+    // Turns an account back into a pending one (no activation date) while keeping its real password hash:
+    // the shape of an old account wrongly back-marked "pending" by the Épic 20 migration (RP4).
+    @Transactional
+    public void markPending(UUID userId) {
+        AppUser user = appUserRepository.findById(userId);
+        user.activatedAt = null;
+    }
+
+    // Direct seed of a weigh-in; the API only offers a date-keyed upsert.
+    @Transactional
+    public UUID createWeight(UUID babyId, UUID authorId, LocalDate givenOn, int weightGrams) {
+        Weight row = new Weight();
+        row.id = UUID.randomUUID();
+        row.babyId = babyId;
+        row.givenOn = givenOn;
+        row.weightGrams = weightGrams;
+        row.authorId = authorId;
+        row.createdAt = Instant.now();
+        weightRepository.persist(row);
+        return row.id;
+    }
+
+    // Rows of every tracking table for one baby: a deletion that must leave a surviving baby untouched
+    // (or wipe a deleted one) is checked against this single figure (D24-N, D24-O).
+    @Transactional
+    public long countAllEvents(UUID babyId) {
+        return bottleFeedingRepository.count("babyId", babyId)
+                + napRepository.count("babyId", babyId)
+                + stoolRepository.count("babyId", babyId)
+                + urineRepository.count("babyId", babyId)
+                + temperatureRepository.count("babyId", babyId)
+                + medicalCareRepository.count("babyId", babyId)
+                + breastfeedingRepository.count("babyId", babyId)
+                + solidMealRepository.count("babyId", babyId)
+                + medicationRepository.count("babyId", babyId)
+                + vitaminIntakeRepository.count("babyId", babyId)
+                + weightRepository.count("babyId", babyId);
+    }
 }
