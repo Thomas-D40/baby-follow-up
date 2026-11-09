@@ -30,8 +30,8 @@ vi.mock('../api', () => ({
   updateBreastfeeding: vi.fn(),
   updateSolidMeal: vi.fn(),
   updateMedication: vi.fn(),
-  // L'édition d'un repas monte SolidMealForm, qui cherche dans le référentiel (Épic 18).
-  searchDishes: vi.fn(),
+  // Editing a meal mounts SolidMealForm, which loads the baby's dish suggestions (Épic 23).
+  getDishSuggestions: vi.fn(),
   // Section Vitamines (Épic 9) rendue par CalendarPanel.
   getVitamins: vi.fn(),
   setVitamin: vi.fn(),
@@ -45,8 +45,8 @@ import {
   deleteMedication,
   deleteNap,
   deleteSolidMeal,
+  getDishSuggestions,
   getVitamins,
-  searchDishes,
   updateBottleFeeding,
   updateBreastfeeding,
   updateMedicalCare,
@@ -60,9 +60,9 @@ import {
 
 const PREFIX = { queryKey: ['babies', 'b1'] }
 
-// A meal edit opens SolidMealForm, which searches the dish list as soon as the text is non-empty.
+// A meal edit opens SolidMealForm, which loads the baby's dish suggestions as soon as it opens.
 beforeEach(() => {
-  searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+  getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
 })
 
 const EVENTS = [
@@ -894,7 +894,7 @@ describe('CalendarPanel — tétées au récap (Épic 18, US18.2)', () => {
     getVitamins.mockResolvedValue(VITAMINS)
     getDayEvents.mockResolvedValue([])
     getDailyTotals.mockResolvedValue(totalsWith(0))
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
   })
 
   it('pastille Tétée : « Tétée · 3 tétées » au pluriel', async () => {
@@ -1043,6 +1043,7 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
   // 11:00Z / 08:00Z on a March day = 12:00 / 09:00 in Paris (CET).
   const MEAL_PORTION = { type: 'solid_meal', id: 'sm1', startAt: '2020-03-15T11:00:00.000Z', endAt: null, dish: 'Purée de carrotes', portion: 'all' }
   const MEAL_BARE = { type: 'solid_meal', id: 'sm2', startAt: '2020-03-15T08:00:00.000Z', endAt: null, dish: 'Compote', portion: null }
+  const MEAL_PUREE = { type: 'solid_meal', id: 'sm3', startAt: '2020-03-15T08:00:00.000Z', endAt: null, dish: 'Purée', portion: null }
   const rowOf = (name) => screen.getByRole('button', { name }).closest('li')
 
   beforeEach(() => {
@@ -1051,7 +1052,7 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
     getVitamins.mockResolvedValue(VITAMINS)
     getDayEvents.mockResolvedValue([])
     getDailyTotals.mockResolvedValue(totalsWith(0))
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
   })
 
   it('pastille Diversification : « Diversification · 2 repas » ; sans repas dans la journée, aucune pastille', async () => {
@@ -1155,9 +1156,22 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
     expect(deleteSolidMeal.mock.calls[0]).toEqual(['b1', 'sm1'])
   })
 
+  it('un repas « Purée » déjà saisi reste tel quel : ligne « Purée », champ « Plat » = Purée à la modification (US23.1)', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PUREE])
+    getDailyTotals.mockResolvedValue(totalsWith(1))
+    renderPanel()
+
+    await screen.findByRole('button', { name: 'Supprimer diversification de 09:00' })
+    expect(rowOf('Supprimer diversification de 09:00')).toHaveTextContent('Purée')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Modifier diversification de 09:00' }))
+
+    expect(within(screen.getByRole('dialog')).getByLabelText('Plat')).toHaveValue('Purée')
+  })
+
   it('modifier un repas ne propose pas d’ajouter le plat à « Mes plats » (US18.4, D18-AR)', async () => {
     getDayEvents.mockResolvedValue([MEAL_PORTION])
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     renderPanel()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Modifier diversification de 12:00' }))
@@ -1165,9 +1179,27 @@ describe('CalendarPanel — repas de diversification au récap (Épic 18, US18.3
     const field = within(dialog).getByLabelText('Plat')
     await userEvent.clear(field)
     await userEvent.type(field, 'Yaourt à la vanille')
-    // Wait for the search of the NEW text to come back: the box would show up now if it ever did.
-    await waitFor(() => expect(searchDishes).toHaveBeenCalledWith('Yaourt à la vanille'))
+    // Wait for the suggestions of the NEW text to come back: the box would show up now if it ever did.
+    await waitFor(() => expect(getDishSuggestions).toHaveBeenCalledWith('b1', 'Yaourt à la vanille'))
 
+    expect(within(dialog).queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
+  })
+
+  it('propositions à l’édition : les plats récents du bébé, texte vide demandé, ni Purée ni Compote d’office (US23.2)', async () => {
+    getDayEvents.mockResolvedValue([MEAL_PORTION])
+    getDishSuggestions.mockResolvedValue({ labels: ['Banane'], exactMatch: false })
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifier diversification de 12:00' }))
+
+    const dialog = screen.getByRole('dialog')
+    const group = await within(dialog).findByRole('group', { name: 'Propositions de plats' })
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Banane'])
+    expect(getDishSuggestions).toHaveBeenCalledWith('b1', '')
+    // The edited dish is not what the row is asked about: nothing was typed yet.
+    expect(getDishSuggestions.mock.calls.map((call) => call[1])).not.toContain('Purée de carrotes')
+    expect(within(dialog).queryByRole('button', { name: 'Purée' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Compote' })).toBeNull()
     expect(within(dialog).queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
   })
 })

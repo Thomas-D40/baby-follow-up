@@ -17,7 +17,7 @@ vi.mock('../api', () => ({
   createSolidMeal: vi.fn(),
   updateSolidMeal: vi.fn(),
   deleteSolidMeal: vi.fn(),
-  searchDishes: vi.fn(),
+  getDishSuggestions: vi.fn(),
   listManageableDishes: vi.fn(),
   renameDish: vi.fn(),
   deleteDish: vi.fn(),
@@ -31,8 +31,8 @@ import {
   createBottleFeeding,
   createBreastfeeding,
   createSolidMeal,
+  getDishSuggestions,
   listBreastfeedings,
-  searchDishes,
   listManageableDishes,
 } from '../api'
 
@@ -55,7 +55,7 @@ beforeEach(() => {
   createBreastfeeding.mockResolvedValue({ id: 'br1' })
   createSolidMeal.mockResolvedValue({ id: 'sm1' })
   listBreastfeedings.mockResolvedValue({ items: [], nextCursor: null })
-  searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+  getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
   listManageableDishes.mockResolvedValue([])
 })
 
@@ -366,18 +366,54 @@ describe('FeedingPanel — noter un repas de diversification (US18.3)', () => {
     expect(screen.queryByText(/Bientôt disponible/)).not.toBeInTheDocument()
   })
 
-  it('Purée en un toucher : createSolidMeal, « Repas enregistré. », champs vidés', async () => {
+  it('noter un fruit entier : « Banane entière » + « Tout » → createSolidMeal, « Repas enregistré. », champs vidés', async () => {
     renderPanel()
 
-    await userEvent.click(within(screen.getByRole('group', { name: 'Propositions de plats' })).getByRole('button', { name: 'Purée' }))
+    await userEvent.type(screen.getByLabelText('Plat'), 'Banane entière')
+    await userEvent.click(within(screen.getByRole('group', { name: 'Portion' })).getByRole('button', { name: 'Tout' }))
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await waitFor(() => expect(createSolidMeal).toHaveBeenCalledTimes(1))
     expect(createSolidMeal.mock.calls[0]).toEqual(
-      ['b1', { occurredAt: expect.any(String), dish: 'Purée', portion: null, addToDishes: false }],
+      ['b1', { occurredAt: expect.any(String), dish: 'Banane entière', portion: 'all', addToDishes: false }],
     )
     expect(await screen.findByRole('status')).toHaveTextContent('Repas enregistré.')
     expect(screen.getByLabelText('Plat')).toHaveValue('')
+    expect(within(screen.getByRole('group', { name: 'Portion' })).getByRole('button', { name: 'Tout' }))
+      .toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('à l’ouverture, la feuille propose les plats récents du bébé (aucun bouton Purée ni Compote d’office)', async () => {
+    getDishSuggestions.mockResolvedValue({ labels: ['Banane', 'Purée de carottes'], exactMatch: false })
+    renderPanel()
+
+    const group = await screen.findByRole('group', { name: 'Propositions de plats' })
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Banane', 'Purée de carottes'])
+    expect(getDishSuggestions).toHaveBeenCalledWith('b1', '')
+    expect(screen.queryByRole('button', { name: 'Compote' })).toBeNull()
+  })
+
+  it('le plat noté remonte en tête des propositions : après « Repas enregistré. », « Poire » précède « Banane »', async () => {
+    let recents = ['Banane']
+    getDishSuggestions.mockImplementation(async (babyId, q) => ({ labels: q === '' ? recents : [], exactMatch: false }))
+    createSolidMeal.mockImplementation(async () => {
+      recents = ['Poire', 'Banane']
+      return { id: 'sm1' }
+    })
+    renderPanel()
+    expect(await screen.findByRole('button', { name: 'Banane' })).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('Plat'), 'Poire')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Repas enregistré.')
+    expect(screen.getByLabelText('Plat')).toHaveValue('')
+    await waitFor(() => {
+      const group = screen.getByRole('group', { name: 'Propositions de plats' })
+      expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Poire', 'Banane'])
+    })
+    // The refresh is a second request for the empty text: the first one predates the meal.
+    expect(getDishSuggestions.mock.calls.filter((call) => call[1] === '').length).toBeGreaterThanOrEqual(2)
   })
 
   it('plat libre + portion « La moitié » → portion: half', async () => {
