@@ -42,11 +42,10 @@ import VitaminSection from './VitaminSection'
  * comme les autres — pastille de récap, tag, emoji, suppression et édition keyent tous sur `type`. Le
  * remap `occurredAt: editing.startAt` vaut aussi pour eux (`TemperatureForm`/`MedicalCareForm`).
  *
- * Épic 16 (D16-A) : les totaux et le filtre par type ne font plus qu'**une seule rangée** — la
- * pastille de total EST le contrôle de filtre de son type (`aria-pressed`). La rangée est rendue
- * **indépendamment** des totaux (D16-J) : journée vide, totaux en chargement ou en erreur, le filtre
- * reste opérant ; les pastilles n'affichent alors que leur emoji (D16-P). Le repli « sans valeur » se
- * décide **par champ** (D16-Q), jamais sur l'objet `totals` entier.
+ * Epic 16 (D16-A): totals and the per-type filter are a single row; a total chip IS the filter
+ * control of its type (`aria-pressed`). Epic 21 (D21-A): only a type present in the day's list gets
+ * a chip, and a day with an empty or unavailable list gets no row. When totals are missing, the
+ * fallback "no value" is decided per field (D16-Q, D21-D), never on the whole `totals` object.
  */
 export default function CalendarPanel({ babyId }) {
   const [date, setDate] = useState(() => parisToday())
@@ -78,6 +77,9 @@ export default function CalendarPanel({ babyId }) {
 
   const events = eventsQuery.data ?? []
   const visibleEvents = events.filter((e) => !hidden.includes(e.type)) // prédicat d'affichage (US13.3)
+  // A chip exists only for a type present in the WHOLE day list, before the filter (D21-A):
+  // counting `visibleEvents` would make a switched-off chip vanish with no way back.
+  const chipTypes = FILTER_ORDER.filter((type) => events.some((e) => e.type === type))
   const totals = totalsQuery.data
   const isToday = date === parisToday()
 
@@ -106,16 +108,16 @@ export default function CalendarPanel({ babyId }) {
         </button>
       )}
 
-      {/* Rangée unique (D16-A) : un total par type, cliquable, qui éteint son type dans la liste
-          ci-dessous. Volontairement HORS de tout gating sur `totals` (D16-J) : une panne de
-          `daily-totals` ne doit pas emporter le filtre avec elle.
-          Pastille 🌡 = MAXIMUM du jour, jamais un comptage (D15-K) : totaux chargés et
-          `maxTemperatureCelsiusX10` à `null` ⇒ AUCUNE mesure ce jour-là ⇒ pas de pastille du tout
-          (ni 0, ni tiret). Totaux pas encore là ⇒ on la rend, sans valeur (D16-P). */}
-      <ul className="chips" aria-label="Totaux du jour — filtrer la liste">
-        {FILTER_ORDER
-          .filter((type) => type !== 'temperature' || totals == null || totals.maxTemperatureCelsiusX10 != null)
-          .map((type) => {
+      {/* Single row (D16-A): one clickable chip per type, which switches that type off in the list
+          below. The chips come from the day's event list, never from `totals` (D21-A): a
+          `daily-totals` outage removes neither a chip nor the filter, the present types then show
+          their emoji alone (D16-J, D21-D). No present type means no row at all, so no empty named
+          list is announced (D21-C, D21-E, D21-M). 🌡 follows the common rule; its value is the
+          day's MAXIMUM, never a count, and a null maximum shows no value, not 0 nor a dash
+          (D15-K, D21-F). */}
+      {chipTypes.length > 0 && (
+        <ul className="chips" aria-label="Totaux du jour — filtrer la liste">
+          {chipTypes.map((type) => {
             const value = totals ? CHIP_VALUE[type](totals) : null
             // L'état (allumé/éteint) est porté par `aria-pressed` SEUL : le répéter ici le ferait
             // annoncer deux fois par un lecteur d'écran (D16-K).
@@ -137,7 +139,8 @@ export default function CalendarPanel({ babyId }) {
               </li>
             )
           })}
-      </ul>
+        </ul>
+      )}
 
       <VitaminSection babyId={babyId} date={date} />
 
