@@ -2,9 +2,6 @@
 
 import { tidyLabel } from './textLabel'
 
-// Always offered, never stored in the shared list (D18-N).
-export const FIXED_DISHES = ['Purée', 'Compote']
-
 export const DISH_MAX_LENGTH = 60
 
 // The one formatting rule of D18-AD, mirrored by the server (DishLabels.validate): edges stripped,
@@ -17,8 +14,8 @@ export function parseDishLabel(raw) {
 }
 
 // Mirror of the server's DishLabels.normalize (accents stripped, lower case, blanks collapsed),
-// used to key the search cache and to hide the "add to my dishes" box for the fixed dishes. The
-// server stays the truth for uniqueness and for `exactMatch`.
+// used to key the suggestions cache and to compare two labels. The server stays the truth for
+// uniqueness and for `exactMatch`.
 export function normalizeDishLabel(s) {
   return String(s ?? '')
     .normalize('NFD')
@@ -28,7 +25,7 @@ export function normalizeDishLabel(s) {
     .trim()
 }
 
-export function isFixedDish(s) {
-  const normalized = normalizeDishLabel(s)
-  return FIXED_DISHES.some((fixed) => normalizeDishLabel(fixed) === normalized)
+// Two spellings of one dish (case, accents, blanks): the typed text and a suggestion match.
+export function isSameDish(a, b) {
+  return normalizeDishLabel(a) === normalizeDishLabel(b)
 }
