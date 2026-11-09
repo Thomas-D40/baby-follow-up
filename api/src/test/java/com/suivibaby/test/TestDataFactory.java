@@ -447,6 +447,14 @@ public class TestDataFactory {
         return dishRepository.count("normalizedLabel", DishLabels.normalize(label));
     }
 
+    // Removes the shared dish(es) whose normalized label equals the normalization of `label` (Épic 23).
+    // « Purée » and « Compote » are global singletons now ordinary dishes: a test that depends on
+    // their presence or absence resets them first.
+    @Transactional
+    public long deleteDishesNormalized(String label) {
+        return dishRepository.delete("normalizedLabel", DishLabels.normalize(label));
+    }
+
     @Transactional
     public UUID dishAuthor(UUID dishId) {
         Dish dish = dishRepository.findById(dishId);

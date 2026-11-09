@@ -1,6 +1,5 @@
 package com.suivibaby.controller;
 
-import com.suivibaby.service.DishLabels;
 import com.suivibaby.test.AuthFixture;
 import com.suivibaby.test.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
@@ -138,18 +137,71 @@ class DishTest {
             assertEquals(0, data.countDishesNormalized(tooLong));
         }
 
+        // « Purée » and « Compote » are ordinary dishes since Épic 23 (D23-F). They are global singletons in
+        // a persistent database: each test below resets the one it depends on, and reads it back through an
+        // exact search (exactMatch / count), never through a capped list.
+
         @Test
-        @DisplayName("Scénario : Purée et Compote ne sont jamais ajoutés, même avec la case (non-événement silencieux)")
-        void puree_compote_jamais_ajoutes() {
-            Parent p = parent("fixed");
+        @DisplayName("Scénario : « Purée » peut entrer au référentiel, auteur = l'auteur du repas, visible d'une autre famille")
+        void puree_peut_entrer() {
+            data.deleteDishesNormalized("Purée");
+            Parent a = parent("puree-a");
+            Parent b = parent("puree-b");
 
-            for (String dish : new String[]{"purée", "Purée", "  PURÉE ", "Compote", " compote "}) {
-                postMeal(p, meal(null, dish, true)).then().statusCode(201);
-            }
+            postMeal(a, meal(null, "Purée", true)).then().statusCode(201);
 
-            assertEquals(5, data.countSolidMeal(p.babyId()));
-            assertEquals(0, data.countDishesNormalized("puree"));
-            assertEquals(0, data.countDishesNormalized("compote"));
+            assertEquals(1, data.countDishesNormalized("Purée"));
+            JsonPath seenByA = search(a, "purée");
+            assertEquals("Purée", seenByA.getString("items[0].label"));
+            assertEquals(a.userId(), data.dishAuthor(UUID.fromString(seenByA.getString("items[0].id"))));
+
+            JsonPath seenByB = search(b, "purée");
+            assertTrue(seenByB.getBoolean("exactMatch"));
+            assertTrue(seenByB.getList("items.label").contains("Purée"));
+        }
+
+        @Test
+        @DisplayName("Scénario : « Purée » et « Compote » ne sont pas ajoutés d'office, sans la case")
+        void puree_compote_pas_ajoutes_d_office() {
+            data.deleteDishesNormalized("Purée");
+            data.deleteDishesNormalized("Compote");
+            Parent a = parent("puree-nocase-a");
+            Parent b = parent("puree-nocase-b");
+
+            postMeal(a, meal(null, "Purée", null)).then().statusCode(201);
+            postMeal(a, meal(null, "Compote", false)).then().statusCode(201);
+
+            JsonPath puree = search(b, "purée");
+            assertFalse(puree.getBoolean("exactMatch"));
+            assertFalse(puree.getList("items.label").contains("Purée"));
+            assertEquals(0, data.countDishesNormalized("Purée"));
+            assertEquals(0, data.countDishesNormalized("Compote"));
+        }
+
+        @Test
+        @DisplayName("Scénario : « Compote » seul, sans la case → repas enregistré, rien au référentiel")
+        void compote_seul_sans_case() {
+            data.deleteDishesNormalized("Compote");
+            Parent p = parent("compote-nocase");
+
+            postMeal(p, meal(null, "Compote", null)).then().statusCode(201);
+
+            assertEquals(1, data.countSolidMeal(p.babyId()));
+            assertEquals(0, data.countDishesNormalized("Compote"));
+        }
+
+        @Test
+        @DisplayName("Scénario : le serveur accepte d'ajouter « Compote » (variante de casse), libellé stocké tel que saisi")
+        void serveur_accepte_compote() {
+            data.deleteDishesNormalized("Compote");
+            Parent p = parent("compote-case");
+
+            postMeal(p, meal(null, "compote", true)).then().statusCode(201);
+
+            assertEquals(1, data.countDishesNormalized("compote"));
+            JsonPath result = search(p, "compote");
+            assertEquals("compote", result.getString("items[0].label"));
+            assertEquals(p.userId(), data.dishAuthor(UUID.fromString(result.getString("items[0].id"))));
         }
 
         @Test
@@ -358,16 +410,17 @@ class DishTest {
         }
 
         @Test
-        @DisplayName("Scénario : exactMatch faux pour un texte partiel ou inconnu, et vrai pour Purée / Compote")
-        void exact_match_faux_et_fixes() {
+        @DisplayName("Scénario : exactMatch faux pour un texte partiel ou inconnu, et pour « Compote » absent du référentiel")
+        void exact_match_faux() {
             Parent p = parent("exact2");
             String j = token();
             data.createDish(p.userId(), "Purée de carottes " + j);
+            data.deleteDishesNormalized("Compote");
 
             assertFalse(search(p, "carottes " + j).getBoolean("exactMatch")); // partial: found, not exact
             assertFalse(search(p, "inconnu " + j).getBoolean("exactMatch"));
-            assertTrue(search(p, "compote").getBoolean("exactMatch"));
-            assertTrue(search(p, "  PURÉE ").getBoolean("exactMatch"));
+            // No exception for « Compote » any more: absent from the shared list means no exact match.
+            assertFalse(search(p, "compote").getBoolean("exactMatch"));
         }
 
         @Test
@@ -490,19 +543,13 @@ class DishTest {
         }
 
         @Test
-        @DisplayName("Scénario : Purée et Compote ne figurent jamais dans la liste de gestion")
-        void puree_compote_absents() {
-            Parent p = parent("fixed-list");
+        @DisplayName("Scénario : un « Purée » que j'ai partagé figure dans mes plats comme tout autre")
+        void puree_partagee_figure() {
+            data.deleteDishesNormalized("Purée");
+            Parent p = parent("puree-list");
             postMeal(p, meal(null, "Purée", true)).then().statusCode(201);
-            postMeal(p, meal(null, "Compote", true)).then().statusCode(201);
 
-            List<String> labels = manageable(admin()).getList("label");
-
-            for (String label : labels) {
-                String normalized = DishLabels.normalize(label);
-                assertFalse(normalized.equals("puree") || normalized.equals("compote"), label);
-            }
-            assertEquals(List.of(), manageable(p).getList("$"));
+            assertEquals(List.of("Purée"), manageable(p).getList("label"));
         }
     }
 
@@ -561,7 +608,7 @@ class DishTest {
         }
 
         @Test
-        @DisplayName("Scénario : vers le libellé d'un autre plat → 409 ; vers Compote → 409 ; vers une variante de soi → 200")
+        @DisplayName("Scénario : vers le libellé d'un autre plat → 409 ; vers une variante de soi → 200")
         void vers_un_plat_existant() {
             Parent me = parent("rename-clash");
             Parent other = parent("rename-clash-other");
@@ -570,7 +617,6 @@ class DishTest {
             data.createDish(other.userId(), "Purée de carottes " + j);
 
             renameDish(me, mine, "purée de carottes " + j).then().statusCode(409);
-            renameDish(me, mine, "Compote").then().statusCode(409);
             assertEquals("Purée de carrotes " + j, data.dishLabel(mine));
 
             // A variant of ITS OWN label is not a clash with another dish.
@@ -591,16 +637,20 @@ class DishTest {
         }
 
         @Test
-        @DisplayName("Scénario : renommer en Purée ou Compote → 409, libellé inchangé")
-        void renommer_en_puree_ou_compote() {
-            Parent me = parent("rename-fixed");
+        @DisplayName("Scénario : renommer un plat en « Compote » → 200 tant qu'aucun autre plat ne l'a ; 409 ensuite")
+        void renommer_en_compote() {
+            data.deleteDishesNormalized("Compote");
+            Parent me = parent("rename-compote");
             String k = token();
-            UUID mine = data.createDish(me.userId(), "Compot " + k);
+            UUID typo = data.createDish(me.userId(), "Compotte " + k);
+            UUID other = data.createDish(me.userId(), "X " + k);
 
-            renameDish(me, mine, "compote").then().statusCode(409);
-            renameDish(me, mine, "  PURÉE ").then().statusCode(409);
+            renameDish(me, typo, "Compote").then().statusCode(200);
+            assertEquals("Compote", data.dishLabel(typo));
 
-            assertEquals("Compot " + k, data.dishLabel(mine));
+            // « Compote » is now a shared dish like any other: taking its label is a clash.
+            renameDish(me, other, "compote").then().statusCode(409);
+            assertEquals("X " + k, data.dishLabel(other));
         }
 
         @Test
