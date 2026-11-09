@@ -514,8 +514,10 @@ class SolidMealSuggestionsTest {
             given().queryParam("q", "")
                     .when().get(SUGGESTIONS, mine.babyId())
                     .then().statusCode(401);
-            // Guard against a general failure: the linked parent does get a 200 on the same route.
+            // Guard against a general failure: a linked parent does get a 200 on the same route, and
+            // on the very baby refused above.
             suggestionsResponse(mine, mine.babyId(), "").then().statusCode(200);
+            suggestionsResponse(other, other.babyId(), "").then().statusCode(200);
         }
     }
 }
