@@ -1452,7 +1452,7 @@ describe('CalendarPanel — pastilles limitées aux types présents (Épic 21, U
       await userEvent.click(chip('stool'))
 
       expect(screen.queryByRole('button', { name: /Supprimer selle/ })).not.toBeInTheDocument()
-      // Presence is decided on the WHOLE day list, before the filter (D21-A, trap ①).
+      // Presence is decided on the WHOLE day list, before the filter (D21-A).
       expect(chip('stool')).not.toBeNull()
       expect(chip('stool')).toHaveAttribute('aria-pressed', 'false')
       expect(chip('stool')).toHaveTextContent('2 selles')
@@ -1670,7 +1670,7 @@ describe('CalendarPanel — pastilles limitées aux types présents (Épic 21, U
     })
   })
 
-  describe('Complément (piège ②) : la présence se décide sur la liste, pas sur les totaux', () => {
+  describe('Complément : la présence se décide sur la liste, pas sur les totaux', () => {
     it('un biberon à 0 ml dans la liste donne une pastille 🍼 « 0 ml »', async () => {
       getDayEvents.mockResolvedValue([bottle('bf1', '08:00', 0)])
       getDailyTotals.mockResolvedValue(totalsOf({ totalMilkMl: 0 }))
