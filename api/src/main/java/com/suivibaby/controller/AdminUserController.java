@@ -1,20 +1,24 @@
 package com.suivibaby.controller;
 
 import com.suivibaby.entity.AppUser;
+import com.suivibaby.model.AccountDeletionImpactResponse;
 import com.suivibaby.model.AccountResponse;
 import com.suivibaby.model.CreateUserRequest;
 import com.suivibaby.model.CreateUserResponse;
 import com.suivibaby.security.CurrentUser;
+import com.suivibaby.service.AccountDeletionService;
 import com.suivibaby.service.AccountService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -30,6 +34,9 @@ public class AdminUserController {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    AccountDeletionService accountDeletionService;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -59,5 +66,19 @@ public class AdminUserController {
         boolean mailSent = accountService.sendActivationMail(
                 regenerated.userId(), regenerated.activationLink(), currentUser.firstName);
         return regenerated.withMailSent(mailSent);
+    }
+
+    @GET
+    @Path("/{id}/deletion-impact")
+    @Produces(MediaType.APPLICATION_JSON)
+    public AccountDeletionImpactResponse deletionImpact(@PathParam("id") UUID id) {
+        return accountDeletionService.getDeletionImpact(id);
+    }
+
+    @DELETE
+    @Path("/{id}")
+    public Response delete(@PathParam("id") UUID id, @QueryParam("impactToken") String impactToken) {
+        accountDeletionService.deleteAccount(id, impactToken);
+        return Response.noContent().build();
     }
 }

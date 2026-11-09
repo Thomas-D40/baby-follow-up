@@ -22,7 +22,7 @@ public class Temperature {
     @Column(name = "temperature_celsius_x10", nullable = false)
     public int temperatureCelsiusX10;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

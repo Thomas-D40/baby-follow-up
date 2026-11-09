@@ -30,6 +30,8 @@ public class DishController {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public DishSearchResponse search(@QueryParam("q") String q) {
+        // Refuses a stale session like every authenticated route (D24-W).
+        currentUserResolver.require();
         return dishService.search(q);
     }
 

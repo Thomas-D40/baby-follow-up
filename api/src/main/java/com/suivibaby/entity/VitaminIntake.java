@@ -24,7 +24,7 @@ public class VitaminIntake {
     @Column(name = "given_on", nullable = false)
     public LocalDate givenOn;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

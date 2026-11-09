@@ -26,7 +26,7 @@ public class Breastfeeding {
     @Column(name = "duration_minutes")
     public Integer durationMinutes;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

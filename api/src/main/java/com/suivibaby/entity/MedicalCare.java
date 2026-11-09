@@ -23,7 +23,7 @@ public class MedicalCare {
     @Column(name = "occurred_at", nullable = false)
     public Instant occurredAt;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     public UUID authorId;
 
     @Column(name = "created_at", nullable = false)

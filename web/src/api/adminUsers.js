@@ -19,3 +19,19 @@ export function createAccount({ email, firstName }) {
 export function resendActivationLink(userId) {
   return apiSend(`/admin/users/${userId}/activation-link`, 'POST')
 }
+
+// What deleting an account would do, read before the confirmation (Épic 24)
+// → { userId, status, deletedBabyCount, sharedBabyCount, blockingBabyCount, impactToken }.
+// 404 unknown account, 409 admin account.
+export function getAccountDeletionImpact(userId) {
+  return apiGet(`/admin/users/${userId}/deletion-impact`)
+}
+
+// Delete an account (no body) with the impactToken read from the preview. isPendingOnly turns it into a
+// revocation: refused if the account got activated meanwhile.
+// → resolves null on 204. 404 unknown or already deleted, 409 any refusal (admin, activated, last owner,
+// impact changed).
+export function deleteAccount(userId, { impactToken, isPendingOnly }) {
+  const pendingOnly = isPendingOnly ? '&pendingOnly=true' : ''
+  return apiSend(`/admin/users/${userId}?impactToken=${encodeURIComponent(impactToken)}${pendingOnly}`, 'DELETE')
+}
