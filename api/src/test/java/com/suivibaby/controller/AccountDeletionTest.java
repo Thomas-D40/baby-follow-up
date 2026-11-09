@@ -460,13 +460,15 @@ class AccountDeletionTest {
                     .then().statusCode(401);
         }
 
+        // Pending account: an activated account's link already answers 410 (D20-AA), so only a pending
+        // one proves that the deletion itself kills the link.
         @Test
         void son_lien_d_activation_ne_fonctionne_plus() {
-            Account nadia = parent("Nadia");
-            UUID activation = data.createToken(nadia.id(), Instant.now().plus(7, ChronoUnit.DAYS), null);
+            UUID nadia = data.createUser(data.uniqueEmail("nadia"), "Nadia", "parent", null);
+            UUID activation = data.createToken(nadia, Instant.now().plus(7, ChronoUnit.DAYS), null);
             given().when().get("/api/activation/{token}", activation).then().statusCode(204);
 
-            deleteAccount(nadia.id(), tokenFor(nadia.id())).then().statusCode(204);
+            deleteAccount(nadia, tokenFor(nadia)).then().statusCode(204);
 
             given().when().get("/api/activation/{token}", activation).then().statusCode(410);
         }
