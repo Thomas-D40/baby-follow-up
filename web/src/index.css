@@ -185,14 +185,14 @@ button { font-family: inherit; }
 .linkbtn--center { align-self: center; }
 
 /* ── Barre d'actions rapides ────────────────────────────────────────────── */
-/* 5 boutons depuis l'Épic 15. `repeat(auto-fit, minmax(70px, 1fr))` + gap 0.7rem exigerait
-   5×70 + 4×11,2 = 394,8 px, soit un viewport ≥ 430 px : sur TOUS les téléphones courants
-   (375/390/393/414/428) `auto-fit` ne plaçait que 4 colonnes et le 5ᵉ bouton tombait seul en
-   rangée 2, aligné à gauche. Cinq colonnes explicites + gap 0.5rem → 61,6 px/bouton à 375 px,
-   d'où l'emoji et le libellé réduits ci-dessous. */
+/* Six buttons since Épic 22 (five since Épic 15). `repeat(auto-fit, minmax(70px, 1fr))` + gap
+   0.7rem would need 5×70 + 4×11.2 = 394.8 px, i.e. a viewport ≥ 430 px: on EVERY common phone
+   (375/390/393/414/428) `auto-fit` only placed 4 columns and the last button fell alone on
+   row 2, left-aligned. Six explicit columns + gap 0.5rem → 50 px per button at 375 px, hence the
+   reduced label size and horizontal padding below. */
 .quick-bar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0.5rem;
 }
 .quick-btn {
@@ -201,7 +201,7 @@ button { font-family: inherit; }
   border: 0;
   cursor: pointer;
   border-radius: var(--radius);
-  padding: 0.8rem 0.25rem 0.7rem;
+  padding: 0.8rem 0.15rem 0.7rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -215,11 +215,12 @@ button { font-family: inherit; }
 .quick-btn:active { transform: translateY(2px) scale(0.98); }
 .quick-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .quick-btn .emoji { font-size: 1.5rem; line-height: 1; }
-.quick-btn .label { font-size: 0.72rem; line-height: 1.1; }
+.quick-btn .label { font-size: 0.68rem; line-height: 1.1; }
 .quick-btn--milk { background: var(--milk-bg); color: var(--milk-ink); }
 .quick-btn--sleep { background: var(--sleep-bg); color: var(--sleep-ink); }
 .quick-btn--stool { background: var(--stool-bg); color: var(--stool-ink); }
 .quick-btn--weight { background: var(--weight-bg); color: var(--weight-ink); }
+.quick-btn--care { background: var(--care-bg); color: var(--care-ink); }
 .quick-btn--medical { background: var(--temp-bg); color: var(--temp-ink); }
 
 .quick-badge {
@@ -260,8 +261,10 @@ button { font-family: inherit; }
 }
 .toggle-chip:focus-visible { outline: none; box-shadow: var(--ring); }
 .toggle-chip--on { background: var(--stool-bg); color: var(--stool-ink); border-color: var(--stool); }
-/* Même toggle, teinte « soin » pour la feuille Médical (Épic 15). */
+/* Same toggle, « soin » tint for the Soins sheet (Épic 15, Épic 22). */
 .toggle-chip--care-on { background: var(--care-bg); color: var(--care-ink); border-color: var(--care); }
+/* Same toggle, « température » tint for the medication options of the Médical sheet (Épic 22, D22-K). */
+.toggle-chip--temp-on { background: var(--temp-bg); color: var(--temp-ink); border-color: var(--temp); }
 /* Same toggle, « tétée » tint for the side of the Repas sheet (Épic 18). */
 .toggle-chip--breast-on { background: var(--breast-bg); color: var(--breast-ink); border-color: var(--breast); }
 /* Same toggle, « diversification » tint for the portion of the Repas sheet (Épic 18). */
@@ -319,8 +322,8 @@ button { font-family: inherit; }
 .chip--nose-care { background: var(--care-bg); color: var(--care-ink); }
 .chip--breast { background: var(--breast-bg); color: var(--breast-ink); }
 .chip--meal { background: var(--meal-bg); color: var(--meal-ink); }
-/* 💊 shares the « soin » tint like 👁 and 👃: the emoji tells them apart (Épic 19). */
-.chip--medication { background: var(--care-bg); color: var(--care-ink); }
+/* 💊 shares the « température » tint of 🌡, same Médical family (Épic 19, Épic 22 D22-K). */
+.chip--medication { background: var(--temp-bg); color: var(--temp-ink); }
 
 /* Toggle flavour of a totals chip (Épic 16, D16-S): the chip IS the type filter of the day list.
    Modifier on the <button>, never `button.chip` — the bare `.chip` stays a decorative badge
@@ -348,7 +351,7 @@ button { font-family: inherit; }
 .chip--toggle[aria-pressed="true"].chip--nose-care { border-color: var(--care); }
 .chip--toggle[aria-pressed="true"].chip--breast { border-color: var(--breast); }
 .chip--toggle[aria-pressed="true"].chip--meal { border-color: var(--meal); }
-.chip--toggle[aria-pressed="true"].chip--medication { border-color: var(--care); }
+.chip--toggle[aria-pressed="true"].chip--medication { border-color: var(--temp); }
 
 /* ── Vitamines (Épic 9) : cases à cocher du récap jour ──────────────────── */
 .vitamins { margin-top: 0.75rem; }
@@ -393,7 +396,7 @@ button { font-family: inherit; }
 .event-tag--nose-care { background: var(--care-bg); color: var(--care-ink); }
 .event-tag--breast { background: var(--breast-bg); color: var(--breast-ink); }
 .event-tag--meal { background: var(--meal-bg); color: var(--meal-ink); }
-.event-tag--medication { background: var(--care-bg); color: var(--care-ink); }
+.event-tag--medication { background: var(--temp-bg); color: var(--temp-ink); }
 .event-detail { color: var(--text); }
 .event-detail strong { color: var(--text-strong); }
 .flag { color: var(--stool-ink); font-weight: 700; }

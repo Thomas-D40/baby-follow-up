@@ -82,7 +82,7 @@ export default function MedicationForm({ onSubmit, initial = null }) {
           <button
             key={option.value}
             type="button"
-            className={`toggle-chip ${choice === option.value ? 'toggle-chip--care-on' : ''}`}
+            className={`toggle-chip ${choice === option.value ? 'toggle-chip--temp-on' : ''}`}
             aria-pressed={choice === option.value}
             onClick={() => pick(option.value)}
           >
@@ -124,7 +124,7 @@ export default function MedicationForm({ onSubmit, initial = null }) {
       </label>
 
       {error && <p className="error-text">{error}</p>}
-      <button type="submit" disabled={busy} className="btn btn--care btn--block btn--lg">
+      <button type="submit" disabled={busy} className="btn btn--temp btn--block btn--lg">
         {busy ? '…' : 'Enregistrer'}
       </button>
     </form>
