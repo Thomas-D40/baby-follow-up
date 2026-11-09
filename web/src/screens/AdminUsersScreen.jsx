@@ -135,7 +135,7 @@ export default function AdminUsersScreen({ onBack }) {
                     Renvoyer le lien
                   </button>
                 )}
-                {account.role !== 'admin' && account.status === 'active' && <AccountRemoval account={account} />}
+                {account.role !== 'admin' && <AccountRemoval account={account} />}
               </li>
             ))}
           </ul>

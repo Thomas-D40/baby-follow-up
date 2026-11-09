@@ -77,8 +77,9 @@ public class AdminUserController {
 
     @DELETE
     @Path("/{id}")
-    public Response delete(@PathParam("id") UUID id, @QueryParam("impactToken") String impactToken) {
-        accountDeletionService.deleteAccount(id, impactToken);
+    public Response delete(@PathParam("id") UUID id, @QueryParam("impactToken") String impactToken,
+                           @QueryParam("pendingOnly") boolean isPendingOnly) {
+        accountDeletionService.deleteAccount(id, impactToken, isPendingOnly);
         return Response.noContent().build();
     }
 }
