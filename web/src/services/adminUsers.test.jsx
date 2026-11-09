@@ -240,7 +240,8 @@ describe('useDeleteAccount — suppression et révocation (Épic 24, US24.1 et U
     deleteAccount.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     const { result } = setupHook(() => useDeleteAccount())
 
-    await expect(act(() => result.current.mutateAsync(ARGS))).rejects.toMatchObject({ status: 500 })
+    // Awaited inside act: the thenable act() returns lets .rejects pass before the mutation settles.
+    await act(() => expect(result.current.mutateAsync(ARGS)).rejects.toMatchObject({ status: 500 }))
 
     expect(deleteAccount).toHaveBeenCalledTimes(1)
   })
@@ -259,7 +260,8 @@ describe('useDeleteAccount — suppression et révocation (Épic 24, US24.1 et U
     deleteAccount.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
     const { result, invalidate } = setupHook(() => useDeleteAccount())
 
-    await expect(act(() => result.current.mutateAsync(ARGS))).rejects.toMatchObject({ status: 409 })
+    // Same as above: the rejection is awaited inside act, after onError has invalidated.
+    await act(() => expect(result.current.mutateAsync(ARGS)).rejects.toMatchObject({ status: 409 }))
 
     expect(deleteAccount).toHaveBeenCalledTimes(1)
     expect(invalidate).toHaveBeenCalledWith(USERS_KEY)
