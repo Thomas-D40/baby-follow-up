@@ -28,6 +28,19 @@ compte mis à jour, une phrase ajoutée) se traduit **en entier**, y compris dan
 bloc seulement **déplacé** tel quel reste en l'état. Les directives Liquibase (`--changeset …`) ne
 sont pas des commentaires.
 
+**Renvois aux specs.** Les codes de décision (`D21-A`, `D8-M`…) et le vocabulaire établi du dépôt
+(`K1`) sont permis dans le code : ils sont la convention depuis les premiers épics. En revanche, la
+**numérotation interne d'un plan** n'a pas de sens pour qui lit le code et ne doit jamais entrer
+dans le dépôt : pièges (`①`, « piège ② »), sections (`§5`), lots (`Lot E`), invariants et risques (`I5`,
+`R1`, `RA2`, `RP4`). On écrit la raison en clair. Règle bloquante dans `checks.tsv` (décidé en rétro
+le 2026-11-09, après six renvois de ce type dans deux épics).
+
+## 3 bis. Tests front asynchrones
+
+Un rejet attendu s'écrit `await act(() => expect(promise).rejects…)`, jamais
+`await expect(act(…)).rejects…` : avec React 18.3, le thenable que renvoie `act` se résout sans
+attendre la promesse, et l'assertion passe sans rien vérifier. Règle bloquante dans `checks.tsv`.
+
 ## 4. Front — découpage vue / service / modèle
 
 Cible (décidée le 2026-11-08) : la **vue ne fait qu'afficher** et appelle un service pour obtenir ses

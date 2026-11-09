@@ -11,3 +11,5 @@ maxlines	^web/src/screens/[^.]*\.jsx$	340	blocking	Écran au-delà du plafond
 maxlines	^web/src/[^.]*\.jsx?$	300	signal	Module front au-delà du seuil indicatif
 maxlines	^api/src/main/.*\.java$	250	signal	Classe Java au-delà du seuil indicatif
 added	\.(java|js|jsx|css|sql)$	(//|/\*|^[[:space:]]*\*|^[[:space:]]*--).*[[:space:]]([Ll]e|[Ll]a|[Ll]es|[Dd]es|[Dd]u|[Ee]st|[Uu]ne|[Pp]our|[Aa]vec)[[:space:]]	signal	Commentaire neuf en français : commentaires en anglais
+added	\.(java|js|jsx|css|sql)$	①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|§[0-9]|Lot [A-Z]([^A-Za-z]|$)|(^|[^A-Za-z0-9_])(RA|RP|I|R)[0-9]+([^A-Za-z0-9_]|$)	blocking	Renvoi à la numérotation interne du plan (pièges, §, lots, I/R/RA/RP) : écrire la raison en clair ; les codes de décision Dn-X restent permis
+added	\.test\.jsx?$	expect\(act\(	blocking	expect(act(...)).rejects ne vérifie rien (thenable de act) : écrire await act(() => expect(...).rejects...)
