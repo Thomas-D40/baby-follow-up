@@ -27,16 +27,20 @@ export default function AccountRemoval({ account }) {
     )
   }
 
-  if (mode === null) {
+  const view = mode !== null && impact ? describeAccountRemoval(mode, account, impact) : null
+  // The account got activated since the list was loaded: the confirmation closes and the row says why.
+  if (mode === null || view?.kind === 'activated') {
     return (
-      <button onClick={() => setMode(modeFor(account))} className="btn btn--ghost btn--sm">
-        {ACCOUNT_REMOVAL_LABELS[modeFor(account)].trigger}
-      </button>
+      <>
+        <button onClick={() => setMode(modeFor(account))} className="btn btn--ghost btn--sm">
+          {ACCOUNT_REMOVAL_LABELS[modeFor(account)].trigger}
+        </button>
+        {view && <p role="alert" className="notice notice--info">{view.message}</p>}
+      </>
     )
   }
 
   const labels = ACCOUNT_REMOVAL_LABELS[mode]
-  const view = impact ? describeAccountRemoval(mode, account, impact) : null
   return (
     <span className="confirm-inline" role="group">
       {isError && <p role="alert" className="error-text">{labels.failure}</p>}
@@ -58,6 +62,7 @@ export default function AccountRemoval({ account }) {
   )
 }
 
-function modeFor() {
-  return 'delete'
+// A pending account has never been used: removing it withdraws its invitation.
+function modeFor(account) {
+  return account.status === 'pending' ? 'revoke' : 'delete'
 }

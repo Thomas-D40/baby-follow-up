@@ -53,12 +53,16 @@ public class AccountDeletionService {
     // One transaction, and every guard runs before the first write: a refused request changes nothing (D24-V).
     // The lock serializes two deletions of the same account and the writes that reference it.
     @Transactional
-    public void deleteAccount(UUID userId, String impactToken) {
+    public void deleteAccount(UUID userId, String impactToken, boolean isPendingOnly) {
         AppUser user = appUserRepository.findById(userId, LockModeType.PESSIMISTIC_WRITE);
         if (user == null) {
             throw new NotFoundException("Utilisateur introuvable.");
         }
         requireNotAdmin(user);
+        // A revocation never deletes an account that got activated meanwhile (D24-L).
+        if (isPendingOnly && user.activatedAt != null) {
+            throw new ClientErrorException("Ce compte vient d'être activé.", Response.Status.CONFLICT);
+        }
         AccountDeletionImpact impact = computeImpact(userId);
         if (impact.isBlocked()) {
             throw new ClientErrorException("Dernier owner d'un bébé suivi par d'autres.", Response.Status.CONFLICT);
