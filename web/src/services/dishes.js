@@ -1,27 +1,31 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteDish, listManageableDishes, renameDish, searchDishes } from '../api'
+import { deleteDish, getDishSuggestions, listManageableDishes, renameDish } from '../api'
 import { normalizeDishLabel } from '../dish'
 
-// Row of suggestions for the TYPED text (a touch does not move it, D23-D) and whether the "add to my
-// dishes" box may be offered for the text now in the field. An empty text makes no request. The row
-// keeps its previous answer while the next one loads; the box is only offered once the search of
-// the CURRENT text has arrived (D18-AG). Two texts of one normalized form share one request.
-export function useDishSearch(typedText, dishText) {
-  const typed = typedText.trim()
+// Every key sits under the baby prefix, so any write of the baby refreshes the suggestions (D23-S).
+function suggestionsKey(babyId, text) {
+  return ['babies', babyId, 'dish-suggestions', normalizeDishLabel(text)]
+}
+
+// Row of suggestions for the TYPED text (a touch does not move it, D23-D; an empty text gives the
+// recent dishes) and whether the "add to my dishes" box may be offered for the text now in the
+// field. The row keeps its previous answer while the next one loads; the box is only offered once
+// the answer for the CURRENT text has arrived (D18-AG). Two texts of one normalized form share one
+// request.
+export function useDishSuggestions(babyId, typedText, dishText) {
   const field = dishText.trim()
   const row = useQuery({
-    queryKey: ['dishes', 'search', normalizeDishLabel(typedText)],
-    queryFn: () => searchDishes(typed),
-    enabled: typed !== '',
+    queryKey: suggestionsKey(babyId, typedText),
+    queryFn: () => getDishSuggestions(babyId, typedText.trim()),
     placeholderData: keepPreviousData,
   })
   const box = useQuery({
-    queryKey: ['dishes', 'search', normalizeDishLabel(dishText)],
-    queryFn: () => searchDishes(field),
+    queryKey: suggestionsKey(babyId, dishText),
+    queryFn: () => getDishSuggestions(babyId, field),
     enabled: field !== '',
   })
   return {
-    suggestions: typed === '' ? [] : (row.data?.items ?? []).map((item) => item.label),
+    suggestions: row.data?.labels ?? [],
     canAddToDishes: field !== '' && box.isSuccess && box.data.exactMatch === false,
   }
 }
@@ -35,14 +39,23 @@ export function useManageableDishes() {
   return { dishes: data ?? [], isLoading }
 }
 
-// Both writes invalidate every dish query: the searches show the new label too. retry: 0 (no replay
-// on a lost response).
+// Both writes invalidate the dish list and the suggestions of every baby: the shared labels shown
+// there may have changed (D23-S). retry: 0 (no replay on a lost response).
+function invalidateDishes(qc) {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: ['dishes'] }),
+    qc.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === 'babies' && query.queryKey[2] === 'dish-suggestions',
+    }),
+  ])
+}
+
 export function useRenameDish() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, label }) => renameDish(id, label),
     retry: 0,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dishes'] }),
+    onSuccess: () => invalidateDishes(qc),
   })
 }
 
@@ -59,6 +72,6 @@ export function useDeleteDish() {
       }
     },
     retry: 0,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dishes'] }),
+    onSuccess: () => invalidateDishes(qc),
   })
 }

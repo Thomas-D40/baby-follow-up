@@ -27,7 +27,8 @@ export function useCreateBreastfeeding(babyId) {
   return useCreateFeeding(babyId, 'breast', createBreastfeeding)
 }
 
-// A meal may have added a dish to the shared list: the searches are stale too.
+// A meal may have added a dish to the shared list: "My dishes" is stale too (the suggestions sit
+// under the baby prefix, already invalidated).
 export function useCreateSolidMeal(babyId) {
   return useCreateFeeding(babyId, 'solid', createSolidMeal, [['dishes']])
 }

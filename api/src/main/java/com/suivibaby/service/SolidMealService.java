@@ -3,6 +3,9 @@ package com.suivibaby.service;
 import com.suivibaby.entity.SolidMeal;
 import com.suivibaby.mapper.SolidMealMapper;
 import com.suivibaby.model.CreateSolidMealRequest;
+import com.suivibaby.model.DishResponse;
+import com.suivibaby.model.DishSearchResponse;
+import com.suivibaby.model.DishSuggestionsResponse;
 import com.suivibaby.model.SolidMealPage;
 import com.suivibaby.model.SolidMealResponse;
 import com.suivibaby.model.UpdateSolidMealRequest;
@@ -74,6 +77,17 @@ public class SolidMealService {
             nextCursor = new Cursor(last.occurredAt, last.id).encode();
         }
         return new SolidMealPage(solidMealMapper.toResponses(rows), nextCursor);
+    }
+
+    public DishSuggestionsResponse getDishSuggestions(UUID userId, UUID babyId, String q) {
+        requireLinked(userId, babyId);
+        List<String> history = solidMealRepository.listDishesNewestFirst(babyId);
+        String normalizedQuery = q == null ? "" : DishLabels.normalize(q);
+        // The shared list only joins in once something is typed; its exactMatch ignores the history.
+        DishSearchResponse shared = dishService.search(q);
+        List<String> sharedLabels = shared.items().stream().map(DishResponse::label).toList();
+        return new DishSuggestionsResponse(
+                DishSuggestions.merge(history, sharedLabels, normalizedQuery), shared.exactMatch());
     }
 
     public List<SolidMealResponse> listForDay(UUID userId, UUID babyId, Instant from, Instant to) {
