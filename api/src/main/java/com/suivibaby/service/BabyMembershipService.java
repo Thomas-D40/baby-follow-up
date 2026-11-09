@@ -97,7 +97,7 @@ public class BabyMembershipService {
         }
     }
 
-    // Cross-cutting rule (D8-M, Lot E): the last owner of a baby is never removed. Shared by every
+    // Cross-cutting rule (D8-M): the last owner of a baby is never removed. Shared by every
     // departure path: delink, self-delink and the account deletion (Epic 24), which reads it through
     // the impact preview.
     public boolean isLastOwner(UUID babyId) {

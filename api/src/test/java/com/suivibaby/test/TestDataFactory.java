@@ -641,7 +641,7 @@ public class TestDataFactory {
     }
 
     // Turns an account back into a pending one (no activation date) while keeping its real password hash:
-    // the shape of an old account wrongly back-marked "pending" by the Épic 20 migration (RP4).
+    // the shape of an old account wrongly back-marked "pending" by the Épic 20 migration.
     @Transactional
     public void markPending(UUID userId) {
         AppUser user = appUserRepository.findById(userId);
