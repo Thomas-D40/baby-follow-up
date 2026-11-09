@@ -31,3 +31,13 @@ export const CARE_TYPE_BY_EVENT = { eye_care: 'eye', nose_care: 'nose' }
 export function careTypeOfEvent(eventType) {
   return CARE_TYPE_BY_EVENT[eventType] ?? eventType
 }
+
+// Display cap of the "Derniers soins" list (Épic 22). The server already returns the cares ordered
+// `occurredAt desc, id desc`: the order received is kept, no client-side sort.
+export const RECENT_CARES_LIMIT = 5
+
+// Rows of the Soins sheet: first RECENT_CARES_LIMIT cares, `careType` translated to the presentation
+// type (K1) because edit and delete routing key on `eye_care` / `nose_care`, not on `eye` / `nose`.
+export function recentCareRows(cares) {
+  return cares.slice(0, RECENT_CARES_LIMIT).map((care) => ({ ...care, type: careEventType(care.careType) }))
+}
