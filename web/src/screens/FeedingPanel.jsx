@@ -79,6 +79,7 @@ export default function FeedingPanel({ babyId }) {
         <>
           <SolidMealForm
             key="solid"
+            babyId={babyId}
             time={time}
             onTimeChange={setTime}
             onSubmit={(body) => save(createSolid, body, 'Repas enregistré.')}

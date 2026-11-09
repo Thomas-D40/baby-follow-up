@@ -26,6 +26,15 @@ public class SolidMealRepository implements PanacheRepositoryBase<SolidMeal, UUI
                 babyId, from, to).list();
     }
 
+    // The whole history of the baby, one column: the suggestions are merged and capped in memory.
+    public List<String> listDishesNewestFirst(UUID babyId) {
+        return getEntityManager().createQuery(
+                        "select m.dish from SolidMeal m where m.babyId = :baby order by m.occurredAt desc, m.id desc",
+                        String.class)
+                .setParameter("baby", babyId)
+                .getResultList();
+    }
+
     public long countForDay(UUID babyId, Instant from, Instant to) {
         return count("babyId = ?1 and occurredAt >= ?2 and occurredAt < ?3", babyId, from, to);
     }

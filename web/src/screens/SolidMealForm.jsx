@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { toLocalInputValue, toOccurredAtIso } from '../bottleFeeding'
 import { isSameDish, parseDishLabel } from '../dish'
-import { useDishSearch } from '../services/dishes'
+import { useDishSuggestions } from '../services/dishes'
 import { PORTIONS, PORTION_LABEL } from '../solidMeal'
 
-export default function SolidMealForm({ onSubmit, initial = null, time, onTimeChange }) {
+export default function SolidMealForm({ babyId, onSubmit, initial = null, time, onTimeChange }) {
   const isEdit = initial != null
   const [ownOccurredAt, setOwnOccurredAt] = useState(() =>
     toLocalInputValue(initial?.occurredAt ? new Date(initial.occurredAt) : new Date()),
@@ -20,7 +20,8 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
   const [addChecked, setAddChecked] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const { suggestions, canAddToDishes } = useDishSearch(typedDish, dish)
+  // The box exists at creation only: no request for it when editing (D18-AR).
+  const { suggestions, canAddToDishes } = useDishSuggestions(babyId, typedDish, isEdit ? '' : dish)
 
   // Pressing the pressed portion releases it: back to "unspecified" (D18-O).
   const togglePortion = (value) => setPortion((current) => (current === value ? null : value))

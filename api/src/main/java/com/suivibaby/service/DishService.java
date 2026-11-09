@@ -21,7 +21,9 @@ import java.util.UUID;
 @ApplicationScoped
 public class DishService {
 
-    private static final int SEARCH_LIMIT = 10;
+    // The merge of the dish suggestions needs the shared search to return at least as many dishes as
+    // it may show.
+    private static final int SEARCH_LIMIT = DishSuggestions.MAX_SUGGESTIONS;
 
     @Inject
     DishRepository dishRepository;

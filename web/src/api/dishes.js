@@ -1,13 +1,15 @@
 import { apiGet, apiSend } from './client'
 
-// --- Shared dish list (Épic 18, US18.4-US18.5) ---
-// Not scoped to a baby: the list is shared by every user.
+// --- Dishes (Épic 18, US18.4-US18.5; Épic 23) ---
+// The shared list is not scoped to a baby (every user sees it); the suggestions are, because they
+// also come from the meals of the baby.
 
-// Substring search, insensitive to case and accents (done by the server). Returns
-// { items: [{ id, label }], exactMatch }: `exactMatch` says whether the text designates a shared
-// dish even when it is not among the capped items.
-export function searchDishes(q) {
-  return apiGet(`/dishes?q=${encodeURIComponent(q)}`)
+// Suggestions for a baby: its recent dishes, then the shared ones containing the text (case and
+// accents ignored, done by the server). An empty text gives the recent dishes only. Returns
+// { labels, exactMatch }: `exactMatch` says whether the text designates a shared dish, whatever the
+// history holds.
+export function getDishSuggestions(babyId, q) {
+  return apiGet(`/babies/${babyId}/solid-meals/dish-suggestions?q=${encodeURIComponent(q)}`)
 }
 
 // Dishes the current user may manage: their own, or all of them for the admin (the server decides).

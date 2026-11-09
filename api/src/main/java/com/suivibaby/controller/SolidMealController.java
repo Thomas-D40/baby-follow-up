@@ -2,6 +2,7 @@ package com.suivibaby.controller;
 
 import com.suivibaby.entity.AppUser;
 import com.suivibaby.model.CreateSolidMealRequest;
+import com.suivibaby.model.DishSuggestionsResponse;
 import com.suivibaby.model.SolidMealPage;
 import com.suivibaby.model.SolidMealResponse;
 import com.suivibaby.model.UpdateSolidMealRequest;
@@ -41,6 +42,15 @@ public class SolidMealController {
                               @QueryParam("before") String before) {
         AppUser currentUser = currentUserResolver.require();
         return solidMealService.list(currentUser.id, babyId, limit, before);
+    }
+
+    @GET
+    @Path("/dish-suggestions")
+    @Produces(MediaType.APPLICATION_JSON)
+    public DishSuggestionsResponse dishSuggestions(@PathParam("babyId") UUID babyId,
+                                                   @QueryParam("q") String q) {
+        AppUser currentUser = currentUserResolver.require();
+        return solidMealService.getDishSuggestions(currentUser.id, babyId, q);
     }
 
     @PATCH

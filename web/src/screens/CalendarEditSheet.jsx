@@ -37,6 +37,7 @@ export default function CalendarEditSheet({ babyId, editing, onClose }) {
       )}
       {editing?.type === 'solid_meal' && (
         <SolidMealForm
+          babyId={babyId}
           initial={{ ...editing, occurredAt: editing.startAt }}
           onSubmit={submit}
         />
