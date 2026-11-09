@@ -58,7 +58,7 @@ describe('useCreateInvitation (Épic 17, US17.1)', () => {
     createInvitation.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     const { result, invalidate } = setupHook(() => useCreateInvitation('b1'))
 
-    await expect(act(() => result.current.mutateAsync(BODY))).rejects.toMatchObject({ status: 500 })
+    await act(() => expect(result.current.mutateAsync(BODY)).rejects.toMatchObject({ status: 500 }))
 
     expect(createInvitation).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()
@@ -124,7 +124,7 @@ describe('useAcceptInvitation (Épic 17, US17.2)', () => {
     acceptInvitation.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     const { result } = setupHook(() => useAcceptInvitation('tok'))
 
-    await expect(act(() => result.current.mutateAsync(null))).rejects.toMatchObject({ status: 500 })
+    await act(() => expect(result.current.mutateAsync(null)).rejects.toMatchObject({ status: 500 }))
 
     expect(acceptInvitation).toHaveBeenCalledTimes(1)
   })
@@ -191,7 +191,7 @@ describe('useRevokeInvitation (Épic 17, US17.4)', () => {
     revokeInvitation.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     const { result, invalidate } = setupHook(() => useRevokeInvitation('b1'))
 
-    await expect(act(() => result.current.mutateAsync('tok'))).rejects.toMatchObject({ status: 500 })
+    await act(() => expect(result.current.mutateAsync('tok')).rejects.toMatchObject({ status: 500 }))
 
     expect(revokeInvitation).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()

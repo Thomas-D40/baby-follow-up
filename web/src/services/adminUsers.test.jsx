@@ -90,7 +90,7 @@ describe('useCreateAccount (Épic 20, US20.2)', () => {
     createAccount.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
     const { result, invalidate } = setupHook(() => useCreateAccount())
 
-    await expect(act(() => result.current.mutateAsync(BODY))).rejects.toMatchObject({ status: 409 })
+    await act(() => expect(result.current.mutateAsync(BODY)).rejects.toMatchObject({ status: 409 }))
 
     expect(createAccount).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()
@@ -125,7 +125,7 @@ describe('useResendActivationLink (Épic 20, US20.3)', () => {
     resendActivationLink.mockRejectedValue(Object.assign(new Error('-> 409'), { status: 409 }))
     const { result, invalidate } = setupHook(() => useResendActivationLink())
 
-    await expect(act(() => result.current.mutateAsync('u3'))).rejects.toMatchObject({ status: 409 })
+    await act(() => expect(result.current.mutateAsync('u3')).rejects.toMatchObject({ status: 409 }))
 
     expect(resendActivationLink).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()

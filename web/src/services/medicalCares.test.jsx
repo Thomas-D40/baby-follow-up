@@ -95,7 +95,7 @@ describe('useCreateMedicalCareAct (Épic 22)', () => {
     const onSuccess = vi.fn()
     const { result, invalidate } = setupHook(() => useCreateMedicalCareAct('b1', { onSuccess }))
 
-    await expect(act(() => result.current.mutateAsync(BODY))).rejects.toMatchObject({ status: 500 })
+    await act(() => expect(result.current.mutateAsync(BODY)).rejects.toMatchObject({ status: 500 }))
 
     expect(createMedicalCareAct).toHaveBeenCalledTimes(1)
     expect(invalidate).not.toHaveBeenCalled()

@@ -320,7 +320,7 @@ describe('useDeleteDish (US18.5)', () => {
     deleteDish.mockRejectedValue(Object.assign(new Error('-> 500'), { status: 500 }))
     const { result, invalidate } = setupHook(() => useDeleteDish())
 
-    await expect(act(() => result.current.mutateAsync('d1'))).rejects.toMatchObject({ status: 500 })
+    await act(() => expect(result.current.mutateAsync('d1')).rejects.toMatchObject({ status: 500 }))
     expect(invalidate).not.toHaveBeenCalled()
   })
 })
