@@ -3,46 +3,58 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import SolidMealForm from './SolidMealForm'
+import { normalizeDishLabel } from '../dish'
 
-// The form searches the dish list (services/dishes), so it needs a QueryClientProvider and the
-// searchDishes client; a vi.mock factory throws on access to an undeclared export.
+// The form loads the baby's dish suggestions (services/dishes), so it needs a QueryClientProvider and
+// the getDishSuggestions client; a vi.mock factory throws on access to an undeclared export.
 vi.mock('../api', () => ({
-  searchDishes: vi.fn(),
+  getDishSuggestions: vi.fn(),
 }))
-import { searchDishes } from '../api'
+import { getDishSuggestions } from '../api'
 
 function renderForm(props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const onSubmit = props.onSubmit ?? vi.fn().mockResolvedValue(undefined)
   return {
     onSubmit,
-    ...render(<QueryClientProvider client={qc}><SolidMealForm {...props} onSubmit={onSubmit} /></QueryClientProvider>),
+    ...render(
+      <QueryClientProvider client={qc}>
+        <SolidMealForm babyId="b1" {...props} onSubmit={onSubmit} />
+      </QueryClientProvider>,
+    ),
   }
+}
+
+const NOTHING = { labels: [], exactMatch: false }
+
+// Answers by the NORMALIZED text sent to the server (the second argument of the call).
+function answerByText(table, fallback = NOTHING) {
+  getDishSuggestions.mockImplementation(async (babyId, q) => table[normalizeDishLabel(q)] ?? fallback)
 }
 
 const dish = () => screen.getByLabelText('Plat')
 const save = () => screen.getByRole('button', { name: 'Enregistrer' })
 const proposals = () => screen.getByRole('group', { name: 'Propositions de plats' })
+const proposalLabels = () => within(proposals()).getAllByRole('button').map((b) => b.textContent)
+const proposal = (name) => within(proposals()).getByRole('button', { name })
 const portions = () => screen.getByRole('group', { name: 'Portion' })
 const portion = (name) => within(portions()).getByRole('button', { name })
+const addBox = () => screen.queryByRole('checkbox', { name: 'Ajouter à mes plats' })
+const lastTextSent = () => getDishSuggestions.mock.calls.at(-1)[1]
+// Leaves a stray request every chance to fire before asserting its absence.
+const settle = () => new Promise((r) => setTimeout(r, 20))
 
 beforeEach(() => {
   vi.clearAllMocks()
-  searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+  getDishSuggestions.mockResolvedValue(NOTHING)
 })
 
-describe('SolidMealForm — saisie d’un repas (US18.3)', () => {
+describe('SolidMealForm — saisie d’un repas (US18.3, US23.1)', () => {
   it('le champ Plat est un texte libre, sans maxLength (le message de longueur doit rester atteignable)', () => {
     renderForm()
 
     expect(dish()).toHaveAttribute('type', 'text')
     expect(dish()).not.toHaveAttribute('maxlength')
-  })
-
-  it('rien de tapé : le groupe « Propositions de plats » ne porte que Purée puis Compote', () => {
-    renderForm()
-
-    expect(within(proposals()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Purée', 'Compote'])
   })
 
   it('aucune portion enfoncée à l’ouverture', () => {
@@ -53,26 +65,21 @@ describe('SolidMealForm — saisie d’un repas (US18.3)', () => {
     })
   })
 
-  describe('Purée en un toucher', () => {
-    it('toucher « Purée » remplit le champ ; Enregistrer envoie { dish: Purée, portion: null, addToDishes: false }', async () => {
-      const { onSubmit } = renderForm()
+  describe('plus de catégorie à l’ouverture', () => {
+    it('aucun bouton « Purée » ni « Compote », un exemple dans le champ vide', async () => {
+      renderForm()
+      await waitFor(() => expect(getDishSuggestions).toHaveBeenCalled())
 
-      await userEvent.click(within(proposals()).getByRole('button', { name: 'Purée' }))
-      expect(dish()).toHaveValue('Purée')
-      await userEvent.click(save())
-
-      expect(onSubmit).toHaveBeenCalledTimes(1)
-      expect(onSubmit.mock.calls[0][0]).toEqual({
-        occurredAt: expect.any(String), dish: 'Purée', portion: null, addToDishes: false,
-      })
+      expect(screen.queryByRole('button', { name: 'Purée' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Compote' })).toBeNull()
+      expect(dish()).toHaveValue('')
+      expect(dish()).toHaveAttribute('placeholder', 'Ex. : purée de carottes, banane, pâtes')
     })
 
-    it('toucher « Compote » remplit le champ avec Compote', async () => {
+    it('le nom accessible du champ reste « Plat » malgré l’exemple', () => {
       renderForm()
 
-      await userEvent.click(within(proposals()).getByRole('button', { name: 'Compote' }))
-
-      expect(dish()).toHaveValue('Compote')
+      expect(screen.getByRole('textbox', { name: 'Plat' })).toBe(dish())
     })
   })
 
@@ -166,6 +173,18 @@ describe('SolidMealForm — saisie d’un repas (US18.3)', () => {
     expect(portion('Goûté')).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('après succès en création, la rangée revient aux plats récents du bébé', async () => {
+    answerByText({ '': { labels: ['Banane'], exactMatch: false }, car: { labels: ['Carottes râpées'], exactMatch: false } })
+    renderForm()
+    await userEvent.type(dish(), 'car')
+    await waitFor(() => expect(proposalLabels()).toEqual(['Carottes râpées']))
+
+    await userEvent.click(save())
+
+    await waitFor(() => expect(dish()).toHaveValue(''))
+    await waitFor(() => expect(proposalLabels()).toEqual(['Banane']))
+  })
+
   it('désactive le bouton pendant la soumission : deux clics, un seul appel (anti double-tap)', async () => {
     let resolve
     const onSubmit = vi.fn(() => new Promise((r) => { resolve = r }))
@@ -216,7 +235,7 @@ describe('SolidMealForm — heure pilotée par la feuille (D18-AL)', () => {
   })
 })
 
-describe('SolidMealForm — mode édition (US18.3, D18-AR)', () => {
+describe('SolidMealForm — mode édition (US18.3, D18-AR, US23.1, US23.2)', () => {
   const INITIAL = { occurredAt: '2026-06-21T08:30:00.000Z', dish: 'Purée de carrotes', portion: 'all' }
 
   it('préremplit le plat, la portion et l’heure depuis `initial`', () => {
@@ -262,54 +281,80 @@ describe('SolidMealForm — mode édition (US18.3, D18-AR)', () => {
   })
 
   it('aucune case « Ajouter à mes plats », quel que soit le résultat de la recherche (D18-AR)', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     renderForm({ initial: INITIAL })
 
     fireEvent.change(dish(), { target: { value: 'Yaourt à la vanille' } })
-    await waitFor(() => expect(searchDishes).toHaveBeenCalledWith('Yaourt à la vanille'))
+    await waitFor(() => expect(getDishSuggestions).toHaveBeenCalledWith('b1', 'Yaourt à la vanille'))
+    await settle()
 
-    expect(screen.queryByRole('checkbox', { name: 'Ajouter à mes plats' })).toBeNull()
+    expect(addBox()).toBeNull()
     expect(screen.queryByText('Ce plat sera proposé à tous les utilisateurs')).toBeNull()
   })
 
-  it('les propositions du référentiel restent offertes à l’édition', async () => {
-    searchDishes.mockResolvedValue({ items: [{ id: 'd1', label: 'Purée de carottes' }], exactMatch: false })
+  it('aucun bouton « Purée » ni « Compote » : seulement les plats récents du bébé', async () => {
+    getDishSuggestions.mockResolvedValue({ labels: ['Banane'], exactMatch: false })
     renderForm({ initial: INITIAL })
 
-    expect(await within(proposals()).findByRole('button', { name: 'Purée de carottes' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Banane' })).toBeInTheDocument()
+    expect(proposalLabels()).toEqual(['Banane'])
+    expect(screen.queryByRole('button', { name: 'Purée' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Compote' })).toBeNull()
+  })
+
+  it('les propositions de l’édition sont les plats récents du bébé : texte vide demandé, jamais le plat édité tant que rien n’est tapé', async () => {
+    getDishSuggestions.mockResolvedValue({ labels: ['Purée de carottes'], exactMatch: false })
+    renderForm({ initial: INITIAL })
+
+    expect(await screen.findByRole('button', { name: 'Purée de carottes' })).toBeInTheDocument()
+    await settle()
+
+    expect(getDishSuggestions).toHaveBeenCalledWith('b1', '')
+    expect(getDishSuggestions.mock.calls.map((call) => call[1])).not.toContain('Purée de carrotes')
   })
 })
 
-describe('SolidMealForm — propositions du référentiel (US18.4, D18-U)', () => {
-  const SUGGESTIONS = [
-    { id: 'd1', label: 'Carottes râpées' },
-    { id: 'd2', label: 'Purée de carottes' },
-  ]
+describe('SolidMealForm — propositions de plats (US23.1, US23.2)', () => {
+  it('à l’ouverture : les plats récents du bébé, texte vide demandé', async () => {
+    getDishSuggestions.mockResolvedValue({ labels: ['Banane', 'Purée de carottes'], exactMatch: false })
+    renderForm()
 
-  it('en tapant : Purée, Compote, puis les résultats dans l’ordre reçu', async () => {
-    searchDishes.mockResolvedValue({ items: SUGGESTIONS, exactMatch: false })
+    await waitFor(() => expect(proposalLabels()).toEqual(['Banane', 'Purée de carottes']))
+    expect(getDishSuggestions).toHaveBeenCalledWith('b1', '')
+  })
+
+  it('bébé sans repas : le groupe « Propositions de plats » n’est pas affiché', async () => {
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
+    renderForm()
+    await waitFor(() => expect(getDishSuggestions).toHaveBeenCalled())
+    await settle()
+
+    expect(screen.queryByRole('group', { name: 'Propositions de plats' })).toBeNull()
+  })
+
+  it('les propositions suivent le texte tapé, dans l’ordre reçu', async () => {
+    answerByText({ car: { labels: ['Carottes râpées', 'Purée de carottes'], exactMatch: false } })
     renderForm()
 
     await userEvent.type(dish(), 'car')
 
-    await waitFor(() => expect(within(proposals()).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Purée', 'Compote', 'Carottes râpées', 'Purée de carottes']))
-    expect(searchDishes.mock.calls.at(-1)[0]).toBe('car')
+    await waitFor(() => expect(proposalLabels()).toEqual(['Carottes râpées', 'Purée de carottes']))
+    expect(lastTextSent()).toBe('car')
   })
 
-  it('rien de tapé : seulement Purée et Compote, aucune recherche', async () => {
+  it('l’ordre est celui du serveur, pas un tri alphabétique', async () => {
+    answerByText({ '': { labels: ['Zeste', 'Abricot', 'Mangue'], exactMatch: false } })
     renderForm()
 
-    expect(within(proposals()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Purée', 'Compote'])
-    expect(searchDishes).not.toHaveBeenCalled()
+    await waitFor(() => expect(proposalLabels()).toEqual(['Zeste', 'Abricot', 'Mangue']))
   })
 
   it('choisir une proposition remplit le champ ; Enregistrer envoie ce plat', async () => {
-    searchDishes.mockResolvedValue({ items: SUGGESTIONS, exactMatch: false })
+    answerByText({ car: { labels: ['Carottes râpées', 'Purée de carottes'], exactMatch: false } })
     const { onSubmit } = renderForm()
     await userEvent.type(dish(), 'car')
 
-    await userEvent.click(await within(proposals()).findByRole('button', { name: 'Purée de carottes' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Purée de carottes' }))
     expect(dish()).toHaveValue('Purée de carottes')
     await userEvent.click(save())
 
@@ -317,26 +362,148 @@ describe('SolidMealForm — propositions du référentiel (US18.4, D18-U)', () =
   })
 
   it('un libellé de proposition est rendu comme du texte, jamais interprété', async () => {
-    searchDishes.mockResolvedValue({ items: [{ id: 'x', label: '<b>gras</b>' }], exactMatch: false })
+    answerByText({ gras: { labels: ['<b>gras</b>'], exactMatch: false } })
     renderForm()
     await userEvent.type(dish(), 'gras')
 
-    expect(await within(proposals()).findByRole('button', { name: '<b>gras</b>' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '<b>gras</b>' })).toBeInTheDocument()
+  })
+
+  describe('toucher une proposition : pas de second niveau', () => {
+    const TABLE = {
+      pur: { labels: ['Purée', 'Purée de carottes'], exactMatch: false },
+      puree: { labels: ['Purée', 'Purée de carottes', 'Purée de panais'], exactMatch: true },
+    }
+
+    it('le champ est rempli, la proposition touchée est enfoncée, la rangée ne bouge pas', async () => {
+      answerByText(TABLE)
+      renderForm()
+      await userEvent.type(dish(), 'pur')
+      await waitFor(() => expect(proposalLabels()).toEqual(['Purée', 'Purée de carottes']))
+
+      await userEvent.click(proposal('Purée'))
+
+      expect(dish()).toHaveValue('Purée')
+      expect(proposal('Purée')).toHaveAttribute('aria-pressed', 'true')
+      expect(proposal('Purée de carottes')).toHaveAttribute('aria-pressed', 'false')
+      // Wait for the answer of the touched label, then check that the row did not follow it.
+      await waitFor(() => expect(getDishSuggestions).toHaveBeenCalledWith('b1', 'Purée'))
+      await settle()
+      expect(proposalLabels()).toEqual(['Purée', 'Purée de carottes'])
+      expect(screen.queryByRole('button', { name: 'Purée de panais' })).toBeNull()
+    })
+
+    it('le champ reste modifiable : retaper relance les propositions sur le texte du champ', async () => {
+      answerByText({
+        ...TABLE,
+        'puree de ca': { labels: ['Purée de carottes'], exactMatch: false },
+      })
+      renderForm()
+      await userEvent.type(dish(), 'pur')
+      await waitFor(() => expect(proposalLabels()).toEqual(['Purée', 'Purée de carottes']))
+      await userEvent.click(proposal('Purée'))
+
+      await userEvent.type(dish(), ' de ca')
+
+      expect(dish()).toHaveValue('Purée de ca')
+      await waitFor(() => expect(proposalLabels()).toEqual(['Purée de carottes']))
+      expect(lastTextSent()).toBe('Purée de ca')
+    })
+
+    it('après un toucher, effacer au clavier ramène les plats récents', async () => {
+      answerByText({ ...TABLE, '': { labels: ['Banane'], exactMatch: false } })
+      renderForm()
+      await userEvent.type(dish(), 'pur')
+      await userEvent.click(await screen.findByRole('button', { name: 'Purée' }))
+
+      await userEvent.clear(dish())
+
+      await waitFor(() => expect(proposalLabels()).toEqual(['Banane']))
+    })
+  })
+
+  describe('toucher la proposition déjà enfoncée ne change rien (D23-W)', () => {
+    it('le texte tapé reste tel quel, la proposition reste enfoncée, la case reste cochée', async () => {
+      answerByText({ 'yaourt nature': { labels: ['Yaourt nature'], exactMatch: false } })
+      renderForm()
+      await userEvent.type(dish(), 'yaourt  NATURE')
+      await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
+      expect(proposal('Yaourt nature')).toHaveAttribute('aria-pressed', 'true')
+
+      await userEvent.click(proposal('Yaourt nature'))
+      await settle()
+
+      expect(dish().value).toBe('yaourt  NATURE')
+      expect(proposal('Yaourt nature')).toHaveAttribute('aria-pressed', 'true')
+      expect(addBox()).toBeChecked()
+    })
+
+    it('une proposition choisie d’un toucher puis retouchée ne vide jamais le champ', async () => {
+      answerByText({ pur: { labels: ['Purée'], exactMatch: false } })
+      renderForm()
+      await userEvent.type(dish(), 'pur')
+      await userEvent.click(await screen.findByRole('button', { name: 'Purée' }))
+      expect(proposal('Purée')).toHaveAttribute('aria-pressed', 'true')
+
+      await userEvent.click(proposal('Purée'))
+
+      expect(dish()).toHaveValue('Purée')
+      expect(proposal('Purée')).toHaveAttribute('aria-pressed', 'true')
+    })
+  })
+
+  describe('le libellé tapé est celui d’une proposition', () => {
+    it('la proposition correspondante est enfoncée (casse, accents, espaces ignorés), sans case', async () => {
+      answerByText({ 'yaourt nature': { labels: ['Yaourt nature'], exactMatch: true } })
+      renderForm()
+
+      await userEvent.type(dish(), 'yaourt  NATURE')
+
+      await waitFor(() => expect(proposalLabels()).toEqual(['Yaourt nature']))
+      expect(proposal('Yaourt nature')).toHaveAttribute('aria-pressed', 'true')
+      await settle()
+      expect(addBox()).toBeNull()
+    })
+
+    it('une proposition différente du champ n’est pas enfoncée', async () => {
+      answerByText({ car: { labels: ['Carottes râpées'], exactMatch: false } })
+      renderForm()
+
+      await userEvent.type(dish(), 'car')
+
+      expect(await screen.findByRole('button', { name: 'Carottes râpées' }))
+        .toHaveAttribute('aria-pressed', 'false')
+    })
+  })
+
+  describe('partager plus tard un plat récent', () => {
+    it('un plat récent absent du référentiel : toucher la proposition offre la case, décochée, avec sa mention', async () => {
+      answerByText({
+        '': { labels: ['Pâtes au jambon'], exactMatch: false },
+        'pates au jambon': { labels: ['Pâtes au jambon'], exactMatch: false },
+      })
+      renderForm()
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Pâtes au jambon' }))
+
+      expect(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })).not.toBeChecked()
+      expect(screen.getByText('Ce plat sera proposé à tous les utilisateurs')).toBeInTheDocument()
+    })
   })
 })
 
-describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-AG)', () => {
-  const addBox = () => screen.queryByRole('checkbox', { name: 'Ajouter à mes plats' })
+describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-AG, US23.1)', () => {
   const MENTION = 'Ce plat sera proposé à tous les utilisateurs'
 
-  it('avant toute frappe : pas de case', () => {
+  it('avant toute frappe : pas de case', async () => {
     renderForm()
+    await waitFor(() => expect(getDishSuggestions).toHaveBeenCalled())
 
     expect(addBox()).toBeNull()
   })
 
   it('un plat libre inconnu du référentiel : case décochée + mention', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     renderForm()
 
     await userEvent.type(dish(), 'Gratin de courgettes')
@@ -347,39 +514,56 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
   })
 
   it('un plat déjà présent (exactMatch vrai) : pas de case', async () => {
-    searchDishes.mockResolvedValue({ items: [{ id: 'd1', label: 'Purée de carottes' }], exactMatch: true })
+    getDishSuggestions.mockResolvedValue({ labels: ['Purée de carottes'], exactMatch: true })
     renderForm()
 
     await userEvent.type(dish(), 'purée de carottes')
-    await waitFor(() => expect(searchDishes).toHaveBeenCalled())
 
-    await waitFor(() => expect(within(proposals()).getByRole('button', { name: 'Purée de carottes' })).toBeInTheDocument())
+    await waitFor(() => expect(proposal('Purée de carottes')).toBeInTheDocument())
+    await settle()
     expect(addBox()).toBeNull()
     expect(screen.queryByText(MENTION)).toBeNull()
   })
 
-  it.each(['Purée', 'Compote'])('toucher « %s » : jamais de case', async (name) => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
-    renderForm()
+  it('« Compote » seul, comme tout plat : case décochée + mention, Enregistrer envoie addToDishes: false', async () => {
+    answerByText({ compote: { labels: [], exactMatch: false } })
+    const { onSubmit } = renderForm()
 
-    await userEvent.click(within(proposals()).getByRole('button', { name }))
-    await waitFor(() => expect(searchDishes).toHaveBeenCalled())
+    await userEvent.type(dish(), 'Compote')
 
-    expect(addBox()).toBeNull()
+    expect(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })).not.toBeChecked()
+    expect(screen.getByText(MENTION)).toBeInTheDocument()
+    await userEvent.click(save())
+    expect(onSubmit.mock.calls[0][0]).toEqual({
+      occurredAt: expect.any(String), dish: 'Compote', portion: null, addToDishes: false,
+    })
+  })
+
+  it('« Purée » peut être partagé : case cochée → addToDishes: true', async () => {
+    answerByText({ puree: { labels: [], exactMatch: false } })
+    const { onSubmit } = renderForm()
+    await userEvent.type(dish(), 'Purée')
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
+    await userEvent.click(save())
+
+    expect(onSubmit.mock.calls[0][0]).toEqual({
+      occurredAt: expect.any(String), dish: 'Purée', portion: null, addToDishes: true,
+    })
   })
 
   it('recherche pendante : la case n’est pas proposée avant la réponse', async () => {
-    searchDishes.mockReturnValue(new Promise(() => {}))
+    getDishSuggestions.mockReturnValue(new Promise(() => {}))
     renderForm()
 
     await userEvent.type(dish(), 'Gratin')
-    await waitFor(() => expect(searchDishes).toHaveBeenCalled())
+    await waitFor(() => expect(getDishSuggestions).toHaveBeenCalled())
 
     expect(addBox()).toBeNull()
   })
 
   it('cochée : le corps envoyé porte addToDishes: true', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     const { onSubmit } = renderForm()
     await userEvent.type(dish(), 'Gratin de courgettes')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
@@ -392,7 +576,7 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
   })
 
   it('décochée (défaut) : addToDishes: false', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     const { onSubmit } = renderForm()
     await userEvent.type(dish(), 'Gratin de courgettes')
     await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })
@@ -403,11 +587,7 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
   })
 
   it('une case masquée n’envoie jamais true : cochée puis plat devenu existant → addToDishes: false', async () => {
-    searchDishes.mockImplementation(async (q) => (
-      q === 'Yaourt nature'
-        ? { items: [{ id: 'd1', label: 'Yaourt nature' }], exactMatch: true }
-        : { items: [], exactMatch: false }
-    ))
+    answerByText({ 'yaourt nature': { labels: ['Yaourt nature'], exactMatch: true } })
     const { onSubmit } = renderForm()
     await userEvent.type(dish(), 'Yaourt')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
@@ -420,14 +600,14 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
   })
 
   it('cochée puis plat modifié vers un autre plat libre : la case réapparaît décochée (D18-Y)', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     const { onSubmit } = renderForm()
     await userEvent.type(dish(), 'Yaourt')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))
     expect(addBox()).toBeChecked()
 
     await userEvent.type(dish(), ' vanille')
-    await waitFor(() => expect(searchDishes.mock.calls.at(-1)[0]).toBe('Yaourt vanille'))
+    await waitFor(() => expect(lastTextSent()).toBe('Yaourt vanille'))
 
     expect(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' })).not.toBeChecked()
     await userEvent.click(save())
@@ -437,7 +617,7 @@ describe('SolidMealForm — case « Ajouter à mes plats » (US18.4, D18-AF/D18-
   })
 
   it('après un enregistrement réussi, la case revient décochée pour le plat suivant', async () => {
-    searchDishes.mockResolvedValue({ items: [], exactMatch: false })
+    getDishSuggestions.mockResolvedValue({ labels: [], exactMatch: false })
     renderForm()
     await userEvent.type(dish(), 'Gratin')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Ajouter à mes plats' }))

@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { DISH_MAX_LENGTH, FIXED_DISHES, isFixedDish, normalizeDishLabel, parseDishLabel } from './dish'
+import { DISH_MAX_LENGTH, isSameDish, normalizeDishLabel, parseDishLabel } from './dish'
 
 const EMPTY_ERROR = 'Indiquez le plat.'
 const LONG_ERROR = 'Le plat ne doit pas dépasser 60 caractères.'
 
-describe('constantes du référentiel (US18.3, D18-N)', () => {
-  it('Purée et Compote sont les deux propositions fixes', () => {
-    expect(FIXED_DISHES).toEqual(['Purée', 'Compote'])
-  })
-
+describe('constantes du référentiel (US18.3)', () => {
   it('le plat tient en 60 caractères au plus', () => {
     expect(DISH_MAX_LENGTH).toBe(60)
   })
@@ -59,12 +55,19 @@ describe('normalizeDishLabel — miroir JS de DishLabels.normalize (US18.4, D18-
   })
 })
 
-describe('isFixedDish — Purée et Compote, quelle que soit la saisie (US18.4, D18-AF)', () => {
-  it.each(['  PUREE ', 'compote', 'Purée', 'COMPOTE', ' purée '])('« %s » est fixe', (raw) => {
-    expect(isFixedDish(raw)).toBe(true)
+describe('isSameDish — même plat, quelle que soit la saisie (US23.1, D23-T)', () => {
+  it('casse, accents et espaces seuls différents → même plat', () => {
+    expect(isSameDish('Yaourt nature', 'yaourt  NATURE')).toBe(true)
+    expect(isSameDish('Purée', ' puree ')).toBe(true)
   })
 
-  it.each(['Purée de carottes', 'Compote de pomme', 'Yaourt', ''])('« %s » n’est pas fixe', (raw) => {
-    expect(isFixedDish(raw)).toBe(false)
+  it('un libellé plus long ou différent → autre plat', () => {
+    expect(isSameDish('Purée', 'Purée de carottes')).toBe(false)
+    expect(isSameDish('Compote', 'Compote de pomme')).toBe(false)
+  })
+
+  it('deux libellés vides sont le même (rien) ; un vide et un plat non', () => {
+    expect(isSameDish('', '   ')).toBe(true)
+    expect(isSameDish('', 'Banane')).toBe(false)
   })
 })
