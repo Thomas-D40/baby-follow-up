@@ -424,3 +424,54 @@ describe('MedicationForm — passer d’un défaut à « Autre » à l’éditio
     expect(onSubmit.mock.calls[0][0].medicationName).toBe('Nurofen')
   })
 })
+
+describe('MedicationForm — teinte « température » (Épic 22, D22-K)', () => {
+  const INITIAL = { occurredAt: '2020-03-15T08:00:00.000Z', medicationName: 'Doliprane', dosage: null }
+  const othersThan = (selected) => OPTIONS.filter((name) => name !== selected)
+
+  it('création : l’option touchée prend la teinte « température », les autres restent neutres', async () => {
+    renderForm()
+
+    await userEvent.click(option('Doliprane'))
+
+    expect(option('Doliprane')).toHaveClass('toggle-chip', 'toggle-chip--temp-on')
+    expect(option('Doliprane')).not.toHaveClass('toggle-chip--care-on')
+    othersThan('Doliprane').forEach((name) => {
+      expect(option(name)).toHaveClass('toggle-chip')
+      expect(option(name)).not.toHaveClass('toggle-chip--temp-on')
+      expect(option(name)).not.toHaveClass('toggle-chip--care-on')
+    })
+  })
+
+  it('création : choisir une autre option relâche la précédente, qui redevient neutre', async () => {
+    renderForm()
+
+    await userEvent.click(option('Advil'))
+    await userEvent.click(option('Smecta'))
+
+    expect(option('Smecta')).toHaveClass('toggle-chip--temp-on')
+    expect(option('Advil')).toHaveClass('toggle-chip')
+    expect(option('Advil')).not.toHaveClass('toggle-chip--temp-on')
+    expect(option('Advil')).not.toHaveClass('toggle-chip--care-on')
+  })
+
+  it('création : « Enregistrer » prend la teinte « température »', () => {
+    renderForm()
+
+    expect(save()).toHaveClass('btn', 'btn--temp', 'btn--block', 'btn--lg')
+    expect(save()).not.toHaveClass('btn--care')
+  })
+
+  it('édition : l’option de la prise et « Enregistrer » ont la même teinte « température »', () => {
+    renderForm({ initial: INITIAL })
+
+    expect(option('Doliprane')).toHaveClass('toggle-chip', 'toggle-chip--temp-on')
+    expect(option('Doliprane')).not.toHaveClass('toggle-chip--care-on')
+    othersThan('Doliprane').forEach((name) => {
+      expect(option(name)).not.toHaveClass('toggle-chip--temp-on')
+      expect(option(name)).not.toHaveClass('toggle-chip--care-on')
+    })
+    expect(save()).toHaveClass('btn', 'btn--temp', 'btn--block', 'btn--lg')
+    expect(save()).not.toHaveClass('btn--care')
+  })
+})

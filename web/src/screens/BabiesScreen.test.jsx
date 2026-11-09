@@ -98,8 +98,8 @@ describe('BabiesScreen — suppression (D2-H)', () => {
   })
 })
 
-describe('BabiesScreen — barre d’actions (Épic 18, US18.1)', () => {
-  it('cinq boutons dans l’ordre, « Repas » à la place de « Biberon »', async () => {
+describe('BabiesScreen — barre d’actions (Épic 22, US22.1)', () => {
+  it('six boutons dans l’ordre, « Soins » juste avant « Médical », « Repas » à la place de « Biberon »', async () => {
     api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
     renderScreen()
     await screen.findByRole('heading', { name: 'Léa', level: 2 })
@@ -107,13 +107,79 @@ describe('BabiesScreen — barre d’actions (Épic 18, US18.1)', () => {
     // Scoped to the named group: the recap also has a « Biberon » chip.
     const bar = screen.getByRole('group', { name: 'Actions rapides' })
     const buttons = within(bar).getAllByRole('button')
-    expect(buttons).toHaveLength(5)
-    ;['Repas', 'Sieste', 'Couche', 'Poids', 'Médical'].forEach((name, i) => {
+    expect(buttons).toHaveLength(6)
+    ;['Repas', 'Sieste', 'Couche', 'Poids', 'Soins', 'Médical'].forEach((name, i) => {
       expect(buttons[i]).toHaveAccessibleName(name)
     })
     expect(within(bar).queryByRole('button', { name: 'Biberon' })).toBeNull()
   })
 
+  it('« Soins » (🧴) a la teinte « soin », « Médical » garde la sienne', async () => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+
+    const bar = screen.getByRole('group', { name: 'Actions rapides' })
+    const care = within(bar).getByRole('button', { name: 'Soins' })
+    const medical = within(bar).getByRole('button', { name: 'Médical' })
+    expect(care).toHaveTextContent('🧴')
+    expect(care).toHaveClass('quick-btn--care')
+    expect(medical).toHaveTextContent('🩺')
+    expect(medical).toHaveClass('quick-btn--medical')
+    expect(medical).not.toHaveClass('quick-btn--care')
+  })
+})
+
+describe('BabiesScreen — la rubrique Soins ouvre sa feuille (Épic 22, US22.1)', () => {
+  beforeEach(() => {
+    api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
+    api.listMedicalCares.mockResolvedValue({ items: [], nextCursor: null })
+    api.listTemperatures.mockResolvedValue({ items: [], nextCursor: null })
+    api.listMedications.mockResolvedValue({ items: [], nextCursor: null })
+  })
+
+  const openSheet = async (name) => {
+    renderScreen()
+    await screen.findByRole('heading', { name: 'Léa', level: 2 })
+    await userEvent.click(within(screen.getByRole('group', { name: 'Actions rapides' })).getByRole('button', { name }))
+    return screen.getByRole('dialog')
+  }
+
+  it('« Soins » : feuille « 🧴 Soins » avec le formulaire de soin vierge puis « Derniers soins »', async () => {
+    const sheet = await openSheet('Soins')
+
+    const title = within(sheet).getByRole('heading', { name: 'Soins' })
+    expect(title).toHaveTextContent('🧴')
+    const form = within(sheet).getByRole('form', { name: 'Soin médical' })
+    expect(within(form).getByRole('button', { name: 'Yeux' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(form).getByRole('button', { name: 'Nez' })).toHaveAttribute('aria-pressed', 'false')
+    // Read the value then match it: toHaveValue does not take an asymmetric matcher.
+    expect(within(form).getByLabelText('Quand').value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    expect(await within(sheet).findByRole('heading', { name: 'Derniers soins' })).toBeInTheDocument()
+  })
+
+  it('« Soins » : ni température ni médicament dans la feuille', async () => {
+    const sheet = await openSheet('Soins')
+    await within(sheet).findByText('Aucun soin enregistré.')
+
+    expect(within(sheet).queryByRole('form', { name: 'Température' })).toBeNull()
+    expect(within(sheet).queryByRole('form', { name: 'Prise de médicament' })).toBeNull()
+    expect(api.listTemperatures).not.toHaveBeenCalled()
+    expect(api.listMedications).not.toHaveBeenCalled()
+  })
+
+  it('« Médical » : feuille « Médical » avec Température et Médicament, sans formulaire de soin', async () => {
+    const sheet = await openSheet('Médical')
+
+    expect(within(sheet).getByRole('heading', { name: 'Médical' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('form', { name: 'Température' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('form', { name: 'Prise de médicament' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('form', { name: 'Soin médical' })).toBeNull()
+    expect(api.listMedicalCares).not.toHaveBeenCalled()
+  })
+})
+
+describe('BabiesScreen — barre d’actions (Épic 18, US18.1)', () => {
   it('« Repas » ouvre la feuille « Repas » avec le sélecteur de mode, sans interroger les tétées', async () => {
     api.listBabies.mockResolvedValue([{ id: 'a', firstName: 'Léa', birthDate: '2026-01-15', sex: 'female' }])
     renderScreen()
