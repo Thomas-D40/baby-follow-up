@@ -4,8 +4,8 @@ import { apiGet, apiSend } from './client'
 // Not scoped to a baby: the list is shared by every user.
 
 // Substring search, insensitive to case and accents (done by the server). Returns
-// { items: [{ id, label }], exactMatch }: `exactMatch` says whether the text designates a dish
-// (shared or fixed) even when it is not among the capped items.
+// { items: [{ id, label }], exactMatch }: `exactMatch` says whether the text designates a shared
+// dish even when it is not among the capped items.
 export function searchDishes(q) {
   return apiGet(`/dishes?q=${encodeURIComponent(q)}`)
 }
@@ -15,7 +15,7 @@ export function listManageableDishes() {
   return apiGet('/dishes/manageable')
 }
 
-// Rename a dish. The server answers 409 when the new label already exists (Purée and Compote included).
+// Rename a dish. The server answers 409 when the new label already exists.
 export function renameDish(id, label) {
   return apiSend(`/dishes/${id}`, 'PATCH', { label })
 }

@@ -1,22 +1,28 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteDish, listManageableDishes, renameDish, searchDishes } from '../api'
-import { isFixedDish, normalizeDishLabel } from '../dish'
+import { normalizeDishLabel } from '../dish'
 
-// Suggestions for the dish being typed, plus whether the "add to my dishes" box may be offered. An
-// empty text makes no request. The previous answer is kept while the next one loads, so the box is
-// only offered once the search of the CURRENT text has arrived (D18-AG).
-export function useDishSearch(text) {
-  const trimmed = text.trim()
-  const { data, isSuccess, isPlaceholderData } = useQuery({
-    queryKey: ['dishes', 'search', normalizeDishLabel(text)],
-    queryFn: () => searchDishes(trimmed),
-    enabled: trimmed !== '',
+// Row of suggestions for the TYPED text (a touch does not move it, D23-D) and whether the "add to my
+// dishes" box may be offered for the text now in the field. An empty text makes no request. The row
+// keeps its previous answer while the next one loads; the box is only offered once the search of
+// the CURRENT text has arrived (D18-AG). Two texts of one normalized form share one request.
+export function useDishSearch(typedText, dishText) {
+  const typed = typedText.trim()
+  const field = dishText.trim()
+  const row = useQuery({
+    queryKey: ['dishes', 'search', normalizeDishLabel(typedText)],
+    queryFn: () => searchDishes(typed),
+    enabled: typed !== '',
     placeholderData: keepPreviousData,
   })
-  if (trimmed === '') return { suggestions: [], canAddToDishes: false }
+  const box = useQuery({
+    queryKey: ['dishes', 'search', normalizeDishLabel(dishText)],
+    queryFn: () => searchDishes(field),
+    enabled: field !== '',
+  })
   return {
-    suggestions: data?.items ?? [],
-    canAddToDishes: !isFixedDish(text) && isSuccess && !isPlaceholderData && data.exactMatch === false,
+    suggestions: typed === '' ? [] : (row.data?.items ?? []).map((item) => item.label),
+    canAddToDishes: field !== '' && box.isSuccess && box.data.exactMatch === false,
   }
 }
 

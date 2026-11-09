@@ -34,19 +34,15 @@ public class DishService {
         if (normalized.isEmpty()) {
             return new DishSearchResponse(List.of(), false);
         }
-        boolean exactMatch = DishLabels.isFixed(normalized)
-                || dishRepository.findByNormalizedLabel(normalized) != null;
+        boolean exactMatch = dishRepository.findByNormalizedLabel(normalized) != null;
         return new DishSearchResponse(dishMapper.toResponses(dishRepository.search(normalized, SEARCH_LIMIT)),
                 exactMatch);
     }
 
     // Called from the meal creation, in its transaction and after its validations: a refused meal
-    // adds nothing. Purée and Compote are never stored (D18-N).
+    // adds nothing.
     public void addIfAbsent(UUID authorId, String label) {
         String normalized = DishLabels.normalize(label);
-        if (DishLabels.isFixed(normalized)) {
-            return;
-        }
         dishRepository.insertIfAbsent(UUID.randomUUID(), label, normalized, authorId);
     }
 
@@ -67,7 +63,7 @@ public class DishService {
         Dish sameLabel = dishRepository.findByNormalizedLabel(normalized);
         // A variant of the dish's own label (case, accents, blanks) is a correction, not a clash.
         boolean clashesWithAnotherDish = sameLabel != null && !sameLabel.id.equals(dish.id);
-        if (DishLabels.isFixed(normalized) || clashesWithAnotherDish) {
+        if (clashesWithAnotherDish) {
             throw new ClientErrorException("Ce plat existe déjà.", Response.Status.CONFLICT);
         }
         dish.label = label;

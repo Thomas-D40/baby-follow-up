@@ -273,6 +273,8 @@ button { font-family: inherit; }
 .toggle-row--wrap { flex-wrap: wrap; }
 /* A zero flex-basis would never wrap: size the chips from their content instead. */
 .toggle-row--wrap .toggle-chip { flex: 1 1 auto; }
+/* Dish suggestions: a long label is cut on one line instead of wrapping (Épic 23). */
+.toggle-chip--dish { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field-label { font-size: 0.82rem; font-weight: 800; color: var(--text); }

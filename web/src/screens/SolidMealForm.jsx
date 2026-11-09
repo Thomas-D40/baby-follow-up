@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toLocalInputValue, toOccurredAtIso } from '../bottleFeeding'
-import { FIXED_DISHES, parseDishLabel } from '../dish'
+import { isSameDish, parseDishLabel } from '../dish'
 import { useDishSearch } from '../services/dishes'
 import { PORTIONS, PORTION_LABEL } from '../solidMeal'
 
@@ -13,11 +13,14 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
   const occurredAt = time ?? ownOccurredAt
   const setOccurredAt = onTimeChange ?? setOwnOccurredAt
   const [dish, setDish] = useState(() => initial?.dish ?? '')
+  // The text last typed on the keyboard drives the row of suggestions; a touch on a suggestion fills
+  // the field without moving it (D23-D). Nothing is typed when editing.
+  const [typedDish, setTypedDish] = useState('')
   const [portion, setPortion] = useState(() => initial?.portion ?? null)
   const [addChecked, setAddChecked] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const { suggestions, canAddToDishes } = useDishSearch(dish)
+  const { suggestions, canAddToDishes } = useDishSearch(typedDish, dish)
 
   // Pressing the pressed portion releases it: back to "unspecified" (D18-O).
   const togglePortion = (value) => setPortion((current) => (current === value ? null : value))
@@ -25,6 +28,14 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
   const changeDish = (value) => {
     setDish(value)
     setAddChecked(false)
+  }
+  const typeDish = (value) => {
+    setTypedDish(value)
+    changeDish(value)
+  }
+  // Touching the suggestion already in the field does nothing: only the keyboard empties it (D23-W).
+  const pickSuggestion = (label) => {
+    if (!isSameDish(label, dish)) changeDish(label)
   }
 
   async function handleSubmit(e) {
@@ -51,6 +62,7 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
       )
       if (!isEdit) {
         setDish('')
+        setTypedDish('')
         setPortion(null)
         setAddChecked(false)
       }
@@ -69,22 +81,29 @@ export default function SolidMealForm({ onSubmit, initial = null, time, onTimeCh
         <input
           type="text"
           value={dish}
-          onChange={(e) => changeDish(e.target.value)}
+          onChange={(e) => typeDish(e.target.value)}
+          placeholder="Ex. : purée de carottes, banane, pâtes"
           className="input"
         />
       </label>
-      <div className="toggle-row toggle-row--wrap" role="group" aria-label="Propositions de plats">
-        {FIXED_DISHES.map((label) => (
-          <button key={label} type="button" className="toggle-chip" onClick={() => changeDish(label)}>
-            {label}
-          </button>
-        ))}
-        {suggestions.map((s) => (
-          <button key={s.id} type="button" className="toggle-chip" onClick={() => changeDish(s.label)}>
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {suggestions.length > 0 && (
+        <div className="toggle-row toggle-row--wrap" role="group" aria-label="Propositions de plats">
+          {suggestions.map((label) => {
+            const pressed = isSameDish(label, dish)
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`toggle-chip toggle-chip--dish ${pressed ? 'toggle-chip--meal-on' : ''}`}
+                aria-pressed={pressed}
+                onClick={() => pickSuggestion(label)}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
       {!isEdit && canAddToDishes && (
         <div className="field">
           <label className="check-row">
