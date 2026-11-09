@@ -707,6 +707,29 @@ describe("Épic 24 — suppression de comptes et révocation d'invitations", () 
       expect(within(row).queryByRole('group')).not.toBeInTheDocument()
       expect(within(row).getByRole('alert')).toHaveTextContent("Ce compte vient d'être activé.")
     })
+
+    it('activé entre-temps puis « Supprimer » : confirmation neuve, aperçu relu, sans notice d’impact changé', async () => {
+      const jeanneActive = { ...JEANNE, status: 'active' }
+      listAccounts.mockResolvedValueOnce(ACCOUNTS).mockResolvedValue([jeanneActive, LISA, THOMAS])
+      getAccountDeletionImpact
+        .mockResolvedValueOnce(pendingImpact({ status: 'pending' }))
+        .mockResolvedValue(pendingImpact({ status: 'active' }))
+      deleteAccount.mockRejectedValue(serverError(409))
+      renderScreen()
+      const row = await rowOf('Jeanne')
+      await openRemoval(row, "Révoquer l'invitation")
+      await userEvent.click(await within(row).findByRole('button', { name: 'Oui, révoquer' }))
+      await waitFor(() => expect(within(row).getByText('Actif')).toBeInTheDocument())
+      const readsBeforeReopening = getAccountDeletionImpact.mock.calls.length
+
+      await openRemoval(row, 'Supprimer')
+
+      expect(await within(row).findByText('Supprimer le compte de Jeanne ? Action définitive.')).toBeInTheDocument()
+      expect(within(row).queryByRole('status')).not.toBeInTheDocument()
+      expect(within(row).queryByRole('alert')).not.toBeInTheDocument()
+      await waitFor(() => expect(getAccountDeletionImpact).toHaveBeenCalledTimes(readsBeforeReopening + 1))
+      await waitFor(() => expect(within(row).getByRole('button', { name: 'Oui, supprimer' })).toBeEnabled())
+    })
   
     it('« Annuler » referme sans appel de révocation', async () => {
       getAccountDeletionImpact.mockResolvedValue(pendingImpact())
