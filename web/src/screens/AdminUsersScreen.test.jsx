@@ -600,6 +600,26 @@ describe("Épic 24 — suppression de comptes et révocation d'invitations", () 
       expect(within(row).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
       expect(deleteAccount).not.toHaveBeenCalled()
     })
+
+    it('aperçu relu en erreur serveur après une lecture réussie : ni l’ancien texte ni « Oui, supprimer »', async () => {
+      getAccountDeletionImpact
+        .mockResolvedValueOnce(impactOf(NADIA, { sharedBabyCount: 1 }))
+        .mockRejectedValue(serverError(500))
+      renderScreen()
+      const row = await rowOf('Nadia')
+      await openRemoval(row, 'Supprimer')
+      const oldText = 'Supprimer le compte de Nadia ? Ce compte sera retiré de 1 bébé partagé. Action définitive.'
+      await within(row).findByText(oldText)
+      await userEvent.click(within(row).getByRole('button', { name: 'Annuler' }))
+
+      await openRemoval(row, 'Supprimer')
+
+      expect(await within(row).findByRole('alert')).toHaveTextContent('Échec de la suppression. Réessayez.')
+      expect(within(row).queryByText(oldText)).not.toBeInTheDocument()
+      expect(within(row).queryByRole('button', { name: 'Oui, supprimer' })).not.toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Annuler' })).toBeInTheDocument()
+      expect(deleteAccount).not.toHaveBeenCalled()
+    })
   })
   
   describe('AdminUsersScreen — suppression (US24.1) — l’admin ne peut pas se supprimer', () => {

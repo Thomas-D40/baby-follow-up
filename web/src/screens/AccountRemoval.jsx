@@ -35,7 +35,8 @@ export default function AccountRemoval({ account }) {
     )
   }
 
-  const view = mode !== null && impact ? describeAccountRemoval(mode, account, impact) : null
+  // A failed re-read keeps the previous preview in the cache: it must not be shown nor confirmed.
+  const view = mode !== null && impact && !isError ? describeAccountRemoval(mode, account, impact) : null
   // The account got activated since the list was loaded: the confirmation closes and the row says why.
   if (mode === null || view?.kind === 'activated') {
     return (
