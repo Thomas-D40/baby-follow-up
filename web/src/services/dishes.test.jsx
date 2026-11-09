@@ -12,8 +12,11 @@ vi.mock('../api', () => ({
 }))
 import { deleteDish, getDishSuggestions, listManageableDishes, renameDish } from '../api'
 
-function setup(initial) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+function newClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+}
+
+function setup(initial, qc = newClient()) {
   const wrapper = ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   return renderHook(
     ({ babyId, typed, dish }) => useDishSuggestions(babyId, typed, dish),
@@ -150,6 +153,26 @@ describe('useDishSuggestions — retrouver en tapant (US23.1, D23-N, D18-AG)', (
     resolveNext({ labels: [], exactMatch: false })
     await waitFor(() => expect(result.current.canAddToDishes).toBe(true))
     expect(result.current.suggestions).toEqual([])
+  })
+
+  it('réponse en cache invalidée (« Poire » partagé via la case, puis retapé) : pas de case pendant le rechargement', async () => {
+    const qc = newClient()
+    qc.setQueryData(['babies', 'b1', 'dish-suggestions', 'poire'], { labels: [], exactMatch: false })
+    await qc.invalidateQueries({ queryKey: ['babies', 'b1'] })
+    let resolveRefetch
+    getDishSuggestions.mockReturnValue(new Promise((r) => { resolveRefetch = r }))
+
+    const { result } = setup({ typed: 'Poire', dish: 'Poire' }, qc)
+
+    // The cached answer is stale: it must not offer the box while the fresh one loads…
+    expect(result.current.canAddToDishes).toBe(false)
+    await waitFor(() => expect(callsFor('Poire')).toHaveLength(1))
+    expect(result.current.canAddToDishes).toBe(false)
+
+    // …and the fresh answer decides: the dish now exists.
+    resolveRefetch({ labels: ['Poire'], exactMatch: true })
+    await waitFor(() => expect(result.current.suggestions).toEqual(['Poire']))
+    expect(result.current.canAddToDishes).toBe(false)
   })
 
   it('une saisie qui ne diffère que par casse, accents ou espaces réutilise la requête (même clé)', async () => {

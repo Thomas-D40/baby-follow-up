@@ -10,7 +10,8 @@ function suggestionsKey(babyId, text) {
 // Row of suggestions for the TYPED text (a touch does not move it, D23-D; an empty text gives the
 // recent dishes) and whether the "add to my dishes" box may be offered for the text now in the
 // field. The row keeps its previous answer while the next one loads; the box is only offered once
-// the answer for the CURRENT text has arrived (D18-AG). Two texts of one normalized form share one
+// the answer for the CURRENT text has arrived (D18-AG): a cached answer being refetched (e.g. after
+// an invalidation) may be stale, so it does not count. Two texts of one normalized form share one
 // request.
 export function useDishSuggestions(babyId, typedText, dishText) {
   const field = dishText.trim()
@@ -26,7 +27,7 @@ export function useDishSuggestions(babyId, typedText, dishText) {
   })
   return {
     suggestions: row.data?.labels ?? [],
-    canAddToDishes: field !== '' && box.isSuccess && box.data.exactMatch === false,
+    canAddToDishes: field !== '' && box.isSuccess && !box.isFetching && box.data.exactMatch === false,
   }
 }
 
